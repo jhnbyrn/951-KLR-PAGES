@@ -2,7 +2,7 @@
 
 ## Contents
 
-1. [Disassembled, annoted code](Stock1987_951KLR.asm)
+1. [Disassembled, annoted code](Annotated_Stock1987_951KLR.asm)
 
 2. [Outline of the code](outline_of_code.md)
 

@@ -1,8 +1,13 @@
+	;; reset
 0000 strt t
 0x01 jmp  $0077
+
+	;; ext int routine
 0x03 sel  rb0
 0x04 dis  i
 0x05 jmp  $030E
+
+	;; timer int routine
 0x07 sel  rb0
 0x08 mov  @r0,a
 0x09 mov  a,r7
@@ -78,6 +83,10 @@
 0x6f mov  r0,#$38
 0x71 mov  a,@r0
 0x72 retr
+	;; END of timer int routine
+	
+
+	;; Reset/Trigger routine
 0x73 anl  p2,#$47
 0x75 jmp  $007B
 0x77 jnt1 $0073
@@ -299,6 +308,9 @@
 0x1ab anl  p2,#$BF
 0x1ad orl  p2,#$80
 0x1af jmp  $01A9
+	;; END of trigger/reset routine
+
+	;; timing delay calculation
 0x1b1 sel  rb1
 0x1b2 mov  r1,#$73
 0x1b4 mov  a,@r1
@@ -317,6 +329,7 @@
 0x1c5 dec  r1
 0x1c6 mov  @r1,a
 0x1c7 jmp  $0200
+	;; END of timing delay calculation
 0x1c9 nop
 0x1ca nop
 0x1cb nop
@@ -372,6 +385,8 @@
 0x1fd nop
 0x1fe movp a,@a
 0x1ff ret
+
+	;; Blink code calculation
 0x200 mov  r1,#$33
 0x202 mov  a,@r1
 0x203 add  a,#$EE
@@ -470,6 +485,9 @@
 0x29e call $0500
 0x2a0 sel  mb0
 0x2a1 call $0336
+	;; END of blink code calculation
+
+	;; stack manipulation for housekeeping functions
 0x2a3 mov  r1,#$17
 0x2a5 mov  @r1,#$8
 0x2a7 dec  r1
@@ -558,6 +576,8 @@
 0x2fd nop
 0x2fe movp a,@a
 0x2ff ret
+
+	;; 8-bit multiply function, 16-bit result
 0x300 mov  r5,#$9
 0x302 clr  c
 0x303 clr  a
@@ -569,6 +589,9 @@
 0x30a add  a,r6
 0x30b djnz r5,$0304
 0x30d ret
+	;; END of 8-bit multiply function
+
+	;; main body of ext int routine
 0x30e mov  @r0,a
 0x30f mov  r0,#$25
 0x311 mov  a,@r0
@@ -587,10 +610,16 @@
 0x321 mov  r0,#$38
 0x323 mov  a,@r0
 0x324 retr
+	;; END ext int routine
+
+	;; initialize r4 with 22h
 0x325 mov  r1,#$22
 0x327 mov  a,@r1
 0x328 mov  r4,a
 0x329 ret
+	;; END initialize r4 with 22h
+
+	;; Count errors and set 33h blink code
 0x32a mov  a,#$3C
 0x32c xch  a,@r0
 0x32d jnc  $0331
@@ -600,6 +629,9 @@
 0x333 mov  a,r2
 0x334 mov  @r1,a
 0x335 ret
+	;; END count errors
+
+	;; diagnostic function (unused?)
 0x336 mov  r0,#$80
 0x338 mov  r2,#$8
 0x33a movx a,@r0
@@ -674,6 +706,7 @@
 0x39a mov  a,@r0
 0x39b mov  @r1,#$FE
 0x39d ret
+	;; END diagnostic function
 0x39e nop
 0x39f nop
 0x3a0 nop
@@ -770,6 +803,8 @@
 0x3fc add  a,r0
 0x3fd orl  a,@r1
 0x3fe movp a,@a
+
+	;; ADC routine function table (starts at 0x400)
 0x3ff jmp  $040E
 0x401 movd p4,a
 0x402 movd p4,a
@@ -779,9 +814,16 @@
 0x406 orld p4,a
 0x407 anl  bus,#$99
 0x409 orld p7,a
+	;; END function table
+	
 0x40a nop
+
+	;; ADC routine jump
 0x40b anl  a,#$7
 0x40d jmpp @a
+	;; END ADC routine jmp
+
+	;; ADC function #1 (address select)
 0x40e anl  p1,#$F7
 0x410 mov  a,@r0
 0x411 dec  a
@@ -796,6 +838,9 @@
 0x422 anl  p1,#$F5
 0x424 orl  p1,#$5
 0x426 ret
+	;; END ADC function #1
+
+	;; ADC function #3 (knock self-test)
 0x427 mov  r0,#$23
 0x429 mov  a,@r0
 0x42a mov  r4,a
@@ -810,6 +855,9 @@
 0x438 anl  a,#$7
 0x43a mov  @r0,a
 0x43b ret
+	;; END ADC function #3
+
+	;; ADC function #2 (knock self-test)
 0x43c add  a,#$7
 0x43e movp a,@a
 0x43f mov  r0,#$2F
@@ -820,6 +868,9 @@
 0x447 jnz  $044B
 0x449 anl  p1,#$7F
 0x44b ret
+	;; END ADC function #2
+
+	;; ADC function #4 (read ADC ch. 0 - 3)
 0x44c movx a,@r0
 0x44d orl  p1,#$8
 0x44f anl  p1,#$F4
@@ -864,6 +915,9 @@
 0x488 mov  r0,#$39
 0x48a mov  @r0,a
 0x48b ret
+	;; END ADC function #4
+
+	;; ADC function #5 (read ch. 5 knock sensor)
 0x48c movx a,@r0
 0x48d orl  p1,#$8
 0x48f anl  p1,#$F7
@@ -872,6 +926,9 @@
 0x495 cpl  a
 0x496 mov  @r0,a
 0x497 ret
+	;; END ADC function #5
+
+	;; ADC function #6
 0x498 mov  r0,#$52
 0x49a movx a,@r0
 0x49b add  a,#$A
@@ -893,6 +950,8 @@
 0x4b3 jb2  $04A8
 0x4b5 mov  r4,#$FF
 0x4b7 ret
+	;; END ADC function #6
+	
 0x4b8 nop
 0x4b9 nop
 0x4ba nop
@@ -1733,6 +1792,8 @@
 0x7fd nop
 0x7fe movp a,@a
 0x7ff ret
+
+	;; housekeeping function list
 0x800 call $020F
 0x802 call $028D
 0x804 call $0257
@@ -1745,6 +1806,7 @@
 0x80f nop
 0x810 call $0012
 0x812 jmp  $0012
+	;; END housekeeping function list
 0x814 nop
 0x815 nop
 0x816 nop
@@ -1981,6 +2043,7 @@
 0x8fd nop
 0x8fe movp a,@a
 0x8ff ret
+	;; read maps (rpm and PID gain)
 0x900 mov  r1,#$44
 0x902 mov  a,@r1
 0x903 rl   a
@@ -2009,6 +2072,9 @@
 0x921 mov  r1,#$6B
 0x923 mov  @r1,a
 0x924 ret
+	;; END read maps
+
+	;; RPM maps
 0x925 xch  a,r2
 0x926 .db   0x9b
 0x927 .db   0x9b
@@ -2101,6 +2167,9 @@
 0x98d jmp  $0004
 0x98f jmp  $0004
 0x991 nop
+	;; END rpm maps
+
+	;; PID gain 8x4 map (rpm/throttle)
 0x992 djnz r1,$09E9
 0x994 jnc  $09E6
 0x996 djnz r2,$09E7
@@ -2127,6 +2196,7 @@
 0x9af rrc  a
 0x9b0 movp a,@a
 0x9b1 movp3 a,@a
+	;; PID gain 8x4 map
 0x9b2 nop
 0x9b3 nop
 0x9b4 nop
@@ -2205,6 +2275,8 @@
 0x9fd nop
 0x9fe movp a,@a
 0x9ff ret
+
+	;; RPM axis map
 0xa00 .db   0x01
 0xa01 .db   0x01
 0xa02 outl bus,a
@@ -2217,6 +2289,9 @@
 0xa09 outl bus,a
 0xa0a add  a,#$3
 0xa0c add  a,#$4
+	;; END RPM axis map
+
+	;; read throttle angle calculation (not sure where exactly it begins)
 0xa0e jmp  $00B9
 0xa10 movd p4,a
 0xa11 mov  a,@r1
@@ -2269,6 +2344,9 @@
 0xa54 add  a,@r1
 0xa55 mov  @r1,a
 0xa56 ret
+	;; END throttle angle calculation
+
+	;; read rpm axis function
 0xa57 mov  r1,#$44
 0xa59 mov  r0,#$24
 0xa5b mov  r6,#$0
@@ -2302,6 +2380,9 @@
 0xa7f xch  a,r6
 0xa80 mov  @r1,a
 0xa81 ret
+	;; END read rpm axis function
+
+	;; read CV feedforward map
 0xa82 mov  r0,#$43
 0xa84 mov  r1,#$44
 0xa86 clr  f1
@@ -2309,6 +2390,9 @@
 0xa89 mov  r1,#$68
 0xa8b mov  @r1,a
 0xa8c ret
+	;; END read CV feedforward map
+
+	;; read target boost map
 0xa8d mov  r0,#$43
 0xa8f mov  r1,#$44
 0xa91 clr  f1
@@ -2321,6 +2405,9 @@
 0xa9a mov  r1,#$51
 0xa9c mov  @r1,a
 0xa9d ret
+	;; END read target boost map
+
+	;; calculate ADC angles 1 & 2
 0xa9e mov  r0,#$2A
 0xaa0 mov  r1,#$22
 0xaa2 call $0380
@@ -2331,6 +2418,8 @@
 0xaaa add  a,#$F8
 0xaac mov  @r1,a
 0xaad ret
+	;; END calculate ADC angles
+	
 0xaae nop
 0xaaf nop
 0xab0 nop
@@ -2413,6 +2502,8 @@
 0xafd nop
 0xafe movp a,@a
 0xaff ret
+
+	;; CV feedforward aka open-loop map (rpm/throttle)
 0xb00 jnt0 $0B26
 0xb02 jnt0 $0B26
 0xb04 jnt0 $0B26
@@ -2510,6 +2601,9 @@
 0xb7a jf0  $0BBF
 0xb7c mov  r7,#$BF
 0xb7e mov  r7,#$BF
+	;; END CV feedforward map
+
+	;; multiply @r0 by RPM value
 0xb80 mov  a,@r0
 0xb81 mov  r3,a
 0xb82 mov  r0,#$24
@@ -2520,6 +2614,8 @@
 0xb89 sel  mb1
 0xb8a ret
 0xb8b jmp  $04FE
+	;; END multiply @r0 by RPM
+	
 0xb8d nop
 0xb8e nop
 0xb8f nop
@@ -2634,6 +2730,8 @@
 0xbfc jf1  $0B8B
 0xbfe movp a,@a
 0xbff ret
+
+	;; target boost map (rpm/throttle)
 0xc00 anl  bus,#$98
 0xc02 anl  bus,#$96
 0xc04 jnz  $0C96
@@ -2732,6 +2830,9 @@
 0xc7d call $0598
 0xc7f movx @r1,a
 0xc80 mov  a,@r1
+	;; END target boost map
+
+	;; read boost/cv feedforward map
 0xc81 rrc  a
 0xc82 rrc  a
 0xc83 anl  a,#$F
@@ -2797,6 +2898,8 @@
 0xcd2 xchd a,@r0
 0xcd3 swap a
 0xcd4 ret
+	;; END read boost/cv feedforward map
+	
 0xcd5 nop
 0xcd6 nop
 0xcd7 nop
@@ -2840,6 +2943,8 @@
 0xcfd nop
 0xcfe movp a,@a
 0xcff ret
+
+	;; Detect knock
 0xd00 mov  r0,#$7A
 0xd02 mov  r1,#$45
 0xd04 mov  a,@r1
@@ -2989,6 +3094,9 @@
 0xdda clr  f0
 0xddb cpl  f0
 0xddc jmp  $0600
+	;; END detect knock
+
+	;; filter target boost
 0xdde mov  a,@r0
 0xddf anl  a,#$3
 0xde1 add  a,#$1
@@ -3007,6 +3115,8 @@
 0xdf5 xch  a,r3
 0xdf6 mov  @r0,a
 0xdf7 ret
+	;; END filter target boost
+	
 0xdf8 nop
 0xdf9 nop
 0xdfa nop
@@ -3015,11 +3125,16 @@
 0xdfd nop
 0xdfe movp a,@a
 0xdff ret
+
+	;; select PID function
 0xe00 jb4  $0E82
 0xe02 jb3  $0E30
 0xe04 nop
 0xe05 nop
 0xe06 jmp  $05DE
+	;; END select PID function
+
+	;; exponential smoothing function
 0xe08 mov  a,r7
 0xe09 mov  r4,a
 0xe0a mov  a,@r0
@@ -3055,6 +3170,9 @@
 0xe2d mov  a,r4
 0xe2e addc a,r2
 0xe2f ret
+	;; END exponential smoothing function
+
+	;; PID derivative function
 0xe30 mov  r1,#$52
 0xe32 mov  a,@r1
 0xe33 cpl  a
@@ -3113,6 +3231,9 @@
 0xe7c jmp  $05F1
 0xe7e mov  a,#$7F
 0xe80 jmp  $0673
+	;; END PID derivative function
+
+	;; PID proportional/integral function
 0xe82 jb3  $0EF6
 0xe84 mov  r1,#$52
 0xe86 mov  a,@r1
@@ -3198,6 +3319,8 @@
 0xef3 mov  @r0,#$7F
 0xef5 ret
 0xef6 jmp  $0700
+	;; END PID proportional/integral function
+	
 0xef8 nop
 0xef9 nop
 0xefa nop
@@ -3206,6 +3329,8 @@
 0xefd nop
 0xefe movp a,@a
 0xeff ret
+
+	;; final CV output calculation
 0xf00 mov  r1,#$63
 0xf02 mov  a,@r1
 0xf03 mov  r6,a
@@ -3294,6 +3419,9 @@
 0xf7c mov  @r1,#$11
 0xf7e djnz r4,$0F6F
 0xf80 ret
+	;; END cv final output calculation
+
+	;; limp mode function
 0xf81 clr  a
 0xf82 mov  r3,#$10
 0xf84 mov  r1,#$57
@@ -3309,6 +3437,9 @@
 0xf94 mov  @r1,a
 0xf95 clr  a
 0xf96 jmp  $076A
+	;; END limp mode function
+
+	;; count cycles for cylinders
 0xf98 inc  @r1
 0xf99 mov  a,@r1
 0xf9a jnz  $0FA1
@@ -3323,6 +3454,9 @@
 0xfa5 jz   $0FA8
 0xfa7 dec  a
 0xfa8 ret
+	;; end count cycles
+
+	;; call exp. smoothing and rotate 16-bit values
 0xfa9 call $0608
 0xfab call $07B0
 0xfad call $07B0
@@ -3360,12 +3494,17 @@
 0xfd1 mov  r3,a
 0xfd2 djnz r7,$0FCB
 0xfd4 ret
+	;; end call exp. smoothing/rotate values
+
+	;; prep CV output
 0xfd5 mov  r0,#$41
 0xfd7 mov  a,r4
 0xfd8 add  a,#$40
 0xfda jnc  $0FDE
 0xfdc mov  r4,#$BF
 0xfde ret
+	;; end prep CV output
+	
 0xfdf nop
 0xfe0 nop
 0xfe1 nop

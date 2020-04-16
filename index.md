@@ -7,7 +7,7 @@ This is the documentation of a little hobby project of mine: to figure out every
 
 The role of the KLR in the 951's engine management is very thorougly explained in the [Technik](reference/TECHNIK491321.pdf) document. That document is a good starting point if you landed here wondering what this is all about. 
 
-The details of the hardware and software have always been a bit of a mystery, though. The DME has been reverse-engineered by various people, and aftermarket re-writes have been on sale for years with lots of improvements over the original. The workings of the original code have been made public too as part of [this]() project. But to my knowledge, no one has ever done the same for the KLR, until now. 
+The details of the hardware and software have always been a bit of a mystery, though. The DME has been reverse-engineered by various people, and aftermarket re-writes have been on sale for years with lots of improvements over the original. The workings of the original code have been made public too as part of [this](https://sourceforge.net/projects/opendme/) project. But to my knowledge, no one has ever done the same for the KLR, until now. 
 
 ### What's a KLR?
 Briefly, the KLR is a secondary engine management computer found in the Porsche 944 Turbo. It works alongside the main computer (known as the DME) and provides 2 main functions:

@@ -78,7 +78,7 @@ This diagram is only intended to show the general outline of things; most of the
 
 ## Navigating This Site
 
-I've broken my work down into 2 sections: a walkthrough of most of the key features, with code snippets (currently still work-in-progress), and a reference section with fairly raw information. You could just dive into the disassembled code in the reference section - it's annoted with brief function descriptions, and you can use the pin assignments page for reference. But I'm assuming that most people reading this will benefit from a more gentle introduction, and that's what the walkthrough is for. It's written to be read in the order presented below - the code can be pretty complicated in parts, even for simple features, and I need to assume that you have the basics down by the time you start looking at more advanced things like knock detection. 
+I've broken my work down into 2 sections: a walkthrough of most of the key features, with code snippets (currently still work-in-progress), and a reference section with fairly raw information. You could just dive into the disassembled code in the reference section - it's annotated with brief function descriptions, and you can use the pin assignments page for reference. But I'm assuming that most people reading this will benefit from a more gentle introduction, and that's what the walkthrough is for. It's written to be read in the order presented below - the code can be pretty complicated in parts, even for simple features, and I need to assume that you have the basics down by the time you start looking at more advanced things like knock detection. 
 
 
 ## Features
@@ -103,7 +103,7 @@ I've broken my work down into 2 sections: a walkthrough of most of the key featu
 
 * [Pin Assignments](pin_assignments.md)
 
-* [Disassembled, annoted code](Annotated_Stock1987_951KLR.asm)
+* [Disassembled, annotated code](Annotated_Stock1987_951KLR.asm)
 
 * [Outline of the code](outline_of_code.md)
 

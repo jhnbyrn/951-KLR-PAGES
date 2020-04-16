@@ -87,7 +87,7 @@ I've broken my work down into 2 sections: a walkthrough of most of the key featu
 
 * [How the KLR Measures Engine Speed](speed_measurement.md) *Understanding how engine speed is measured is essential if you want to understand how the signals are generated. It's also a soft introdudction to reading the 8048 assembly code.*
 
-* [How the Ignition Signal is Generated]() *This section gets into the code in detail and explains exactly how the KLR generates the iginition output signal*
+* [How the Ignition Signal is Generated](ignition_signal.md) *This section gets into the code in detail and explains exactly how the KLR generates the iginition output signal*
 
 * [Cycling Valve PWM Generation]() *TBD*
 

@@ -124,7 +124,7 @@ The way that timing delays are represented is with two counters: a *coarse* coun
 
 Recall from the Technik documentation that timing is always delayed by either 3 or 6 degrees, and is restored in increments of 0.3 degrees. There are some calulations that have to be done with the current engine speed in order to figure out how many timer interupts and fine counter ticks will make up the required *angle*. We'll see how that's done later, but for now, let's assume that they have their appropriate values. (We didn't see where __26h__ was initialized for this cycle. For some reason, it's not done in the external interrupt routine along with __r2__; it's done in the trigger routine.)
 
-It might seem odd that the dwell period is delayed using only the coarse counter, but the firing is delayed using both. I can only presume that the purpose of delaying dwell is just to avoid charging the coiil for any longer than necessary; it's not extremely time-sensitive. So it just wasn't worth the hassle of using both coarse and fine counters on the dwell period. 
+It might seem odd that the dwell period is delayed using only the coarse counter, but the firing is delayed using both. I can only presume that the purpose of delaying dwell is just to avoid charging the coil for any longer than necessary; it's not extremely time-sensitive. So it just wasn't worth the hassle of using both coarse and fine counters on the dwell period. 
 
 So either immediately (when there's no knocking), or after a small number of timer interrupts, we'll get past this instruction:
 

@@ -1,6 +1,6 @@
 # KLR Signal Timing
 
-![alt text](https://github.com/jhnbyrn/951_dme_klr/blob/master/images/timing_signals_1.png) *KLR trigger and ignition signals*
+![alt text](images/timing_signals_1.png) *KLR trigger and ignition signals*
 
 This scope trace shows the 3 most important signals as far as the KLR is concerned; without these 3 signals, the car cannot run. They are:
 

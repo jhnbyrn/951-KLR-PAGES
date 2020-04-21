@@ -91,7 +91,7 @@ I've broken my work down into 2 sections: a walkthrough of most of the key featu
 
 * [RPM Map Axis](rpm_axis.md) *In this section we'll see how the raw engine speed we measured in the timer routine is turned into an rpm range value that can be used as the rpm axis for looking up map values*
 
-* [RPM Constants](rpm_constands.md) *Here we'll look at a large number of small single-axis maps (rpm only) that store lots of important constants*
+* [RPM Constants](rpm_constants.md) *Here we'll look at a large number of small single-axis maps (rpm only) that store lots of important constants*
 
 * [Cycling Valve PWM Generation]() *TBD*
 

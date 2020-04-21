@@ -89,6 +89,10 @@ I've broken my work down into 2 sections: a walkthrough of most of the key featu
 
 * [How the Ignition Signal is Generated](ignition_signal.md) *This section gets into the code in detail and explains exactly how the KLR generates the iginition output signal*
 
+* [RPM Map Axis](rpm_axis.md) *In this section we'll see how the raw engine speed we measured in the timer routine is turned into an rpm range value that can be used as the rpm axis for looking up map values*
+
+* [RPM Constants](rpm_constands.md) *Here we'll look at a large number of small single-axis maps (rpm only) that store lots of important constants*
+
 * [Cycling Valve PWM Generation]() *TBD*
 
 * [Blink Codes]() *TBD*
@@ -107,7 +111,7 @@ I've broken my work down into 2 sections: a walkthrough of most of the key featu
 
 * [Outline of the code](outline_of_code.md)
 
-* [Reading MCS48 series assembly code]() *TBD*
+* [Reading MCS48 Series Assembly Code](reading_code.md) *Some notes on how to read assembly code for the Intel 8048, aka MCS48 microcontrollers. This should make the rest of the site easier to understand.*
 
 ## Other Reference Material (Archived)
 

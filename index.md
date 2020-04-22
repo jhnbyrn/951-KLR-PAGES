@@ -122,4 +122,4 @@ In the reference section I've provided a few notes on how to read 8048 series co
 * [85 944 Turbo TECHNIK](reference/TECHNIK491321.pdf)
 * [DME/KLR Test Plan](reference/DME_KLR_Test_Plan.pdf)
 * [MCS48 User's Manual](reference/mcs48.pdf)
-* [MCS48 Assembly Language Manual](9800255D_MCS-48_and_UPI-41_Assembly_Language_Reference_Manual_Dec78.pdf)
+* [MCS48 Assembly Language Manual](reference/9800255D_MCS-48_and_UPI-41_Assembly_Language_Reference_Manual_Dec78.pdf)

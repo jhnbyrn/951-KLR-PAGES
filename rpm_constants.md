@@ -11,7 +11,7 @@ This is a fairly short routine, but there's one very interesting thing about it 
  
 It's worth looking at the structure of the maps first before we dive into the code - that should make it much easier to understand what's going on. 
 
-What we have is a series of one-axis maps - twleve of them. Each one has 9 entries. The first entry is the RAM location that will be used to store the value we look up from that map. The remaining 8 values are the actual map values for the 8 possible rpm ranges. These maps begin at 0x925. Here's the first map and a little bit of the second one, just to illustrate the structure we're dealing with (I've shown the RAM locations as hex and the map values as decimal to highlight the difference in their purpose):
+What we have is a series of one-axis maps - twelve of them. Each one has 9 entries. The first entry is the RAM location that will be used to store the value we look up from that map. The remaining 8 values are the actual map values for the 8 possible rpm ranges. These maps begin at 0x925. Here's the first map and a little bit of the second one, just to illustrate the structure we're dealing with (I've shown the RAM locations as hex and the map values as decimal to highlight the difference in their purpose):
 
 Location| Value
 --------|------
@@ -29,7 +29,7 @@ Location| Value
 0x930| 49
 ...| ...
 
-So, reading the first map will result in loading one of the values from 0x926 to 0x92d being loaded into location 0x2A, and so on. Next we'll look at the code that achieves this. 
+So, reading the first map will result in one of the values from 0x926 to 0x92d being loaded into location 0x2A, and so on. Next we'll look at the code that achieves this. 
 
 ## The code
 The routine begins at 0x900. I'm going to lean heavily on the notes I wrote in the [reading the code](reading_code.md) section here. If you aren't familiar with the stuff covered in there (especially around the __movp__ instruction and special registers __r0__ and __r1__) then you'll want to brush up on that first. 
@@ -57,7 +57,7 @@ The following sections are where all the action happens:
 0x90f mov  r1,a
 ```
 
-We load 0x25h into __r2__ and then load the value from the resulting program memory location into the accumulator. So __r2__ is the offset for the start of each map (relative to the start of the page, which is 0x900). __r5__ will be the offset into the map itself, from which we'll get the actual value. 
+We load 0x25h into __r2__ and then load the value from the resulting program memory location into the accumulator. So __r2__ is the offset for the start of each map (relative to the start of the page, which is 0x900). This is a rare case - maybe the only example - where we have a map that doesn't start at the beginning of the page.  __r5__ will be the offset into the map itself, from which we'll get the actual value. 
 
 If the value was zero, we jump to the end; otherwise, we continue here. But note what we're doing with the value we just looked up - it goes into __r1__. This is one of the registers used for indirect RAM addressing, which should indicate to you that this value is not a variable, but a RAM address, as we discussed. 
 
@@ -75,16 +75,16 @@ This RAM location that we just stored in __r1__ will be the location that holds 
 
 Here we add 9 to the __r2__ map offset, but exchange the current value into the accumulator at the same time. So __r2__ now has the offset for the beginning of the next map, and the accumulator has the offset of the beginning of the current map. 
 
-Next we add the actual map offset __r5__ to __r2__ and look up the value using __movp__. We store that value into the location pointed to be __r1__, which you will recall was the first value we looked up using __r2__ - that's some pretty cool programming!
+Next we add the actual map offset __r5__ to __r2__ and look up the value using __movp__. We store that value into the location pointed to by __r1__, which you will recall was the first value we looked up using __r2__ - that's some pretty cool programming!
 
-Don't be caught out by the last line, which looks like it jumps to somewhere completely different. That's a bank 1 address, so it's really 0x90B, which is what causes this code to loop until we look up a zero into __r2__. There's a zero stored at the end of the maps for exactly this purpose. If this jump confuses you, you need to read the [notes](reading_code.md).
+Don't be caught out by the last line, which looks like it jumps to somewhere completely different. That's a bank 1 address, so it's really 0x90B, which is what causes this code to loop until we look up a zero into __r2__. There's a zero stored at the end of the maps for exactly this purpose. If this jump confuses you, you need to read the section on *memory banks* in the [notes](reading_code.md).
 
-That's actually the end of the rpm constants lookup code. The next part of the routine is for looking up another map, which has a must more complicated use, and so we'll have to leave that until another section (it's the rpm/throttle map for PID gain values, if you're interested!). 
+That's actually the end of the rpm constants lookup code. The next part of the routine is for reading another map, which has a much more complicated use, and so we'll have to leave that until another section (it's the rpm/throttle map for PID gain values, if you're interested!). 
 
 
 ## What Did We Just Do?
 
-So now that we've just used the current rpm value to look up no fewer than 12 separate map values, what are they all for? Well, you'll see them used throughout the code, and I'll try to make sure that I mention where they come from. But for now, here's the complete list of which locations we just filled, and what the general purpose of each value is. I'm not showing the actual values here, because there's quite a lot of them - maybe I'll add that later. Just remember each one of these is looked up by rpm only:
+So now that we've just used the current rpm range to look up no fewer than 12 separate map values, what are they all for? Well, you'll see them used throughout the code, and I'll try to make sure that I mention where they come from. But for now, here's the complete list of which locations we just filled, and what the general purpose of each value is. I'm not showing the actual values here, because there's quite a lot of them - maybe I'll add that later. Just remember each one of these is looked up by rpm only:
 
 Location | Purpose
 ---------|---------

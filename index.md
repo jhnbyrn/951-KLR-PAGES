@@ -78,7 +78,11 @@ This diagram is only intended to show the general outline of things; most of the
 
 ## Navigating This Site
 
-I've broken my work down into 2 sections: a walkthrough of most of the key features, with code snippets (currently still work-in-progress), and a reference section with fairly raw information. You could just dive into the disassembled code in the reference section - it's annotated with brief function descriptions, and you can use the pin assignments page for reference. But I'm assuming that most people reading this will benefit from a more gentle introduction, and that's what the walkthrough is for. It's written to be read in the order presented below - the code can be pretty complicated in parts, even for simple features, and I need to assume that you have the basics down by the time you start looking at more advanced things like knock detection. 
+I've broken my work down into 2 sections: a walkthrough of most of the key features, with code snippets (currently still work-in-progress), and a reference section with fairly raw information. You could just dive into the disassembled code in the reference section - it's annotated with brief function descriptions, and you can use the pin assignments page for reference. But I'm assuming that most people reading this will benefit from a more gentle introduction, and that's what the walkthrough is for. 
+
+It's written to be read in the order presented below - the code can be pretty complicated in parts, even for simple features, and I need to assume that you have the basics down by the time you start looking at more advanced things like knock detection. 
+
+In the reference section I've provided a few notes on how to read 8048 series code. Most of this information can be found in the official pdfs in the archive section below, but they're pretty long so I wanted to put some of the most important stuff into a more accessible document. If you find anything in the code tough going, it's worth taking a look at my notes. 
 
 
 ## Features
@@ -117,3 +121,5 @@ I've broken my work down into 2 sections: a walkthrough of most of the key featu
 
 * [85 944 Turbo TECHNIK](reference/TECHNIK491321.pdf)
 * [DME/KLR Test Plan](reference/DME_KLR_Test_Plan.pdf)
+* [MCS48 User's Manual](reference/mcs48.pdf)
+* [MCS48 Assembly Language Manual](9800255D_MCS-48_and_UPI-41_Assembly_Language_Reference_Manual_Dec78.pdf)

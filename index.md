@@ -101,7 +101,9 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [Blink Codes]() *TBD*
 
-* [Knock Detection]() *TBD*
+* [Knock Detection (hardware)](knock_hardware.md) *This section explains the signal conditioning for the knock sensor, and demonstrates how the self-test works*
+
+* [Knock Detection (software)]() *TBD*
 
 * [ADC Reading]() *TBD*
 

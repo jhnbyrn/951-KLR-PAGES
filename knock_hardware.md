@@ -55,7 +55,7 @@ Now let's backtrack to the second amplifier stage again - we see that its output
 
 This is a very important stage - it's is how actual knocking (detonation) is distinguished from everything else!
 
-A few words about the actual frequency range of the filter: engine knock is generally around the 5 - 7Khz range. there's a [popular formula](https://www.haltech.com/knock-control/) among tuners on the internet for calculating the frequency of the knock signal for an engine based on it's cylinder bore:
+A few words about the actual frequency range of the filter: engine knock is generally around the 5 - 7Khz range. There's a [popular formula](https://www.haltech.com/knock-control/) among tuners on the internet for calculating the frequency of the knock signal for an engine based on it's cylinder bore:
 
 > Knock Frequency = 900,000/(π×0.5 × cylinder bore diameter )
 
@@ -80,17 +80,17 @@ The reason for this reset feature in the integrator is that engine knock occurs 
 
 After the appropriate angle, the 8048 reads the volage level from the integrator via the ADC, and later uses it to determine if that cylinder is knocking. As with the other section of the amplifier, this final output is inverted with respect to the original signal, so a lower voltage indicates more noise (in the specific bandpass range of 5.5 - 8 Khz)
 
-Even after this voltage is read by the 8048, that is by no means the end of the story for knock detection. The software part is actually quite sophisticated too, using individual adaptive thresholds for each cylinder. But we'll get into all that in the code section. 
+Even after this voltage is read by the 8048, that is by no means the end of the story for knock detection. The software part is actually quite sophisticated too, using individual adaptive thresholds for each cylinder. But at the risk of repeating myself, I'll have to leave that for another section!
 
 ## Self Test
 
 In the schematic, you can see an input to the knock sensor amplifier coming from the 8048. I mentioned that that was for a "self-test" - now we'll look into what that's all about. 
 
-I have to admit that this baffled me when I first saw it in the circuit, but after very careful reading of the code, it evneutally became clear that this is for a special self-test that the KLR performs at regular intervals. I haven't figured out exactly how often the test is run; it varies, and I'm still working on the logic of that. 
+I have to admit that this baffled me when I first saw it in the circuit, but after very careful reading of the code, it eventually became clear that this is for a special self-test that the KLR performs at regular intervals. I haven't figured out exactly how often the test is run; it varies, and I'm still working on the logic of that. 
 
 Here's how it works: every now and then the 8048 injects a 5.7Khz signal into the knock sensor amplifier input, and then it expects to detect this as knock. If it fails to detect knock after injecting the fake signal, it keeps count of this fact, and after 6 consecutive failed attempts, it throws blink code 2-3 ("Faulty unit; replace"). 
 
-I'd never heard of anything like this before, so I thought it would be cool to hook up an oscillscope and see if I could catch it in the act!
+I had never heard of anything like this before, so I thought it would be cool to hook up an oscillscope and see if I could catch it in the act!
 
 Take a look:
 
@@ -100,15 +100,15 @@ Here's a breakdown of what's happening in this scope capture:
 
 * the blue trace is the trigger signal, just for reference (see the [signal timing](klr_signal_timing.md) section for more information if you're not sure what the trigger signal is.) 
 
-* the red trace is the noise level output (the lower section of the knock sensor amplifier output discussed above)
+* the red trace is the noise level output (the lower section of the knock sensor amplifier, output discussed above)
 
 * the green trace is port 1 bit 7 (pin 34) of the 8048. 
 
 * the tan trace is the output of the integrator, as discussed earlier
 
-Now, if you look carefully at the tan coloured trace, you'll see that it ramps downwards on every ignition cycle, but doesn't get very far before being reset when the trigger pulse occurs. So that's the *normal* amount of knock-frequency noise from each cylinder, when there's no knock (remember, the integrator is an inverting amplifier, so it ramps downwards). 
+Now, if you look carefully at the tan coloured trace, you'll see that it ramps downwards on every ignition cycle, but doesn't get very far before being reset when the trigger pulse occurs (remember those transistors?). So that's the *normal* amount of knock-frequency noise from each cylinder, when there's no knock (remember, our integrator is an inverting amplifier, so it ramps downwards). 
 
-The action begins when the green trace starts pulsing. This is done by the code in the 8048 (which we'll look at eventually in another section). For now, just remember that this pin on the 8048 is coupled to the input of the OTA - the same place the knock sensor signal goes to. And sure enough, we see the system responding - the integrator's output suddenly spikes much lower than normal - this will be detected as knock, proving that all is well with the circuitry. 
+The action begins when the green trace starts pulsing. This is done by the code in the 8048 (which we'll look at eventually in another section. I know, I know...). For now, just remember that this pin on the 8048 is coupled to the input of the OTA - the same place the knock sensor signal goes to. And sure enough, we see the system responding - the integrator's output suddenly spikes much lower than normal - this will be detected as knock, proving that all is well with the circuitry. 
 
 (Note also that the noise level indication (red trace) goes significantly lower in reponse to this induced knock signal. That's not used for detecting knock, but the noise level does affect the way the self test works. When the noise level is *low*, the 8048 generates fewer pulses for the self-test. I haven't figured out exactly why yet; it's by design, but it's a little strange.)
 

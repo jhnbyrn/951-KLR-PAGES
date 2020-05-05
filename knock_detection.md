@@ -1,5 +1,24 @@
 # Knock Detection Software
 
+## Contents
+1. [Introduction](#introduction)
+
+2. [Overview](#overview)
+
+3. [A Note on Timing](#a-note-on-timing)
+
+4. [The Knock Routine in Pseudo Code](#the-knock-routine-in-pseudo-code)
+
+5. [The Code](#the-code)
+
+6. Appendix: [Tracking Individual Cylinders](#appendix-tracking-individual-cylinders)
+
+7. Appendix: [Knock Threshold Scaling by RPM](#appendix-knock-threshold-scaling-by-rpm)
+
+8. Appendix: [Restoring Timing and Boost](#appendix-restoring-timing-and-boost)
+
+## Introduction
+
 In this section we'll examine the knock detection routine from the KLR code in detail. Before reading this section, you should have a pretty good idea of what knock is, and how it's mitigated by reducing spark advance (aka "timing"), and ideally you should be reasonably familiar with the KLR's [knock sensor hardware](knock_hardware.md). 
 
 If you're not already familiar with this stuff, I high recommend reading [Engine Basics: Detonation and Pre-Ignition](http://944enhancement.com/html/knock_ping.html) by Allen W. Cline. 
@@ -452,7 +471,7 @@ The __add__ at 0xDD2 will carry if 57h is less than 77; in that case, we skip to
 
 Finally, after capping 57h, we load 6Bh into r0, r4 into a and set the f0 flag; these are all preparation for the next routine, which relates to boost control. But we'll have to leave that for another time. 
 
-## Appendix: Tracking Individual Cylinders:
+## Appendix: Tracking Individual Cylinders
 
 Now I mentioned a earlier that timing delay and threshold values are *rotated* to keep track of each cylinder individually. Now we'll get into that in detail. 
 

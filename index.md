@@ -38,7 +38,7 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 ## Hardware
 
-* [Overview](hardware_overview.md) *A high-level overview of the KLR hardware*
+* [Overview](hardware_overview.md) *A high-level overview of the KLR hardware.*
 
 * [Knock Detection (hardware)](knock_hardware.md) *This section explains the signal conditioning for the knock sensor, and demonstrates how the self-test works*
 

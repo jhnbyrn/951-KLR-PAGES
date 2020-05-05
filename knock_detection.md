@@ -564,19 +564,39 @@ Decimal|Binary (upper half)
 The first one has a 1 in the *1's* place and nothing else, so that will be multiplication by 1. The second one has a 1 in the *1's* place, and a 1 in the *1/4's* place, so that'll be multiplication by 1.25, and so on. 
 
 
-## Appendix: Restoring Timing
+## Appendix: Restoring Timing and Boost
 
-TBD...
+This is a pretty simple routine that's used for restoring both timing and boost. Really what it does is it decrements the specified RAM location when a counter rolls over.
+
+What makes it interesting is that it can be made to do this a *number of times in a row*. So when timing is being restored, it gets restored by approximiately 0.3 degrees *on all cylinders*. 
+
+To see how this works, take a look at how this routine is called from the top of the knock routine, at 0xD32. For that call, r1 is set to 49h, r0 is 73h and r3 is 4. 
+
+This means that 49h is the counter, 73h is the value to be decremented, and 4 is the number of consecutive ignition cycles in which to do the decrement. 
+
+First, we increment the counter, and check if we need to reset it or not:
 
 ```asm
 0xf98 inc  @r1
 0xf99 mov  a,@r1
 0xf9a jnz  $0FA1
+```
+
+If the counter is now zero, we reset it using the complement of the value in __counter location+1__, (which would be 50h in this example). 
+
+```asm
 0xf9c inc  r1
 0xf9d mov  a,@r1
 0xf9e cpl  a
 0xf9f dec  r1
 0xfa0 mov  @r1,a
+```
+
+Next we add the value from r3 to the current counter value, and check if that add carries. Now, since r3 contains the value 4 in our example, this add will carry when the counter is 252, 253, 254 *and* 255. So, it'll carry for each of 4 consecutive calls to this routine. Each time, location 73h will have a different value - one for each cylinder. 
+
+Each time the add carries, we decrement the value from r0 (only if it's not already zero) and return that decremented value in the acculmulator. Note, we don't store this value back into r0; it's up to the caller to decide if they want to do that:
+
+```asm
 0xfa1 add  a,r3
 0xfa2 mov  a,@r0
 0xfa3 jnc  $0FA8
@@ -584,4 +604,6 @@ TBD...
 0xfa7 dec  a
 0xfa8 ret
 ```
+
+Now consider what happens when this routine is called from later in the knock routine, at 0xDA2. In that instance, r1 is set to 4F (the counter), r0 is set to 57h (the boost reduction value) and r3 is set to 1. So the carry flag will only be set by the add *once* instead of 4 times, and so we'll only decrement *on that one call*. This makes sense, because we don't have 4 separate boost reduction variables like we do for timing; we only have one, in 57h. 
 

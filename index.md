@@ -27,65 +27,23 @@ To understand this info on this site, you'll need a combination of basic microco
 I haven't completely reverse engineered the hardware - for me, it's really all about the code, the *logic*. But you can't understand the code without knowing what the various intput and output pins are hooked up to, so a certain amount of hardware analysis is unavoidable. The only non-trivial part of the hardware is the knock sensor amplifier, which I'll explain in detail. A knowledge of basic, hobbyist-level electronics is all you'll need (that's all I have anyway). 
 
 
-## Hardware
-
-Here's a pair of images showing the 2 circuit boards of the KLR. It might look like a lot but when you break it down there's not that many components here. At the bottom of the first pic you can see the pins of the 25-way connector - that's where the KLR connects to the engine harness. 
-
-![](images/klr_board_1.jpg)
-
-On the right, the big black box with the tube connected to is the pressure sensor, or *MAP* (manifold absolute pressure) sensor - this is how the KLR knows the current boost pressure. 
-
-There are only 2 ICs of interest on this board: the 14-pin device is an LM2902M quad op amp, and the smaller 8-pin is a CA3080 OTA - operational *transconductance* amplifier (used by the knock sensor). This OTA is no longer made but there's a little info available on it on the internet. 
-
-![](images/klr_board_2.jpg)
-
-On the second board, from the top left, going right and down,  we have
-
-* the Intel 8048 series microcontroller (the brains of the operation), clocked by an 11Mhz crystal
-
-* the removeable EEPROM with the program and maps
-
-* next there's a couple of address bus latches that we don't need to worry much about (marked "8836"). 
-
-* halfway down on the left we have the 28-pin ADC0809 (an analog-to-digital converter)
-
-* to the right of the ADC is a CD40106 hex Schmitt trigger
-
-* below the ADC is another LM2902M quad op amp, identical to the one from the first board. 
-
-That covers it for integrated circuits! There's a handful of transistors - most of them used for fairly obvious things - and after that, it's pretty much all passive components. 
-
-We'll get into how the various op amps, the OTA, and the ADC are used in great detail later. We won't worry too much about the address latches, because their function is largely invisibe from a logical perspective: they enable communication between the 8048 and the EEPROM, but they're controlled automatically by the 8048. 
-
-
-For now, in lieu of a proper schematic, here's a very simple block diagram showing which signals go where with respect to the components discussed above:
-
-![](images/klr_block_diagram_1.png)
-
-It's pretty much what you would expect, but there are a few interesting things worth noting:
-
-* there are 2 ADC channels dedicated to the knock sensor:
-
-	* one indicates the general noise level from the knock sensor, and is used to detect a missing/damaged knock sensor, or a noisy engine. These conditions are associated with the blink codes described in the Technik document. 
-  
-  * the other channel uses a resettable integrator (under the control of the 8048) to integrate the amplifier's output over a window of around 15 degrees of crankshaft rotation; this is the one actually used to detect knock. 
-
-* the KLR has a cool self-diagnostic feature: the 8048 can send a *fake* knock signal to the knock sensor amplifier to test it's condition; if it consistently fails to detect knock from the integrator after doing this test repeatedly, the KLR will throw a blink code to indicate that it's faulty. This is one of the many impressive features of the KLR. 
-  
-* there are also 2 channels dedicated to the throttle position sensor (TPS). One is the angle, as you'd expect, and the other is the supply voltage. There's always a drop in the voltage supplied to the TPS, and it actually chages as the angle changes (since the amount of current that flows through the wiper into the ADC varies with the wiper angle). The 8048 always calcuales the angle output voltage as a proportion of the supply, so that variations in the supply won't affect the accuracy. 
-
-This diagram is only intended to show the general outline of things; most of the inputs and outputs shown here merely as arrows are actually buffered and/or inverted through the Schmitt triggers, or through discrete transistors. The knock sensor amplifier uses no fewer than 7 op amps! But we'll get into all that eventually. 
-
 ## Navigating This Site
 
-I've broken my work down into 2 sections: a walkthrough of most of the key features, with code snippets (currently still work-in-progress), and a reference section with fairly raw information. You could just dive into the disassembled code in the reference section - it's annotated with brief function descriptions, and you can use the pin assignments page for reference. But I'm assuming that most people reading this will benefit from a more gentle introduction, and that's what the walkthrough is for. 
+I've broken my work down into 2 sections: a walkthrough of most of the key hardware and software, features, with code snippets (currently still work-in-progress), and a reference section with fairly raw information. You could just dive into the disassembled code in the reference section - it's annotated with brief function descriptions, and you can use the pin assignments page for reference. But I'm assuming that most people reading this will benefit from a more gentle introduction, and that's what the walkthrough is for. 
 
 It's written to be read in the order presented below - the code can be pretty complicated in parts, even for simple features, and I need to assume that you have the basics down by the time you start looking at more advanced things like knock detection. 
 
 In the reference section I've provided a few notes on how to read 8048 series code. Most of this information can be found in the official pdfs in the archive section below, but they're pretty long so I wanted to put some of the most important stuff into a more accessible document. If you find anything in the code tough going, it's worth taking a look at my notes. 
 
 
-## Features
+## Hardware
+
+* [Overview](hardware_overview.md) *A high-level overview of the KLR hardware*
+
+* [Knock Detection (hardware)](knock_hardware.md) *This section explains the signal conditioning for the knock sensor, and demonstrates how the self-test works*
+
+
+## Software
 
 * [Basic KLR signal timing](klr_signal_timing.md) *Here we'll take a look at the most important input and output signals on the scope, and briefly discuss how they're generated, without getting into too much detail.*
 
@@ -101,9 +59,9 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [Blink Codes]() *TBD*
 
-* [Knock Detection (hardware)](knock_hardware.md) *This section explains the signal conditioning for the knock sensor, and demonstrates how the self-test works*
+* [Knock Detection](knock_detection.md) *This section goes through the entire knock detection routine step-by-step. This is by far the most complicated single routine in the KLR, so it's a pretty big section and it leans very heavily on the previous stuff.*
 
-* [Knock Detection (software)]() *TBD*
+* [Exponential Smoothing](exponential_smoothing.md) *This is a quick explantion of a general purpose exponential smoothing routine that's used in many plces throughout the KLR code.*
 
 * [ADC Reading]() *TBD*
 

@@ -66,7 +66,7 @@ I thoguht it might be usefufl to have a quick rundown of everything that the kno
 
 * calculate a new knock threshold for the current cylinder, and rotate it in the same way as the timing delay values
 
-	* this new threshold is calculated from the knock sensor output value. The value is passed into an [exponential smoothing function](exponential_smoothing.md) which has the effect of a low-pass filter. (Wikipedia article [here])(https://en.wikipedia.org/wiki/Exponential_smoothing.) In other words, brief spikes in noise won't change the threshold significantly, but a change in the base noise level that lasts consistently will. 
+	* this new threshold is calculated from the knock sensor output value. The value is passed into an [exponential smoothing function](exponential_smoothing.md) which has the effect of a low-pass filter. (Wikipedia article [here](https://en.wikipedia.org/wiki/Exponential_smoothing.)) In other words, brief spikes in noise won't change the threshold significantly, but a change in the base noise level that lasts consistently will. 
 
 * restore previous boost reduction if appropriate (in increments of about 0.8 kpa)
 
@@ -239,7 +239,7 @@ The values that go in the blink code location (33h) are *binary coded decimal* o
 0010 0011
 ```
 
-So that equates to blink code __2 - 3__ "Control Unit Faulty" (from the [Porsche documentation](references/DME_KLR_Test_Plan.pdf)). 
+So that equates to blink code __2 - 3__ "Control Unit Faulty" (from the [Porsche documentation](reference/DME_KLR_Test_Plan.pdf)). 
 
 Now we're done with the self-test, and it's back to normal knock detection stuff. The first thing we do is rotate the cylinder knock threshold values:
 

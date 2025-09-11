@@ -3,21 +3,32 @@ The DME has many, many maps - over 80 in fact. They're stored in the second 4k o
 
 Extracting the map info can be useful for tools like TunerPro and also generally just for visualizing and understanding the parameters the engine was designed to work with. So let's dive into the Motronic map structure. 
 
-We'll start with a small example to keep things simple. This map is located at 15F9 and it's the target rpm map for idle:
+We'll start with a small example to keep things simple. This map is located at 15F9 and it's the target rpm map for idle. The map in human readable form is like this
+
+Temperature (degrees C) | 30 | 139 | 178
+Target speed (in rpm) | 1000 | 920 | 840
+
+But here's what it looks like in it's native setting, viewed in a hex editor:
+
+![alt text](https://github.com/jhnbyrn/951_dme_klr/blob/master/images/dme_map_reading/idle_target_map_1.png) *KLR trigger and ignition signals*
+
+It might be a little clearer to copy those raw bytes and format them here:
 
 `13 03 6d 27 4d 19 17 15`
 
-How does this pile of numbers represent a map of target engine speeds? Here's a breakdown of the structure:
+That's quite a bit different from the readable one we just looked at. So how does this pile of numbers represent a map of target engine speeds? In the following sections we'll break this down piece by piece and learn how that nice human-readable map is derived from the raw data. 
 
-first byte: input variable 
-second byte: axis length (let's call it "n" - in this case, n=3)
-next n bytes: axis values, i.e headings
-next n bytes: the actual values (this is what TunerPro XDF files generally consider to be the "start" of the map) 
+First, note that the values I pulled from the raw source are in hexadecimal form. When we want to help with readability, we'll convert them to decimal. (Sometimes, I might even remember to tell you when I do that). Here's a breakdown of the structure of the raw map:
+
+* first byte: input variable 
+* second byte: axis length (let's call it "n" - in this case, n=3)
+* next n bytes: axis values, i.e headings
+* next n bytes: the actual values (this is what TunerPro XDF files generally consider to be the "start" of the map) 
 
 Now each of these might seem a little cryptic so I'll explain them one by one. 
 
 ## First byte: the input variable
-This value is the RAM address of the input variable. In the Motronic code, key engine parameters "live" in certain memory locations. They're stored there after being read by the ADC (and possibly after some post-processing) and then they always stay there; those locations are reserver just for their respective parameters. Here are the most important ones:
+This value is the RAM address of the input variable. In the Motronic code, key engine parameters live in certain memory locations. They're stored there after being read by the ADC (and possibly after some post-processing) and then they always stay there; those locations are reserved just for their respective parameters. Here are the most important ones:
 
 ```
 37h: rpm
@@ -28,10 +39,10 @@ This value is the RAM address of the input variable. In the Motronic code, key e
 
 So in our example map above, the first byte is 13 and that tells us that this map depends on engine temp (NTC). The 3 values that follow represent the ranges of temperature that the map has values for. 
 
-## Secong byte: the length of the axis
+## Second byte: the length of the axis
 This is pretty straightforward; the number 3 in this example just tells us that there are 3 values in the axis! So this map only cares about 3 different temperature ranges. As a rule, the right-most value in the map applies to all input values to the right, and vice-versa for the left. So for instance if the right-most axis number was 0 deg. C, then the value corresponding to that would apply for all temperatures below 0C. 
 
-### Next n bytes: the axis values
+## Next n bytes: the axis values
 This is where things start to get a little more complicated. We said earlier that the 3 values following the axis length are the headings of the map. Let's look at these values in decimal to make things clearer:
 
 ```109 39 77```
@@ -45,19 +56,7 @@ For example we'll get
 ```177 + 77 = 254``` (no overflow, keep going)
 ```254 + 39 = 293``` (this is > than 255, so we have an overflow). 
 
-Once an overflow is detected, we have found the columns that our input falls between. Now we could just take the index of the column that triggered the overflow (2 in this example) and use that as an index into the values list, and return that value. But that would be pretty crude - after all, we blew way past the threshold for the second column in this example. Clearly the right value is somewhere in between the values for the first and second columns. It doesn't seem right that we only get one output value for a wide range of inputs, and then the output suddenly jumps when the input creeps over some threshold! 
-
-Of course this situation could be improved with more detailed maps. Instead of 3 values, why not 30? or 300? But even 30 would still be less than ideal, and it would take up way too much memory. So instead the Motronic software does something called linear interpolation. 
-
-It's really a very simple and intuitive concept, although the implementation in code can end up looking pretty complicated. The idea is:
-
-* let's call the column that caused the overflow n, and the one after that n+1 
-* what proportion of the distance between n and n+1 did we land at? This is nothing more than the overflow value divided by the difference between n and n+1. 
-* what value is exactly that proportion of the distance between the value corresponding to column n, and the value corresponding to n+1?
-
-That value is the value we return from the map. So the maps may be limited to a small number of rows and/or columns (typically no more tan 12) but the range of values we can get has no such limit. 
-
-Of course this interpolation process is an approximation. The ideal values often don't form a straight line from one point to the next - but it's good enough for most cases. 
+Once an overflow is detected, we have found the columns that our input falls between. Now we could just take the index of the column that triggered the overflow (2 in this example) and use that as an index into the values list, and return that value. In practice though, the Motronic code does something more sophisticated than that called linear interpolation. The short explanation of this is: for inputs that fall between column headings (which is what happens most of the time), the DME figures out the most appropriate in-between value and returns that even though it's not explicitly stored in the map. We'll leave the details til later.  
 
 ## Last n bytes: the actual map values
 Finally we get to the part everyone actually cares about - the map values themselves! What do they represent? Generally to see what they represent we have to look at the code. Immediately after a map is read, the return value is usually compared to some known variable. For example, when the map in our example is read, the resulting value is then compared to the value in 37. You might recall that 37 is the location of engine speed. That tells us that this map contains engine speed values. You knew that at the start because I told you, but this is how I knew. 

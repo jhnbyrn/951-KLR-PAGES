@@ -10,7 +10,7 @@ Target speed (in rpm) | 1000 | 920 | 840
 
 But here's what it looks like in it's native setting, viewed in a hex editor:
 
-![alt text](https://github.com/jhnbyrn/951_dme_klr/blob/master/images/dme_map_reading/idle_target_map_1.png) *KLR trigger and ignition signals*
+![](images/dme_map_reading/idle_target_map_1.png) *KLR trigger and ignition signals*
 
 It might be a little clearer to copy those raw bytes and format them here:
 
@@ -28,7 +28,7 @@ First, note that the values I pulled from the raw source are in hexadecimal form
 Now each of these might seem a little cryptic so I'll explain them one by one. 
 
 ## First byte: the input variable
-This value is the RAM address of the input variable. In the Motronic code, key engine parameters live in certain memory locations. They're stored there after being read by the ADC (and possibly after some post-processing) and then they always stay there; those locations are reserved just for their respective parameters. Here are the most important ones:
+This value is the RAM address of the input variable. In the Motronic code, key engine parameters live in certain memory locations. They're stored there after being read by the ADC (and possibly after some post-processing) and then they always stay there; those locations are reserved just for their respective parameters. So the maps are written with the appropriate input variable location hard-coded. Here are the most important ones:
 
 ```
 37h: rpm
@@ -37,7 +37,7 @@ This value is the RAM address of the input variable. In the Motronic code, key e
 11h: system voltage
 ```
 
-So in our example map above, the first byte is 13 and that tells us that this map depends on engine temp (NTC). The 3 values that follow represent the ranges of temperature that the map has values for. 
+So in our example map above, the first byte is 13 and that tells us that this map depends on engine temp (NTC). 
 
 ## Second byte: the length of the axis
 This is pretty straightforward; the number 3 in this example just tells us that there are 3 values in the axis! So this map only cares about 3 different temperature ranges. As a rule, the right-most value in the map applies to all input values to the right, and vice-versa for the left. So for instance if the right-most axis number was 0 deg. C, then the value corresponding to that would apply for all temperatures below 0C. 
@@ -59,20 +59,20 @@ For example we'll get
 Once an overflow is detected, we have found the columns that our input falls between. Now we could just take the index of the column that triggered the overflow (2 in this example) and use that as an index into the values list, and return that value. In practice though, the Motronic code does something more sophisticated than that called linear interpolation. The short explanation of this is: for inputs that fall between column headings (which is what happens most of the time), the DME figures out the most appropriate in-between value and returns that even though it's not explicitly stored in the map. We'll leave the details til later.  
 
 ## Last n bytes: the actual map values
-Finally we get to the part everyone actually cares about - the map values themselves! What do they represent? Generally to see what they represent we have to look at the code. Immediately after a map is read, the return value is usually compared to some known variable. For example, when the map in our example is read, the resulting value is then compared to the value in 37. You might recall that 37 is the location of engine speed. That tells us that this map contains engine speed values. You knew that at the start because I told you, but this is how I knew. 
+Finally we get to the part everyone actually cares about - the map values themselves! What do they represent? Generally to see what they represent we have to look at the code that uses them. Immediately after a map is read, the return value is usually compared to some known variable. For example, when the map in our example is read, the resulting value is then compared to the value in 37. You might recall that 37 is the location of engine speed. That tells us that this map contains engine speed values. Otherwise, why would the programmers want to compare the returned value to engine speed? You knew that at the start because I told you, but this is how I knew. 
 
-What about units? What units are the map values in? That is the hardest question of all to answer. For one thing, there isn't one answer! Probably the most important observation we can make here is that it is not possible to figure out what the numbers in a map mean without knowing something about what's going on outside the little metal enclosure of the DME. 
+What about units - what units are the map values in? That is the hardest question of all to answer. For one thing, there isn't one answer! Probably the most important observation we can make here is that it is not possible to figure out what the numbers in a map mean without knowing something about what's going on outside the little metal enclosure of the DME. 
 
 Let's look at a few examples:
 
-### Engine speed
+### Units: Engine speed
 The short explanation here is that the units of engine speed are RPM/40. That is, the number 1 means 40RPM, 2 means 80RPM etc. 
 
 How do we know that? The way engine speed is measured in Motronic is by counting the number of speed sensor pulses within a fixed timer interval. That part can be ascertained by reading the code. But to know that 1 unit equals 40RPM, someone had to go an count the teeth on the flywheel! And someone always has to do something like that to answer such questions. 
 
 A word about units and naming conventions. Everyone and I mean everyone uses the term "rpm" interchangeably with "engine speed" and I don't want to be that guy so I will just keep doing that to avoid confusion. But the Motronic maps don't deal in rpm, strictly speaking they use units of rpm/40. 
 
-### Battery voltage
+### Units: Battery voltage
 First let's address why this is necessary, and then how it's even possible. The DME needs to know the current battery voltage because many critial things in the engine perform differently depending on the voltage, for example fuel injectors, ignition coils etc. Pulse widths and dwell times need to be adjusted for the battery voltage. 
 
 The DME measuring it's own supply voltage is possible because the ADC has a fixed 5v reference, and the supply voltage is divided by approximately 3.5 before being read into one of the ADC's channels. So it can measure voltages up to around 17.5v. 
@@ -80,9 +80,8 @@ The DME measuring it's own supply voltage is possible because the ADC has a fixe
 My rough calculations give a conversion rate of 1 unit in the code equals 0.0686 volts. 
 
 
-### Engine temperature
-Now we get into the territory that made me say this question of units is one of the hardest of all to answer. The DME uses an NTC temperature sensor which is not linear. 
-
+### Units: Engine temperature
+Now we get into the territory that made me say this question of units is one of the hardest of all to answer. The DME uses an NTC temperature sensor which is not linear. Immediately after the temp sensor is read by the ADC, it's linearized using a special map. You can think of this map as a complementary curve that corrects the natural curve of the NTC sensor. The sensor value is also complemented (i.e. inverted) so that we end up with a linear scale where lower numbers correspond to lower temperatures. This is handy and intuitive, but the details of how all this is done can wait til another time. 
 
 
 How Map Reading Works

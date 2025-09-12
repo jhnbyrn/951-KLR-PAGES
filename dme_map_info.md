@@ -58,12 +58,13 @@ This is where things start to get a little more complicated. We said earlier tha
 
 Now you might ask things like: what do these numbers mean? Are they C, or F? Don't tell me they're Kelvins?! Let's leave the question of units until a little later and for now just deal with questions like: why are they spaced so unevenly, and why don't they go in one direction? 
 
-For reasons that will be clearer later, Motronic software encodes map headings as diffs or deltas instead of the values you'd expect. The best way to explain this is to explain what the code does. Let's say we have an input value of 177. The map routine will start at the right-hand end of the axis, and start adding the headings, one at a time, to the intput value until the add results in an overflow. 
+For reasons that will be clearer later, Motronic software encodes map headings as diffs or deltas instead of the values you'd expect. The best way to explain this is to explain what the code does. Let's say we have an input value of 177. The map routine will start at the right-hand end of the axis, and start adding the headings, one at a time, to the input value until the add results in an overflow. 
 
 For example we'll get
 
-```177 + 77 = 254``` (no overflow, keep going)
-```254 + 39 = 293``` (this is > than 255, so we have an overflow). 
+1. ```177 + 77 = 254``` (no overflow, keep going)
+
+2. ```254 + 39 = 293``` (this is > than 255, so we have an overflow). 
 
 Once an overflow is detected, we have found the columns that our input falls between. Now we could just take the index of the column that triggered the overflow (2 in this example) and use that as an index into the values list, and return that value. In practice though, the Motronic code does something more sophisticated than that called linear interpolation. The short explanation of this is: for inputs that fall between column headings (which is what happens most of the time), the DME figures out the most appropriate in-between value and returns that even though it's not explicitly stored in the map. We'll leave the details til later.  
 
@@ -84,7 +85,7 @@ A word about units and naming conventions. Everyone and I mean everyone uses the
 ### Units: Battery voltage
 First let's address why this is necessary, and then how it's even possible. The DME needs to know the current battery voltage because many critial things in the engine perform differently depending on the voltage, for example fuel injectors, ignition coils etc. Pulse widths and dwell times need to be adjusted for the battery voltage. 
 
-The DME measuring it's own supply voltage is possible because the ADC has a fixed 5v reference, and the supply voltage is divided by approximately 3.5 before being read into one of the ADC's channels. So it can measure voltages up to around 17.5v. 
+The DME measuring it's own supply voltage is possible because the ADC has a fixed 5v reference, and the supply voltage is divided by approximately 3.5 before being read into one of the ADC's channels. So it can measure voltages up to around 17.5v, and the measurement is not affected by the actual battery voltage as long as it's high enough to maintain the 5v supply for the ADC
 
 My rough calculations give a conversion rate of 1 unit in the code equals 0.0686 volts. 
 
@@ -92,4 +93,4 @@ My rough calculations give a conversion rate of 1 unit in the code equals 0.0686
 ### Units: Engine temperature
 Now we get into the territory that made me say this question of units is one of the hardest of all to answer. The DME uses an NTC temperature sensor which is not linear. Immediately after the temp sensor is read by the ADC, it's linearized using a special map. You can think of this map as a complementary curve that corrects the natural curve of the NTC sensor. The sensor value is also complemented (i.e. inverted) so that we end up with a linear scale where lower numbers correspond to lower temperatures. This is handy and intuitive, but the details of how all this is done can wait til another time. 
 
-To cut a long story short for now, the temperature ends up as a fairly straight line with an offset of around 65 and a slope of somewhere around 1.46. With that in mind we can take any value in the code, subtract 65 and divide the result by 1.46 to get a pretty good value for the temperature in degrees C. This is not perfect but it's close. Bear in mind that the NTC sensors have a very wide tolerance range, and as a result the map headings are very approximate. 
+To cut a long story short for now, the temperature ends up as a fairly straight line with an offset of around 65 and a slope of somewhere around 1.46. With that in mind we can take any value in the code, subtract 65 and divide the result by 1.46 to get a pretty good value for the temperature in degrees C. This is not perfect but it's close. Bear in mind that the NTC sensors have a very wide tolerance range, and as a result the map headings are very approximate. My best guess is that the programmers had a map with the ideal, nominal values for reference when creating the map axis and our best shot at reproducing that would probably be to calculate the curves for both extremes of the allowed tolerance range, and then take the average. Instead, I took some measurements from a spare sensor I had lying around, so my measurements are definitely not ideal. 

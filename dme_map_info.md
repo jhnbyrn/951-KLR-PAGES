@@ -3,20 +3,29 @@ The DME has many, many maps - over 80 in fact. They're stored in the second 4k o
 
 Extracting the map info can be useful for tools like TunerPro and also generally just for visualizing and understanding the parameters the engine was designed to work with. So let's dive into the Motronic map structure. 
 
-We'll start with a small example to keep things simple. This map is located at 15F9 and it's the target rpm map for idle. The map in human readable form is like this
+We'll start with a small example to keep things simple. This map is located at 15F9 and it's the target rpm map for idle. There are various ways to visualize a map; for a simple one like this, just seeing a table with familiar units of measurement is enough for human-readability:
 
-Temperature (degrees C) | 30 | 139 | 178
+Temperature (degrees C) | -25 | 50 | 75
 Target speed (in rpm) | 1000 | 920 | 840
 
-But here's what it looks like in it's native setting, viewed in a hex editor:
+For practical reasons, however, the DME code doesn't work directly in these familiar units. Here's how the map looks from a programmer's perspective:
 
-![](images/dme_map_reading/idle_target_map_1.png) *KLR trigger and ignition signals*
+30 | 139 | 178
+25 | 23 | 2
+
+This is much more obscure - clearly there's some translation needed to get from units (in the code) to common everyday units like degrees C and revolutions per minutee. 
+
+But it's worse - even this less familiar representation is still not how it's actually stored! Here's what that same map truly looks like, in it's native setting, viewed in a hex editor:
+
+
+![](images/dme_map_reading/idle_target_map_1.png)
+
 
 It might be a little clearer to copy those raw bytes and format them here:
 
 `13 03 6d 27 4d 19 17 15`
 
-That's quite a bit different from the readable one we just looked at. So how does this pile of numbers represent a map of target engine speeds? In the following sections we'll break this down piece by piece and learn how that nice human-readable map is derived from the raw data. 
+That's quite a bit different from the more readable ones we just looked at. So how does this pile of numbers represent a map of target engine speeds? In the following sections we'll break this down piece by piece and learn how that nice human-readable representations are derived from the raw data. 
 
 First, note that the values I pulled from the raw source are in hexadecimal form. When we want to help with readability, we'll convert them to decimal. (Sometimes, I might even remember to tell you when I do that). Here's a breakdown of the structure of the raw map:
 
@@ -83,29 +92,4 @@ My rough calculations give a conversion rate of 1 unit in the code equals 0.0686
 ### Units: Engine temperature
 Now we get into the territory that made me say this question of units is one of the hardest of all to answer. The DME uses an NTC temperature sensor which is not linear. Immediately after the temp sensor is read by the ADC, it's linearized using a special map. You can think of this map as a complementary curve that corrects the natural curve of the NTC sensor. The sensor value is also complemented (i.e. inverted) so that we end up with a linear scale where lower numbers correspond to lower temperatures. This is handy and intuitive, but the details of how all this is done can wait til another time. 
 
-
-How Map Reading Works
-----------------------
-Throughout the code we see these maps being referred to with hex addresses, like 37h and so on. But what do these numbers mean?
-
-Those numbers refer to the maps indirectly. The reason for this is simple: the actual map locations are big numbers that require multiple bytes to represent. But we'd like to be able to refer to maps using consecutive numbers, and have these maps at conseutive memory locations. 
-
-To see why this is helpful, consider 2 closely related maps. Maybe one is an alternative for the other depending on some condition in the code. It's really useful to be able to switch between these maps with a simple inc or dec instruction. That requires them to be consecutive memory locations, which means each one is just a single byte. 
-
-That byte is used to look up the true map address from a bigger table where each value is 2 bytes. 
-
-Here's an overview of how it all works without getting into the weeds of the lookup code:
-
-1. There is a base map list at location 1090. We can think of the bytes starting at 1090 as a map list or index of sorts. Whenever the program wants to look up a particular map, it adds the appropriate offset to 1090, and then reads the byte from the corresponding location. That byte will be used to find the map we want. As a convention, we'll use the offset that that program uses to name the map. So for example, when we see the value "37h" being used in the code as a map offset, we'll call that "map 37h" or more practically, "map 55". It's the 55th entry in the index starting at 1090. 
-
-Following that last example, we add 1090 + 37h = 10C7. Now if we look in location 110C7 we find the value 4A. But this isn't the map, or even the location of the map. This is the offset to a map pointer index. Yes, there's another index! The reason for this is that the actual map address requires 2 bytes (being way above the 255 limit of a single byte). So the value we get here is an offset to another, bigger table containing 2-byte values that indicate the actual locations of the maps. 
-
-We may ask, if the map locations must be two bytes, then why bother with the first table? Why is it important to have a table or index of maps at 1 byte, consecutive locations, if all it does is point to another table with the true 2-byte locations? The answer is: it's very convenient to be able to move to the next (or previous) map in the code by just incrementing or decrementing the value that's being used. This way we can have alternate versions of maps listed consecutively, and easily switch from one to the other with a simple inc or dec instruction. All the complexity of translating the short map number into the long map address is in the map read routine, so most of the time you don't need to worry about it. 
-
-2. That bigger table (the one with the real map addreses) is located at 11E0. So now we have our offset, 4A, we know that the address of the map we want is at the location 11E0 + 4A = 122A. The address is 2 bytes long, and looking up those 2 bytes starting at 122A, we have 15 and F9. We put these together to get 15F9. Finally, that is the location of our map in program memory!
-
-3. Now we have the location of our map, we can finally look up the value we want. Here's what the map at 15F9 actually looks like in raw hex bytes:
-
-13 03 6d 27 4d 19 17 15
-
-What's going on there?
+To cut a long story short for now, the temperature ends up as a fairly straight line with an offset of around 65 and a slope of somewhere around 1.46. With that in mind we can take any value in the code, subtract 65 and divide the result by 1.46 to get a pretty good value for the temperature in degrees C. This is not perfect but it's close. Bear in mind that the NTC sensors have a very wide tolerance range, and as a result the map headings are very approximate. 

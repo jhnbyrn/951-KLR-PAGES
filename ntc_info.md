@@ -5,17 +5,17 @@ The DME needs to know engine temperature for lots of things. It's used as an inp
 ## A quick overview. 
 The DME gets temperature info from a sensor that's screwed into the block near the front of the engine. It's imersed in the engine coolant. Porsche documentation calls this sensor NTC II - that is, negative temperature coefficient 2. There's also an NTC I - that's the temperature sensor in the airflow meter. 
 
-The NTC is a thermistor, that is a resistor whose reistance varies with temperature. It's wired up to a 5v voltage divider in the DME enclosure, and the output of that voltage divider goes to the ADC (channel 3/pin 1). So the program reads a number between 0 a 255 that represents the engine temperature. 
+The NTC is a thermistor, that is a resistor whose reistance varies with temperature. It's wired up to a 5v voltage divider in the DME enclosure, and the output of that voltage divider goes to the ADC (channel 3/pin 1). So the program reads a number between 0 and 255 that represents the engine temperature. 
 
 If that was all there was to it, we would just work out a simple formula to convert between 8-bit units and degrees C and call it a day. But there's a couple of reasons why it's more complicated than that:
 
 1. The "negative" part of NTC; the resistance has an inverse relationship with temperature, and this results in higher temperatures appearing as lower voltages at the ADC, which isn't ideal
 2. The relationship between reistance and temperature is highly non-linear. This is a much bigger problem than the inverse relationship!
 
-Next we'll examine these issues in more detail and see they are overcome in the DME> 
+Next we'll examine these issues in more detail and see how they are overcome in the DME.
 
 ## Temperature vs resistance
-A good first step is to vizualize this relationship. We have two approaches open to us for this: we can resistance take meaurements from an NTC sensor are various known temperarures, or we can use the info from the Porsche documentation. Let's do both!
+A good first step is to vizualize this relationship. We have two approaches open to us for this: we can resistance take meaurements from an NTC sensor at various known temperarures, or we can use the info from the Porsche documentation. Let's do both!
 
 The DME/KLR Test Plan gives the following resistance ranges for the sensor:
 
@@ -28,7 +28,7 @@ Temperature (C) | Resistance (k)
 100 | 160 - 210
 
 
-And I got the following results from testing an NTC sensor in water of various temperatures, and my freezer:
+And I got the following results from testing an NTC sensor in water of various temperatures (and my freezer!):
 
 Temperature ( degrees C) | Resistance (k) 
 -------------------------|------------
@@ -47,7 +47,7 @@ Temperature ( degrees C) | Resistance (k)
 
 These results are definitely not perfect, especialy considering that some of these temperatures are not that certain (mainly the lower ones where I used crude thermometers). With that said, you can see from the Porsche documentation that the tolerance is very wide. So it's pretty clear that we don't need to be too precise here. 
 
-Nonetheless, when overlayed with the official specs on a plot, it turns out pretty much as expected. Here, we see three plots:
+Nonetheless, when overlayed with the official specs on a plot, it turns out pretty much as expected. In the graph below, we see three plots:
 
 * blue - the upper limit of the allowed range from the official specs quoted above
 * red - the lower limit
@@ -56,13 +56,15 @@ Nonetheless, when overlayed with the official specs on a plot, it turns out pret
 
 ![](images/dme_map_reading/measured_data_vs_ideal_2.png)
 
-It would certainly help with both visualization and with testing the processing logic if we had a smooth curve. There are various ways to join a given set of points with smooth curves, but the simple ones generally will not be an accurate match for the true NTC curve. Fortunately, there is a well-known equation for exactly this purpose, called the Steinhart-Hart equation. It's based on the physical characteristics of thermistors and produces a very accurate interpolation from just 3 known data points. 
+So far so good!
 
-I'll leave the details of generating this curve for another time and place, but here's how it looks with everything we know about the sensor overlayed with the Steinhart-Hart interpolated curve:
+But it would certainly help with both visualization and with testing the processing logic if we had a smooth curve that passed through the ideal points. There are various ways to join a given set of points with smooth curves, but the simple ones generally will not be an accurate match for the true NTC curve. Fortunately, there is a well-known equation for exactly this purpose, called the Steinhart-Hart equation. It's based on the physical characteristics of thermistors and produces a very accurate interpolation from just 3 known data points. 
+
+I'll leave the details of generating this curve for another time and place, but below is how it looks with the info we already gathered about the sensor, overlayed with the Steinhart-Hart interpolated curve (for the requried 3 known points, I used 3 mid-points between the Porsche spcified tolerances):
 
 ![](images/dme_map_reading/measured_data_vs_ideal_3.png)
 
-It's pretty good except for the very low end of the temperature range, and it's very likely that the termometer I used for that wasn't terribly accurate anyway. 
+It's pretty good except for the very low end of the temperature range. There, the interpolated curve misses my measured data point. But it's very likely that the termometer I used for that wasn't terribly accurate anyway, and we don't have Porsche factory info for anything below 0C. 
 
 ## Resistance to voltage
 
@@ -80,9 +82,9 @@ Let's take a look at what we have at this point
 
 This is a graph of the raw (but inverted) temperature readings as 8-bit values in the DME code. We're getting somewhere; the values go up as temperature goes up. But that curve is going to make life difficult. 
 
-Solving this problem is harder: inearizing the reading. The DME does this using a linearization map. This is a map much like any other in the DME's ROM, with one major difference. Most maps take some engine parameter as their input - let's say rpm, and return some other parameter as output, for example spark advance. But this map's job is to transform the engine temp value into an engine temp value, but to change the shape of the curve into a straight line. Immediately after reading and inverting the NTC voltage, the DME calls the map read routine with this linearization map, and replaces the NTC value stored in 13h with the output of the map. 
+Solving this problem is harder than the processing done do far: linearizing the reading. The DME does this using a linearization map. This is a map much like any other in the DME's ROM, with one major difference. Most maps take some engine parameter as their input - let's say rpm, and return some other parameter as output, for example spark advance. But this map's job is to transform the engine temp value into an engine temp value, but to change the shape of the curve into a straight line. Immediately after reading and inverting the NTC voltage, the DME calls the map read routine with this linearization map, and replaces the NTC value stored in 13h with the output of the map. 
 
-The linearization map looks like this
+The linearization map looks like this (with the raw Motronic headings translated into the true breakpoints):
 
 ----|----|----|----|----|----|----|----|----|----|----|----|
 38 | 42 | 49 | 57 | 72 | 98 | 151 | 179 | 207 | 223| 230| 233 |
@@ -93,7 +95,7 @@ What's the best way to visualize this? The best way is probably to show the inpu
 
 ![](images/dme_map_reading/ntc_linearization_map_1.png)
 
-Now take a look at the shape of this curve and compare it to the raw temperature curve above. Do you see how they are more or less oppositely shaped? Don't worry about the scale; that's not meant to match in these images. The shape is the thing! This linearization curve zigs exactly where the NTC curve zags and vice versa. Note that the map routine has interpolation built in so we will get a sane, reasonable output for any input. 
+Now take a look at the shape of this curve and compare it to the raw temperature curve above. Do you see how they are more or less oppositely shaped? Don't worry about the scale; that's not meant to match in these images. The shape is the thing! This linearization curve zigs exactly where the temperature curve zags and vice versa. Note that the map routine has interpolation built in so we will get a sane, reasonable output for any input to the linearization map. 
 
 Finally let's take a look at what the linearized 8-bit values look like as a function of temperature:
 

@@ -90,10 +90,14 @@ The linearization map looks like this (with the raw Motronic headings translated
 38 | 42 | 49 | 57 | 72 | 98 | 151 | 179 | 207 | 223| 230| 233 |
 2 | 19 | 37 | 52 | 72 | 95 | 137 | 162 | 195| 224| 243| 251	 
 
+
+(If you would like to see how to extract maps like this one and other from the DME code, check out the [How the Motronic DME Maps Work](dme_map_info.md) section).
+
 What's the best way to visualize this? The best way is probably to show the input and output on linear scales but with the data points from the map like this:
 
 
 ![](images/dme_map_reading/ntc_linearization_map_1.png)
+
 
 Now take a look at the shape of this curve and compare it to the raw temperature curve above. Do you see how they are more or less oppositely shaped? Don't worry about the scale; that's not meant to match in these images. The shape is the thing! This linearization curve zigs exactly where the temperature curve zags and vice versa. Note that the map routine has interpolation built in so we will get a sane, reasonable output for any input to the linearization map. 
 

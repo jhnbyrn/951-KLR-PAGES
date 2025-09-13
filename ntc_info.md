@@ -122,3 +122,5 @@ Curve value | 62.6 | 214.9
 With a little reworking of the classic y = mx+b for the slope of a line, we end up with temp = (8-bit value - 62.6) / 1.52. 
 
 This forumla gives really plausible results for the maps I have checked it against and while I'm sure it's not perfect, it's pretty close and it's the best I know how to do theoretically. The reader is reminded of the enormous tolerance range allowed for the NTC sensor; this formula was derived from the ideal values taken right down the middle. 
+
+$y = mx + b$

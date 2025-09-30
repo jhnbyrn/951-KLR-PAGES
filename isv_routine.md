@@ -453,10 +453,28 @@ Flag | Meaning
 20h.4 | prevents integration when a negative correction is clamped, or when the current load < the value in map 87
 
 Regarding 20h.0:
-	* 20h.0=0 -> 7ch gets 02 (from 1160+3F=119F)
-	* 20h.1=1 -> 7ch gets 01 (from 1160+40=11A0)
-	* 7ch is the counter that determines how long the flare target rpm is held for before being decremented by 40rpm
-	
+
+* 20h.0=0 -> 7ch gets 02 (from 1160+3F=119F)
+* 20h.1=1 -> 7ch gets 01 (from 1160+40=11A0)
+* 7ch is the counter that determines how long the flare target rpm is held for before being decremented by 40rpm
+
+### Constants
+
+Relative Location | Absolute Location | Hex | Decimal | Meaning
+------------------|-------------------|------|--------|--------
+3C | 119C | 17 | 23 | PWM value for idle setting mode (~30%)
+39 | 1199 | 15 | 21 | Minimum idle rpm when AC is on (normal path, 840rpm)
+40 | 11A0 | 01 | 01 | Counter value for startup flare
+3F | 119F | 02 | 02 | Counter value for coasting return-to-idle flare
+38 | 1198 | 04 | 04 | Idle RPM error threshold for correction reset
+3B | 119B | 00 | 00 | ISV PWM correction for AC-on (alternate path)
+3A | 119A | 18 | 24 | ISV PWM correction for AC-on (normal path)
+3D | 119D | C0 | 192 | ISV PWM correction positive limit (divide by 2, add 128)
+3E | 119E | 27 | 39 | ISV PWM correction negative limit (divide by 2, complement, add 128)
+41 | 11A1 | 8A | 138 | ISV PWM scaling factor (read as 138/256 = ~0.54)
+42 | 11A2 | 42 | 66 | ISV PWM offset term (read as 66/256 = ~0.25)
+0B | 116B | 1631 | 5681 | 16-bit value (includes the next byte): timer ticks that make one complete period
+
 ### Maps:
 
 53 - target rpm for flare (by NTC)

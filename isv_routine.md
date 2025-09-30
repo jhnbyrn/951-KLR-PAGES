@@ -4,19 +4,19 @@ Here we'll explore how the DME controls the ISV in detail.
 
 ## Overview
 
-Pysically, the ISV is opened or closed by the choice of 2 ground pins. From the 8051's perspective, this is achieved by a simple PWM signal. During the on-time, the DME's circuitry gounds one ISV pin, and during the off-time it grounds the other pin instead. So the 8051 and its code are not concerned with grounding one pin or the other; we simply set the output high or low with the appropriate duty cycle. 
+Pysically, the ISV is opened or closed by the choice of 2 ground pins. From the 8051's perspective, this is achieved by a simple PWM signal. During the on-time, the DME's circuitry gounds one ISV pin, and during the off-time it grounds the other pin instead. So the 8051 and its program are not concerned with grounding one pin or the other; we simply set the output high or low with the appropriate duty cycle. 
 
 The actual signal is generated using one of the 8051's two 16-bit timers (timer1). During the timer1 interrupt routine, we load the timer with a precalculated on-time value and toggle the ISV pin ON, and in the next interrupt with load it with the precalculated off-time value and toggle the pin OFF. This article is mainly concerned with exactly *how* these two values (on-time and off-time) are calculated.
 
-Sotware-wise, the ISV is controlled with the usual combination of open loop and closed loop control. The open loop values are provided by a 2-axis map (RPM and temperature). These values almost always apply, and are modified by the closed loop correction. The open loop map values are chosen to get the idle speed close to the target; the closed loop logic makes fine-tuning adjustments.
+Software-wise, the ISV is controlled with the usual combination of open loop and closed loop control. The open loop values are provided by a 2-axis map (RPM and temperature). These values almost always apply, and are modified by the closed loop correction. The open loop map values are chosen to get the idle speed close to the target; the closed loop logic makes fine-tuning adjustments.
 
-The closed loop part uses a combination of proportional and integral control.This closed loop control routine will always try to keep the idle speed at a certain target. This target speed is defined by a 1-axis map that depends on temperature.
+The closed loop part uses a combination of proportional and integral control.This closed loop control routine will always try to keep the idle speed at a certain target. This target speed is defined by a 1-axis map that depends on temperature. But as we'll see a little later, there is an interesting quirk where the DME actually has 2 different idle target maps, one of which was not intended to be used (but it can be!).
 
 Various adjustments are made to the control logic depending on a range of conditions, for example:
 
 * if air conditioning is turned on, then the idle target speed is raised to a higher minimum value
-* if the engine is starting, or returning to idle during deceleration, the target rpm is held higher than normal and allowed to sink down gradually (this is referred to as a *flare* henceforth). 
-* various limits and adjustments are made to the closed loop correction
+* if the engine is starting, or returning to idle during deceleration, the target rpm is held higher than normal and allowed to sink down gradually (henceforth I'll call this the *flare*). 
+* various limits and adjustments are applied to the closed loop correction to prevent saturation and windup. 
 
 The ISV routine doesn't just handle idle; it needs to handle all possible running conditions:
 
@@ -29,7 +29,7 @@ The ISV routine doesn't just handle idle; it needs to handle all possible runnin
 
 Some of these conditions are handled with very simple logic. Some just modify the main idle logic. The idle logic itself is by far the most complicated section because of the closed loop control. 
 
-The ISV control routine uses a staggering number of maps, constants and control flags. Here's a list of gust the maps: 
+The ISV control routine uses a staggering number of maps, constants and control flags. Here's a list of just the maps: 
 
 * cranking target rpm
 * normal target rpm
@@ -41,7 +41,7 @@ The ISV control routine uses a staggering number of maps, constants and control 
 * idle target load (presumaly emissions related; there are actually 3 maps for this, chosen by the code plug)
 * open loop PWM
 
-A complete list is in the Appendix section. 
+A complete list of the maps and their values in human-readable form is in the Appendix section. 
 
 ## Entry point
 
@@ -97,8 +97,8 @@ We'll dive into these sections in more detail soon.
 
 First, the *alternate path* deserves some explanation. 
 
-### alternate idle path
-A stock 944 will only ever use the normal path. My guess is that the alternate path was either an experimental thing that was abandoned, or a test mode of some kind. The choice is made based on the state of 23h.3. This flag is clear if the value from the ADC channel 5 is at or below 128 (i.e. <= 2.5v input). Otherwise the flag is set and the alternate path is used. Now ADC channel 5 is fed by pin 28 of the DME harness, which is grounded. 
+### What's the "alternate idle path"?
+A stock 944 will only ever use what we're calling the *normal* path. My guess is that the alternate path was either an experimental thing that was abandoned, or a test mode of some kind. The choice is made based on the state of 23h.3. This flag is clear if the value from the ADC channel 5 is at or below 128 (i.e. <= 2.5v input). Otherwise the flag is set and the alternate path is used. Now ADC channel 5 is fed by pin 28 of the DME harness, which is grounded. 
 
 The only case I'm aware of where the alternate path is used is when you use the FTech9 aftermarket DME. Because there's a convention that the "unused" ADC channel is often used for a MAP sensor input in aftermarket setups, the FTech9 DME did not ground this pin like the stock DME. Thus a stock chip in the FTech9 DME will get the alternate idle path instead of the normal one. 
 
@@ -116,7 +116,7 @@ At 08DE we check for the normal or alterate path, via 23h.3. If this bit is set 
 In this path, we read map 54 into 7F. It's a temperature based map, but all the values are set to 800rpm. 
 
 ### 08DE: Normal idle path
-Read map 55 into a (target idle speed depdningon temp). Ultimately the value will end up in 7F but first we go through the flare logic. 
+Read map 55 into a (target idle speed depending on temp). Ultimately the value will end up in 7F but first we go through the flare logic. 
 
 If AC is on, then look up the min rpm for AC on from 1160+39 and if it's greater than the current target (read form the map) then replace the target with this value (the target is stored in b for now). 
 
@@ -153,18 +153,18 @@ Now we replace 7F with the target rpm (map value or AC value). Depending on the 
 Next, the alternate path rejoins at 092D. 
 
 ### 092D (Both idle paths):
-Now we begin the closed loop correction. The open loop calculation is done later. That might seem backwards but it doesn't matter because we'll just be adding a positive base value to a positive or negative correction value. 
+Now we begin the closed loop correction. The open loop calculation is done later. That might seem backwards but it doesn't matter because we'll just be adding a positive base value to a positive or negative correction value. So the order is not really important. 
 
 Here is where we calculate that positive or negative correction. 
 
-A quick outline on the overall correction process:
+First, here's a quick outline of the overall correction process:
 
 * the correction consistes of P + I terms (proportional + integral)
 * the I term is accumulated in 7E:7D.
 * the correction (P+I) is offset to be centered around a midpoint bias of 32,767
-* later, this bias is removed
+* later, this bias is removed to produce a 2's complement, signed value
 
-Look up 1160+38=1198 (contains 04, i.e. 160rpm). 
+We look up 1160+38=1198 (contains 04, i.e. 160rpm). 
  
 ```
 if 7fh (target rpm) >= current_rpm + 160rpm then:
@@ -301,7 +301,9 @@ Note: the timer period is ~11.36ms which is 5681 timer ticks (1631h, which is th
 
 That means that the duty cycle of our PWM signal will be 
 
-```timer_on_time/5681```
+```
+timer_on_time/5681
+```
 
 First we load r1:r0 into r7:r6 and multiply it by two via the left shit routine at 0509. 
 We store the high byte r7 in 7B. 

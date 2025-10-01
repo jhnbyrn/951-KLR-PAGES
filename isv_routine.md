@@ -1,4 +1,4 @@
-# Idle Stabilizer Valve (ISV) routine
+x# Idle Stabilizer Valve (ISV) routine
 
 Here we'll explore how the DME controls the ISV in detail. 
 
@@ -43,15 +43,11 @@ The ISV control routine uses a staggering number of maps, constants and control 
 
 A complete list of the maps and their values in human-readable form is in the Appendix section. 
 
-## Entry point
+## 0895 Entry point
 
 The entry point for this routine is at location 1068. Here we check for the basic conditions:
 
-0895:
-
-TODO
-
-08A6:
+__08A6:__
 Here we check which driving condition we're in and jump to an appropriate routine for each case. The default is PT/WOT. In this case we set 20h.6 which indicates that we'll need to flare upon returning to idle. We clear 20h.0 which means the flare will be the return to idle variant, not the startup variant. 
 Then we jump to 09C5 which is the base, open-loop PWM calculation. 
 
@@ -61,21 +57,21 @@ This is the cranking logic (i.e. rpm < 160). Here we set 20h.6 (flare needed) an
 ## 08CB Coasting, fuel cutoff:
 This is determined by 23h.3. If we're in this state, we set 20h.6 (flare needed) and clear 20h.0 (indicating that the flare will be the return to idle flare instead of the startup flare). 
 
-Next we call 0A4A to initialize the correction values to r1:r0 = 0 and 7E:7D = 32767 (midpoint). 
+Next we call 0A4A to initialize the correction values to __r1:r0__ = 0 and 7E:7D = 32767 (midpoint). 
 
 Then we jump to 09C5 (open loop PWM). 
 
 ## 08CB Idle and WOT: 
 This section runs if both the idle and WOT signals are present. This means someone has connected a jumper in the diagnostic port in order to defeat the ISV control, for idle screw adjustment (see the factory documentation). 
 
-Here we load a constant from 1160+3C, which has the value 17h (23 decimal). We divide that by 2 to get 11. The PWM correction r1:r0 is initialized to 2816(i.e.r1=11). Then and then we jump to 0A05/1B40, skipping all further ISV logic and going straight to the timer1 high/low time calculation. 
+Here we load a constant from 1160+3C, which has the value 17h (23 decimal). We divide that by 2 to get 11. The PWM correction __r1:r0__ is initialized to 2816(i.e.r1=11). Then and then we jump to 0A05/1B40, skipping all further ISV logic and going straight to the timer1 high/low time calculation. 
 
-Generally the base PWM map value is multiplied by 128 before the timer1 calculation routine is called. Then *that* routine multiplies by 2 (via <<1). This constitutes a multiplication by 256. This explains why the constant 3C is divided by 2 and then loaded into r1; this gives it the same scale that the open loop map values (map 60) have upon entering the final timer calculation routine (since loading it into the high byte means *256). 
+Generally the base PWM map value is multiplied by 128 before the timer1 calculation routine is called. Then *that* routine multiplies by 2. This constitutes a multiplication by 256. This explains why the constant 3C is divided by 2 and then loaded into r1; this gives it the same scale that the open loop map values (map 60) have upon entering the final timer calculation routine (since loading it into the high byte means *256). 
 
 Note: using ((22 * 138) + (66*256))/(256**2) we get ~30% duty cycle. 
 
 ## 08A6 Default - PT or WOT:
-This is the default condition in 08A6 if we don't jump away for one of the other conditions. We set 20h.6 (indicating we will need to flare upon returning to idle) and clear 20h.0 (indicating that the flare will use the longer, coasting flare countdown instead of the short startup countdown). 
+This is the default condition in 08A6 if we don't jump away for one of the other conditions. We set 20h.6 (indicating we will need to flare upon returning to idle) and clear 20h.0 (which controls the flare counter). 
 
 Then we jump stvraight to 09C5 where the open loop pwm values are loaded, thus skipping the closed loop control entirely. 
 
@@ -132,7 +128,9 @@ if 20h.6 is set then:
 ```
 
 __0912__:
-Load target rpm from b into a and compare it with 7F. If 7F is higher, then we replace the target with 7F. 
+We Lload the target rpm from b into a and compare it with 7F. If 7F is higher, then we replace the target with 7F. 
+
+Then:
 
 ```
 if current target rpm < 7F then:
@@ -148,7 +146,7 @@ if current target rpm < 7F then:
 
 So the flare is achieved by holding the current rpm (if it's above the normal target) for a short time and allowing it to sink down gradually. 
 
-Now we replace 7F with the target rpm (map value or AC value). Depending on the previous section, we ight have already overwritten the target rpm with 7F - now 7F contains our target rpm regardless. 
+Now we replace 7F with the target rpm (map value or AC value). Depending on the previous section, we might have already overwritten the target rpm with 7F - now 7F contains our target rpm regardless. 
 
 Next, the alternate path rejoins at 092D. 
 
@@ -188,7 +186,7 @@ else if rpm error is positive:
 ```
 __0953__:
 Store the current rpm error in r3
-Load 7E:7D into r1:r0 (i.e the integral term, which is preserved)
+Load 7E:7D into __r1:r0__ (i.e the integral term, which is preserved)
 
 Next we see how integration is guarded by the clamping flags:
 
@@ -205,9 +203,9 @@ if NOT 20h.3 AND NOT 20h.4:
 ```
 Note that from the previous block, a positive rpm error condition clears the negative clamping flag, and vice-versa. In other words, if we previously flagged that the error correction was too negative, then that blocks further *negative* integration. A positive error clears the flag and so is not blocked. The reverse is true for the other flag. Later we'll see how these flags are actually set. 
 
-The integrator routine takes a and b as its inputs (which now contain the current rpm error and the gain value from the appropriate map, respectively). It scales, clamps, and if necesary negates the product of a and b and adds the result to r1:r0. So the integral term is actually proportional to the error, but the gain is low. 
+The integrator routine takes a and b as its inputs (which now contain the current rpm error and the gain value from the appropriate map, respectively). It scales, clamps, and if necesary negates the product of a and b and adds the result to __r1:r0__. So the integral term is actually proportional to the error, but the gain is low. 
 
-We store the result into 7E:7D (in the next cycle, r1:r0 will be initialized with this value - that's how the *integration* is achieved). 
+We store the result into 7E:7D (in the next cycle, __r1:r0__ will be initialized with this value). 
 
 __0971__:
 Now 20h.3 and/or 20h.4 are cleared implicitly from the jbc instruction at 0953. 
@@ -225,12 +223,12 @@ if not 20h.2 (i.e. if current rpm < target rpm):
 		a=rpm error * 4
 		b=map gain value
 ```
-Note that the same "integrator" routine is used to add the P term to the total correction r1:r0. But the resulting total is not stored back into 7E:7D, and thus will not be included in the next cycle. Proportional correction is a bigger, more powerful correction, but it's calculated afresh every time. Thus the P term only exists while there is an error, hence the need for an integraiton term to close the gap. 
+Note that the same "integrator" routine is used to add the P term to the total correction __r1:r0__. But the resulting total is not stored back into 7E:7D, and thus will not be included in the next cycle. Proportional correction is a bigger, more powerful correction, but it's calculated fresh every time. The P term only exists while there is an error, hence the need for an integraiton term to close the gap. 
 
 __0988__:
 Now we jump to 1B82, which is the clamp routine for the ISV correction. 
 
-Recall in mind that the corrections are centered around the midpoint (high byte 128) so that > 32767 is "positive" and < is negative. The clamping routine removes this bias so that the correction value in r1:r0 is in standard 2's complement form. It also stores the carry bit in 20h.5 when the bias is removed. Later, if the final correction value overflows we use 20h.5 to determine whether to clamp high or low. 
+Recall that the corrections are centered around the midpoint (high byte 128) so that > 32767 is "positive" and < is negative. The clamping routine removes this bias so that the correction value in __r1:r0__ is in standard 2's complement form. It also stores the carry bit in 20h.5 when the bias is removed. Later, if the final correction value overflows we use 20h.5 to determine whether to clamp high or low. 
 
 The details of the clamping routine are left to the Appendix section; for now we return to the main ISV routine. 
 
@@ -239,10 +237,10 @@ NOTE: __09C5__ just ljmps back to __09C8__ below
 ## 09C8: All paths (except ISV defeat mode):
 This is where we load the open-loop PWM values from the map, add the closed loop correction (if any) and make a few other small adjustments. 
 
-This is where we get to after the idle part of ISV control (both paths), but also we jump here for both part throttle and coasting fuel-cut. So almost all paths converge to this part - only the idle+WOT mode for setting the idle screw bypasses this. 
+We get here after the idle part of ISV control (both paths), but also we jump here for both part throttle and coasting fuel-cut. So almost all paths converge to this part - only the idle+WOT mode for setting the idle screw bypasses this. 
 
 __09C8__:
-We look up base ISV pwm map (map 60, which is RPM x NTCII) and store the value into b.
+We look up base ISV pwm map (map 60, which is RPM x Temperature) and store the value into b.
 
 ```
 if 23h.5 (fuel cutoff mode):
@@ -255,9 +253,9 @@ if AC is on:
 	look up value 1160+3A=119A (contains 18)
 	add this value to a
 ```
-Recall that 23h.3 being set indicates that we are using the alternate idle path. Earlier the alternate path skipped the target rpm bump for AC-on. Here it looks like the intent might have been to provide some extra air for AC-on in the alternate path, but now it does nothing. 
+Recall that 23h.3 being set indicates that we are using the alternate idle path. Earlier, the alternate path skipped the target rpm bump for AC-on. Here it looks like the intent might have been to provide some extra air for AC-on in the alternate path, but now it does nothing. 
 
-Adding air for the AC-on condition makes sense since we bumped the target rpm earlier. We could let the closed loop control figure out that more air is needed to achieve this target, and let it make the adjustment - but why wait if we already know we need it? That's the essence of combining open loop and closed loop control. 
+Adding air for the AC-on condition makes sense since we bumped the target rpm earlier. We could let the closed loop control figure out that more air is needed to achieve this target, and let it make the adjustment - but why wait if we already know we need it? 
 
 We multiply current base value by 128 (8x8=16 bit value in b:a). This is the basic scaling operation to turn the map's 8-bit values into sensible values for the timer. Recall that the constant we loaded for the closed loop defeat mode earlier was loaded into the high byte (r1), and divided by 2. That's the same thing as multiplying by 128. The correction values that the closed loop routine calculated are generally already the product of two 8-bit numbers, so they are already in the right order of magnitude. 
 
@@ -267,7 +265,7 @@ __09EF__:
 Add the low byte of the current correction (r0) to the low byte of base value
 Add the high byte of the correction r1 to base high byte (in b)
 
-Now we do a sanity check: if bit 7 of the final PWM value is set, that represents a negative value which is invalid. So we must clamp it to one extreme or the other. Which one? This can be a bit confusing!
+Now we do a sanity check: if bit 7 of the final PWM value is set, that represents a negative value which is invalid. So we must clamp it to one extreme or the other. But which one? This can be a bit confusing!
 
 Recall that the correction value is a 2's complement signed value, so 0-32767 represent positive values and 327678-65536 represent negative values. Now we just added that to a positive 16-bit value (with a maximum of 32767), and ended up with something greater than 32767, but why? 
 
@@ -304,32 +302,34 @@ That means that the duty cycle of our PWM signal will be
 timer_on_time/5681
 ```
 
-First we load r1:r0 into r7:r6 and multiply it by two via the left shit routine at 0509. 
+First we load __r1:r0__ into r7:r6 and multiply it by two via the left shit routine at 0509. 
 We store the high byte r7 in 7B. 
 
 We multiply r7:r6 by the value from 1160+41=11A1, which is 8A (138), via 04D9. This is an 8x16 multiply routine with a 24 bit result in r7:r5:r5. 
 
 We add the constant from 1160+42=11A2, which is 42 (66) to r7.
 
-Next we load the 16-bit value from 1160+0B and 0C into r1:r0 - this value is 1631, or 5681 decimal, i.e the number of ticks that make one complete timer period (high+low time). 
+Next we load the 16-bit value from 1160+0B and 0C into __r1:r0__ - this value is 1631, or 5681 decimal, i.e the number of ticks that make one complete timer period (high+low time). 
 
 Now we multiply this value by r7:r6. But recall that r7:r6:r5 was a 24 bit result of the previous multiply; thus by discarding r5 we are dividing by 256. So we really have
 
 r7:r6:r5 <- (r7:r6:r5 / 256) * 5681
 
-But next we discard r5 again to give another division by 256. Additionally since we want the duty cycle (i.e. percentage on time vs off time) we need to divide all this by 5681, so ultimately the duty cycle comes down to
+But next we discard r5 again to give another division by 256. Now if we want to knoew the duty cycle (i.e. percentage on time vs off time) we need to divide all this by 5681, so ultimately the duty cycle comes down to the formula
 
-((input * 138) + (66*256))/(256**2)
+((input * 138) + (66*256))/(256**2).
 
-Here we're multiplying 66 by 256 because 66 was added to the high byte of a 16-bit value, and diving the whole thing by 256 twice because we twice discarded the lower byte of a 24-bit result (r5). 
+Note: Here we're multiplying 66 by 256 because 66 was added to the high byte of a 16-bit value, and diving the whole thing by 256 twice because we twice discarded the lower byte of a 24-bit result (r5). 
 
-This formula gives us a good way to visualize the meaning of the base PWM values. If we put 0 into this formula, we get approximately 0.25 and if we put 255 we get approximately 0.8. Thus the ISV duty cycle is always between ~25% and 80%. Recall that the closed loop defeat mode resulted in the value 22 being used in place of the usual open loop map; plugging this value into our formula gives ~30%. Here's a screenshot of the PWM signal on a scope with the car idling, and a test lead connecting pins B and C of the diagnostic port:
+But what the code needs is the actual number of ticks, so it multiplies by 5681 and leaves it at that. 
+
+The formula above gives us a good way to visualize the meaning of the base PWM values. If we put 0 into this formula, we get approximately 0.25 and if we put 255 we get approximately 0.8. Thus the ISV duty cycle is always between ~25% and 80%. Recall that the closed loop defeat mode resulted in the value 22 being used in place of the usual open loop map; plugging this value into our formula gives ~30%. Here's a screenshot of the PWM signal on a scope with the car idling, and a test lead connecting pins B and C of the diagnostic port:
 
 ![](images/dme_isv_info/minimum_isv_pwm_1.png)
 
-As you can see it's ~30% as expected. 
+And indeed it's ~30% as expected. 
 
-Of course we must finally calculate the balance (i.e. off time) and store that too. We want to end up with the on time in one pair of bytes and the off time in another, with the the two values adding to 5681. 
+Of course we must finally calculate the balance (i.e. off time) and store that too. We want to end up with the on-time in one pair of bytes and the off time in another, with the the two values adding to 5681. 
 
 The timer1 interrupt routine will load the on time value and toggle the signal on. When the interrupt routine triggers again, it will load the off time and toggle the signal off. 
 
@@ -352,7 +352,7 @@ is absolute (complemented/inc'd in the case of rpm > target) and the sign is sto
 
 __0BDD__:
 ```
-b:a <- rpm_error*4 * integrator map gain
+b:a = rpm_error * map_gain (if we're calling this for the P term, then rpm_error *= 4)
 if b >= 128:
 	b <- 127
 if 20h.2, that is if rpm > target (error is negative):
@@ -361,7 +361,7 @@ if 20h.2, that is if rpm > target (error is negative):
 	b = ~b
 ```
 
-Now b:a is effectively the 2's complement of the error product ab.
+Now b:a is effectively the 2's complement of the error product ab, though this is a odd way of doing it. 
 
 __0BEC__:
 ```
@@ -400,10 +400,10 @@ In other words, when we do subtraction by adding a 2's complement number, the ca
 c=1 if A > B
 c=0 if A <= B
 
-So here we zero out r1:r0 if the correction we're subtracting was bigger than the current total. 
+So here we zero out __r1:r0__ if the correction we're subtracting was bigger than the current total. 
 
 if not c:
-	r1:r0 <- a:a
+	__r1:r0__ <- a:a
 ret
 
 ## Appendix: closed loop clamp routine

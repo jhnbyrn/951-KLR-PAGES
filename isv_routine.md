@@ -1,4 +1,4 @@
-x# Idle Stabilizer Valve (ISV) routine
+# Idle Stabilizer Valve (ISV) routine
 
 Here we'll explore how the DME controls the ISV in detail. 
 

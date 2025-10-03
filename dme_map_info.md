@@ -178,12 +178,12 @@ OK these are not really __maps__ at all, since they contain just one value - but
 General purpose tuning constants are stored starting at a base offset of 0x1160. The standard map read routine always restores the dptr to this location after looking up a value. This allows the various routines throughout the code to refert to constants using only their offset, after a map lookup. So a typical pattern looks like this:
 
 ```
-	mov	r2,#37h		; we're going to read Map 55 (idle target rpm)
-	lcall X051d     ; read the value (based on temperature) and set dptr to 0x1160
-	mov	b,a		    ; b <- target rpm from map 55
-	jb t1,X0901     ; check if air conditioning is turned on
-	mov	a,#39h		; load the offset for the AC idle rpm target constant (relative to 0x1160)
-	movc a,@a+dptr  ; a <- idle rpm target for when AC is on
+	mov	r2,#37h ; we're going to read Map 55 (idle target rpm)
+	lcall X051d ; read the value (based on temperature) and set dptr to 0x1160
+	mov	b,a ; b <- target rpm from map 55
+	jb t1,X0901 ; check if air conditioning is turned on
+	mov	a,#39h ; load the offset for the AC idle rpm target constant (relative to 0x1160)
+	movc a,@a+dptr ; a <- idle rpm target for when AC is on
 ```
 
 This is convenient because 0x1160 requires 2 bytes to represent, so having to load both bytes into dptr every time we want to look up a constant would get pretty tedious. 

@@ -11,7 +11,7 @@ Target speed (in rpm) | 1000 | 920 | 840
 For practical reasons, however, the DME code doesn't work directly in these familiar units. Here's how the map looks from a programmer's perspective:
 
 30 | 139 | 178
-25 | 23 | 2
+25 | 23 | 21
 
 This is much more obscure - clearly there's some translation needed to get from units (in the code) to common everyday units like degrees C and revolutions per minutee. 
 
@@ -47,6 +47,8 @@ This value is the RAM address of the input variable. In the Motronic code, key e
 ```
 
 So in our example map above, the first byte is 13 and that tells us that this map depends on engine temp (NTC). 
+
+There are exceptions to this conention, though. There are some maps that don't use a fixed, global variable and so their purpose can be a little harder to ascertain. The [NTC sensor linearization map](ntc_info.md) is a good example. The DME has 2 of these sensors and they use the same linearization map. So for this map, the input value is read from the location __r4__, which is a general purpose register that gets re-used a lot. Other exaples include the [ISV closed loop gain maps](isv_routine.md). These maps use rpm as their input, but not the current rpm value located at 37h. The rpm value they use is the closed loop error (i.e. the difference between the current rpm and the target rpm). 
 
 ## Second byte: the length of the axis
 This is pretty straightforward; the number 3 in this example just tells us that there are 3 values in the axis! So this map only cares about 3 different temperature ranges. As a rule, the right-most value in the map applies to all input values to the right, and vice-versa for the left. So for instance if the right-most axis number was 0 deg. C, then the value corresponding to that would apply for all temperatures below 0C. 
@@ -94,3 +96,94 @@ My rough calculations give a conversion rate of 1 unit in the code equals 0.0686
 Now we get into the territory that made me say this question of units is one of the hardest of all to answer. The DME uses an NTC temperature sensor which is not linear. Immediately after the temp sensor is read by the ADC, it's linearized using a special map. You can think of this map as a complementary curve that corrects the natural curve of the NTC sensor. The sensor value is also complemented (i.e. inverted) so that we end up with a linear scale where lower numbers correspond to lower temperatures. This is handy and intuitive, but the details of how all this is done can wait til another time. 
 
 You can read all the details of how the NTC sensor is processed in the [How the DME reads engine temperature](ntc_info.md) section. To cut a long story short for now, the temperature ends up as a fairly straight line with an offset of around 62.6 and a slope of somewhere around 1.52. With that in mind we can take any value in the code, subtract 62.6 and divide the result by 1.52 to get a pretty good value for the temperature in degrees C. This is not perfect but it's close. Bear in mind that the NTC sensors have a very wide tolerance range, and as a result the map headings are very approximate. 
+
+## 2-Axis (3D) Maps
+The maps we have seen so far as 1-axis maps, also known as "2D" maps (2D because we can visualize them as graphs in 2D space). But many of the DME's maps use 2 axes. These are the so-called 3D maps. These maps require 2 input variables, so they can be visualized as tables with multiple rows and columns, or as surfaces in 3D space. 
+
+Here's an example of each, using the ignition dwell map from the stock 951 DME (found at location 0x13DC). As a table:
+
+
+| RPM \ Voltage | 6   | 8   | 10  | 12  | 14  | 16  | 16.5 |
+|---------------|-----|-----|-----|-----|-----|-----|------|
+| 40            | 25  | 26  | 23  | 16  | 12  | 10  | 7    |
+| 160           | 73  | 42  | 23  | 16  | 12  | 10  | 7    |
+| 320           | 73  | 42  | 23  | 16  | 12  | 10  | 7    |
+| 480           | 81  | 46  | 25  | 18  | 14  | 11  | 7    |
+| 640           | 93  | 53  | 29  | 20  | 16  | 13  | 8    |
+| 800           | 106 | 61  | 33  | 23  | 18  | 15  | 9    |
+| 1440          | 106 | 97  | 53  | 37  | 28  | 24  | 14   |
+| 2080          | 106 | 97  | 58  | 42  | 33  | 27  | 16   |
+| 2280          | 106 | 106 | 63  | 46  | 36  | 30  | 18   |
+| 3840          | 106 | 106 | 106 | 78  | 61  | 51  | 30   |
+| 5240          | 106 | 106 | 106 | 106 | 83  | 69  | 42   |
+| 6480          | 106 | 106 | 106 | 106 | 103 | 86  | 51   |
+
+
+And as a surface plot:
+
+![](images/dme_map_reading/example_surface_plot_dwell_2.png)
+
+
+The basic layout of the Motronic 2-axis maps is very similar to the 1-axis version we've seen. The big difference is the first header (which contains the input variable and the axis values) is followed imediately by a second header of the same format, identifying the second input variable and its associated breakpoints. After that come the values in a list. 
+
+In Motronic maps the first header represents the row and the second one represents the column. Similary, the values that follow the headers are listed in rows first. Here's what the raw bytes look like for the dwell map we just looked at:
+
+```
+37 0c 03 04 04 04 04 10 10 05 27 23 1f 5e 11 07 1d 1e 1d 1e
+1d 07 0e 19 1a 17 10 0c 0a 07 49 2a 17 10 0c 0a
+07 49 2a 17 10 0c 0a 07 51 2e 19 12 0e 0b 07 5d
+35 1d 14 10 0d 08 6a 3d 21 17 12 0f 09 6a 61 35
+25 1c 18 0e 6a 61 3a 2a 21 1b 10 6a 6a 3f 2e 24
+1e 12 6a 6a 6a 4e 3d 33 1e 6a 6a 6a 6a 53 45 2a
+6a 6a 6a 6a 67 56 33
+```
+
+So this means "37 (rpm), 12 values, 11 (battery voltage), 7 values...". Then the 12 values that follow form the first row of values, and so on. 
+
+The same linear interpolation I mentioned in the section above on axis values applies to these 2-axis map values. 
+
+## Other maps and constants
+
+The majority of the DME's maps are of the 1 or 2 axis kind we discussed above. But there are exceptions. These are:
+
+* maps with headers but no interpolation
+* maps with no headers
+* constants (i.e. "maps" with only one value)
+
+### No interpolation
+As discussed, the DME's standard map read routine (located at 0x051D) always does interpolation, on both 1 and 2 axis maps. But there is also a simpler map routine (located at 0x05CD) that just can read a 1-axis map without interpolation. This routine just returns the closest matching value (i.e. the column that first causes the overflow). This is used for the FQS (fuel quality switch), the altitude correction, and similar discrete variables. These are cases where interpolation is not needed, but the input space is still somewhat arbitrary. 
+
+
+### Maps with no headers
+These can be thought of as just lists of constants stored at consecutive locations, or as maps with implicit headings like 1, 2, 3... etc. The way these maps are read is by simply adding loading the base offset of the map into dptr and then adding the offset of the desired value. There's no interpolation for this type of lookup. The AFM linearization map (also known as the __AFM transfer function__) works this way:
+
+```
+	mov	a,rb2r0	        ;rb2r0 = 10h, i.e raw AFM value
+	mov	b,#20h
+	div	ab	            ; divide AFM by 32 
+	mov	r2,a            ; now a contains AFM value % 32, i.e. 0-7
+	mov	r3,b
+	mov	dptr,#X10f4	    ; AFM transfer table1 base offset
+	movc a,@a+dptr      ; load one of the 8 values from the map into a
+```
+
+This simple lookup with no explicit breakpoints makes sense when:
+
+1. We don't need or want interpolation, and
+2. The input space is just a range of consecutive numbers
+
+### Constants
+OK these are not really __maps__ at all, since they contain just one value - but they are often used for tuning, so for completeness let's take a quick look at how constants are looked up. 
+
+General purpose tuning constants are stored starting at a base offset of 0x1160. The standard map read routine always restores the dptr to this location after looking up a value. This allows the various routines throughout the code to refert to constants using only their offset, after a map lookup. So a typical pattern looks like this:
+
+```
+	mov	r2,#37h		; we're going to read Map 55 (idle target rpm)
+	lcall X051d     ; read the value (based on temperature) and set dptr to 0x1160
+	mov	b,a		    ; b <- target rpm from map 55
+	jb t1,X0901     ; check if air conditioning is turned on
+	mov	a,#39h		; load the offset for the AC idle rpm target constant (relative to 0x1160)
+	movc a,@a+dptr  ; a <- idle rpm target for when AC is on
+```
+
+This is convenient because 0x1160 requires 2 bytes to represent, so having to load both bytes into dptr every time we want to look up a constant would get pretty tedious. 

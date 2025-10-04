@@ -128,15 +128,15 @@ The basic layout of the Motronic 2-axis maps is very similar to the 1-axis versi
 
 In Motronic maps the first header represents the row and the second one represents the column. Similary, the values that follow the headers are listed in rows first. Here's what the raw bytes look like for the dwell map we just looked at:
 
-```
-37 0c 03 04 04 04 04 10 10 05 27 23 1f 5e 11 07 1d 1e 1d 1e
-1d 07 0e 19 1a 17 10 0c 0a 07 49 2a 17 10 0c 0a
+<code>
+<span style="color:red">37</span> <span style="color:red">0c</span> <span style="color:green">03 04 04 04 04 10 10 05 27 23 1f 5e </span><span style="color:red">11</span> <span style="color:red">07</span> <span style="color:green">1d 1e 1d 1e
+1d 07 0e</span> 19 1a 17 10 0c 0a 07 49 2a 17 10 0c 0a
 07 49 2a 17 10 0c 0a 07 51 2e 19 12 0e 0b 07 5d
 35 1d 14 10 0d 08 6a 3d 21 17 12 0f 09 6a 61 35
 25 1c 18 0e 6a 61 3a 2a 21 1b 10 6a 6a 3f 2e 24
 1e 12 6a 6a 6a 4e 3d 33 1e 6a 6a 6a 6a 53 45 2a
 6a 6a 6a 6a 67 56 33
-```
+</code>
 
 So this means "37 (rpm), 12 values, 11 (battery voltage), 7 values...". Then the 12 values that follow form the first row of values, and so on. 
 

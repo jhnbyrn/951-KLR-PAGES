@@ -1,4 +1,4 @@
-# The Motronic map read routine
+# The Motronic map locations
 
 In the [section on maps](dme_map_info.md) we examined Motronic map structure and how to make sense of their content. In this section we'll explore the map lookup process in more detail. 
 
@@ -53,11 +53,11 @@ Another advantage: changing the maps. Suppose we have some branch in the code wh
 
 So that helps to explain why we have the first, 1-byte table. But couldn't the output of that table be the real 2-byte location of the map? That would mean we'd have to __inc__ twice to select an adjacent map, but that's not a big deal, and is surely a small price to pay for eliminating another lookup step right? That would probably work but there are advantages to having the second lookup table. I can't say for certain what the Bosch engineers were thinking, so what follows is my best guess at why it's useful to have the second table. 
 
-If you have read my other article on [montronic maps](dme_map_info.md) you will know that the map read routine uses both 1-axis (2D) and 2-axis (3D) maps. What's not clear in that article is how it tells the difference. The answer may surprise you: if the output value from the 1090 table is even, then the map read routine treats it as a 1-axis map. If odd, it's treated as a 2-axis map. So in the example we used earlier, we had __4A__ which is even - a 1D map. But since this value is used as an offset into Table 11E0, this even/odd system constrains where the value can point to. As you add more and more maps (and perhaps change your mind about how many axes each one needs) re-arranging the maps to make sure that they all live at a location with the right parity could be really tedious. But this problem is much easier to deal with when you have Table 11E0 as an intermediate step. Each entry in this table is just two bytes so it's relatively easy to re-arrange it to get each type of map into a suitable location. The actual maps can stay where they are - the parity of their *true* locations doesn't matter. And Table 1090 can stay the same too! 
+If you have read my other article on [montronic maps](dme_map_info.md) you will know that the map read routine uses both 1-axis (2D) and 2-axis (3D) maps. What's not clear in that article is how it tells the difference. The answer may surprise you: if the output value from the 1090 table is even, then the map read routine treats it as a 1-axis map. If odd, it's treated as a 2-axis map. So in the example we used earlier, we had __4A__ which is even - a 1-axis map. But since this value is used as an offset into Table 11E0, this even/odd system constrains where the value can point to. As you add more and more maps (and perhaps change your mind about how many axes each one needs) re-arranging the maps to make sure that they all live at a location with the right parity could be really tedious. But this problem is much easier to deal with when you have Table 11E0 as an intermediate step. Each entry in this table is just two bytes so it's relatively easy to re-arrange it to get each type of map into a suitable location. The actual maps can stay where they are - the parity of their *true* locations doesn't matter. And Table 1090 can stay the same too! 
 
 There's a [saying in software engineering](https://en.wikipedia.org/wiki/Fundamental_theorem_of_software_engineering):
 
->> We can solve any problem by introducing an extra level of indirection.
+> We can solve any problem by introducing an extra level of indirection.
 
 True or not, hopefully this discussion sheds a little light on how to trace map lookups!
 

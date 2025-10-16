@@ -12,7 +12,7 @@ The devil of course is in the details. But we'll break it down step by step. We 
 
 Let's assume we're starting at the reference sensor interrupt routine:
 
-![](images/ignition_timing/ref_sensor_starting_point.png)
+![](images/ignition_timing/ref_sensor_starting_point_1.png)
 
 The speed sensor interrupt outine will count 44 half-teeth from this point to TDC for cyl #1. 
 

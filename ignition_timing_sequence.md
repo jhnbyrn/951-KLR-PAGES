@@ -16,9 +16,9 @@ Let's assume we're starting at the reference sensor interrupt routine:
 
 The speed sensor interrupt outine will count 44 half-teeth from this point to TDC for cyl #1. 
 
-Note that I called the cylinders A and B in this diagram. That's because we don't always know which cylinders they really are (and we never care). What we know is that *some* cylinder (either 1 or 4 based on the 1-3-4-2 firing order) reaches TDC 60 degrees after the pulse, and the next cylinder that needs to fire reaches TDC 180 degrees after that. This is important because we won't get another ref sensor pulse to sync with before that second cylinder fires. 
+Note that I called the cylinders A and B in this diagram. That's because we don't always know which cylinders they really are (and we never care). What we know is that *some* cylinder (either 1 or 4 based on the 1-3-4-2 firing order) reaches TDC 60 degrees after the pulse, and the next cylinder reaches TDC 180 degrees after that. This last detail is important because we won't get another ref sensor pulse to sync with before that second cylinder fires. 
 
-I find that it helps enormously to visualize the target angles being subtracted from the ref sensor BTDC value of 44, by working backwards from TDC like this:
+I find that it helps enormously to visualize the target angles being subtracted from the ref sensor BTDC value of 44, by working backwards from TDC. In the following diagram, the red and orange dotted lines represent the dwell and timing advance values - we are subtracting those from the reference sensor-to-TDC value to get the number of half-teeth to the start of the dwell period:
 
 ![](images/ignition_timing/dwell_spark_overview_1.png)
 
@@ -28,15 +28,15 @@ Now in practice, we actually subtract 3 values from the ref sensor base value:
 * acceleration adjustment (57h)
 * dwell angle (2Fh)
 
-Since the first two of these add to give the true spark advance, we can just treat them as one value visually. By subtracting the sum of these 3 values from the ref sensor advance, we get the number of half-teeth we need to count to begin the dwell period. The dwell value itself 2Fh is the number of half-teeth we must then count before firing the spark.
+Since the first two of these add to give the true spark advance, we can just treat them as one value visually. So, subtracting the sum of these values from the ref sensor advance, we get the number of half-teeth we need to count to begin the dwell period. The dwell value itself 2Fh is the number of half-teeth we must then count before firing the spark.
 
 Now this business of counting half-teeth has some subtle issues that we'll get into in detail when we look at the code. For now, let's just say that we can do this accurately in the speed sensor interrupt routine. For convenience we always count *down*, because the 8051 provides handy instructions for checking if something is zero. Also for convenience, we always use the same counter variable, reloading it with the next appropriate value every time we reach an event. This counter variable is 2B.
 
-So now let's assume we have counted down the number of half-teeth in 2F, we've reached zero in the speed sensor interrupt routine. We turn on the ground path of the coil to start the dwell period. 
+In general the speed sensor interrupt routine just decrements the counter, and if it hasn't reached zero yet, it just returns and lets the prgram resume whatever it was doing before. But now let's assume we *have* reached zero in the speed sensor interrupt routine. We turn on the ground path of the coil to start the dwell period. 
 
 ![](images/ignition_timing/dwell_start_cyl_A_1.png)
 
-Now we load the counter 2B with the number of half-teeth that make up the dwell period and return from the interrupt. It'll count down to zero again and we'll be ready to fire the spark (at the end of the red dotted line in the diagram). 
+Now we reload the counter 2B with the number of half-teeth that make up the dwell period and return from the interrupt. The program returns to whatever it was doing before, and the speed sensor interrupt routine will count down to zero again and we'll be ready to fire the spark (at the end of the red dotted line in the diagram). 
 
 So far this has been trivial and the diagrams have hardly been necessary. But now things get a little more complicated. We fire the spark by turning the coil current off. Now we need to get ready for the next ignition event, for cyl B. But we won't get a ref sensor pulse to measure things relative to that one. So I'm going to cheat and tell you that we *do* know the number of half-teeth to TDC for cyl B. You haven't seen where we got that from because we started our exploration with the engine already running! But don't worry, you'll see exactly how that's calculated very soon. For now just assume that we have this value, stored in 33h. 
 

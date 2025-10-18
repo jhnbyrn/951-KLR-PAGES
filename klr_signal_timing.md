@@ -12,7 +12,7 @@ This scope trace shows the 3 most important signals as far as the KLR is concern
 
 The probe for the trigger (blue) is hooked up to __pin 24__ of the KLR connector. The probe for the ignition input (red) is hooked up to __pin 39 (T1)__ on the 8048. The ignition output (green) is from __pin 38 (P2.7)__. See the pin assignments document for more info. 
 
-The DME sends the trigger signal ~11 degrees before ignition; it then pulls the ignition signal high to begin the dwell period, and low to fire the coil. The KLR must return this signal, either unchanged (if there's no knocking) or delayed (if there is knocking). (Note: the DME's processor does not receive this returned ignition signal. It only goes back to the DME enclosure because that's where the coil driver circuit is located).
+The DME sends the trigger signal around 80 degrees before TDC; it then pulls the ignition signal high to begin the dwell period, and low to fire the coil. The KLR must return this signal, either unchanged (if there's no knocking) or delayed (if there is knocking). (Note: the DME's processor does not receive this returned ignition signal. It only goes back to the DME enclosure because that's where the coil driver circuit is located).
 
 There is one very important timing component *not* shown here: the timer interval. The 8048 has a single asynchronous timer that's set up to  generate an interrupt every __87us__ (or __174us__ when below 1500rpm). To put this in perspective, the timer interrupt will run many times between each trigger pulse (blue trace). Even at the highest rpm there would be over 50 timer interrupts between 2 trigger pulses. 
 

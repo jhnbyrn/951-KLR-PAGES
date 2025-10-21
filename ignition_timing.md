@@ -22,28 +22,6 @@ That's a very low resolution outline of what happens. But there are many details
 
 ## Hardware setup
 
-
-## Rounding errors
-Earlier we briefly touched on the fact that the angle measurements are generally stored in half-teeth, but the real time counting is done in whole teeth, and this results in some rounding issues that the code needs to deal with. Here we'll get into the details of that. 
-
-There are actually two sources of this kind of rounding error:
-* the conversion of an *odd* number of half teeth to whole teeth by divinding by 2
-* the physical relationship between the flywheel ring gear and the magnetic set screw (i.e. speed sensor vs ref sensor signal phase)
-
-The first one is pretty easy to understand - when we divide an odd number by 2 we can end up with 1 left over. This must be accounted for in the ignition event timing. 
-
-The second source is less obvious. But there is no guarantee of how the flywheel teeth line up with the set screw that the ref sensor uses. So when the ref sensor interrupt fires, the speed sensor pin could be high or low. It'll be a fixed relationship for any given car, but it can vary up to half a tooth from one car to the next!
-
-We can't add "one half" to the counter, so instead we need to store the fact that the error exists and handle it in the logic at the end of the countdown. 
-
-Once you understand these sources of error, the strategy for dealing with them is very easy to follow:
-
-* if neither error has is present, do nothing (i.e. just use the whole-tooth count as-is)
-* if exactly one of these errors is present (it doesn't matter which one), set the flag that adds one half-tooth to the ignition event countdown at the end
-* if both of these errors are present, add one whole tooth to the counter variable and clear the flag that adds a half-tooth. 
-
-All of this raises the question: why not just do the countdown in half-teeth, thus avoiding all this?
-
 ## The countdown
 
 Engines go around in circles so sometimes it's hard to know where to start. It might seem natural to start at the ref sensor routine but we will not do that because it's actually a little confusing. Instead we'll assume that the countdown has already begun, and we'll start in the speed sensor routine. 
@@ -57,7 +35,7 @@ The main variables to remember here are
 * 30h - the duration of the ignition event 
 * 33h - tooth count to the next TDC
 
-We start with the "short circuit" path, where the the ignition counter hasn't reached zero:
+We start with the "short circuit" path, where the the ignition counter hasn't reached zero yet:
 
 ```
 2B--
@@ -69,13 +47,15 @@ if 2B !=0:
 	reti
 ```
 
-For everything after this, we can assume that 2B is zero (though 2D, the KLR counter, might not be). 
+And that's it - most of the time the speed sensor interrupt routine returns without doing anything else at this point. 
 
-Next we check the KLR counter, disable external interrupts, and leave the interrupt context (without returning to the main routine).
+For everything after this, we can assume that 2B has reached zero (though 2D, the KLR counter, might not have). 
 
-We wait for one more ex1 interrupt, that is a falling edge of the signal, and manually update the rpm and KLR counters (since we're already in the interrupt routine). The reason why we wait for this falling edge should be clear in a moment.
+Next we check the KLR counter again, disable external interrupts, and leave the interrupt context (without returning to the main routine).
 
-Now comes the interesting part - we use 22h.0, the half-tooth error correction:
+We wait for one more ex1 pulse, that is a falling edge of the signal, and manually update the rpm and KLR counters (since we just manually waited for a pulse that would normally have triggered an interrupt but we're already in the interrupt routine). The reason why we wait for this falling edge should be clear in a moment.
+
+Now comes the interesting part - we use 22h.0, the half-tooth error correction like this:
 
 ```
 if 22h.0:
@@ -90,16 +70,16 @@ else:
 	enable ex1
 ```
 
-We know we *just* detected a falling edge before this code ran. So if there's no correction needed, we fire the event on the next rising edge. If a correction is needed, we wait for *another* falling edge, that is one half-tooth longer than normal. Hopefully it's now clear why we had to expiciltly wait for a falling edge just before this block - we need to make sure that the rising/falling edge decision is referenced to a known position. 
+We know we *just* detected a falling edge before this code ran. So if there's no correction needed, we fire the event on the next rising edge. If a correction is needed, we wait for *another* falling edge, that is one half-tooth longer than normal. Hopefully it's now clear why we had to expiciltly wait for a falling edge just before this block - we need to make sure that the rising/falling edge decision being made here is referenced to a known position. 
 
-Soon you'll see exactly how 22h.0 actually gets determined. 
+Later you'll see exactly how 22h.0 actually gets determined. 
 
 The careful reader may noticed that the ignition output signal (p1.1) is alway *toggled* here, never set to 1 or 0 explicitly. The reason is that we don't know or care what the actual state of the signal is at this point! Firing the ignition coil consists of a 2 step process:
 
 * coil ON to start dwell, i.e. charge the coil
 * coil OFF to fire the spark
 
-We treat these 2 steps the same in this routine, so we don't bother to keep track of which one is happening at this point. If the event we're handling is dwell, then the cpl instruction will turn the coil ON. If the event is spark, the cpl will turn the coil OFF.
+We treat these 2 steps the same in this code, so we don't bother to keep track of which one is happening at this point. If the event we're handling is dwell, then the cpl instruction will turn the coil ON. If the event is spark, the cpl will turn the coil OFF.
 
 With that said, in the next section we *do* check explicitly the actual state of p1.1, because from this point on we really do need to handle dwell and spark differently. 
 
@@ -110,19 +90,21 @@ Then (recalling that 30h is the previously calculated duration of whatever ignit
 ```
 if not p1.1 (coil is ON, so we have just started dwell):
 	disable ex1
-	2B = (30h/2) - 1 (convert half-teeth to whole teeth)
-	22h.0 = remainder
+	2B = ((30h + 22h.0)/2)  - 1 (convert half-teeth to whole teeth)
+	22h.0 = remainder (from the carry flag)
 	clear ie0 (ref sensor edge flag)
 	enable ex0 (ref sensor interrupt)
 	pop psw, acc
 	ret
 ```
 
-Note that we subtract 1 from the whole tooth count. But when preparing to fire the event, we waited for an extra tooth that wasn't part of the count - so this corrects that!
+Recall that earlier we saw 22h.0 being used to control whether an extra half-tooth is counted before the ignition event. Here the current value of 22h.0 is preserved in the next counter calculation. The reason for this will be fully understood at the end of this discussion. 
+
+Note also that we subtract 1 from the whole tooth count. Recall that when preparing to fire the event earlier, we waited for an extra tooth that wasn't part of the count - so this corrects that. 
 
 When we do integer division of an odd number of half-teeth, we lose one half-tooth. This lost bit is in the carry flag because the division was done with "rrc". So now we store this bit in 22h.0. As you saw earlier, this controls whether we'll delay ignition by an extra half-tooth or not. 
 
-Now we return to whatever was happening before the interrupt. We're in the dwell period now and the logic at the start of this routine will be repeated for this new 2B counter value. Then p1.1 will be toggled again, firing the spark, and when we get to the *if* statement we just looked at, we'll take the other branch, which we explore now:
+Now we return to whatever was happening before the interrupt. We're in the dwell period now and the logic at the start of this routine will be repeated for this new 2B counter value. When it reaches zero again, then p1.1 will be toggled again, firing the spark, and when we get to the *if* statement we just looked at, we'll take the other branch, which we explore now:
 
 ```
 else: (coil is OFF, so we just fired the spark)
@@ -130,7 +112,7 @@ else: (coil is OFF, so we just fired the spark)
 	push b
 	
 	# Now we calcultate the count to the next ignition event
-	2B = ((33h+22h.0) - (31h + 57h + 2Fh)) / 2	
+	2B = ((33h+22h.0) - (31h + 57h + 2Fh)) / 2	(see below for an explanation)
 	2B--
 	22h.0 = remainder of the division, i.e. any missing half-tooth	
 	Look up the constant at fire event index + 3 (35h+3)
@@ -156,7 +138,7 @@ Let's break down the 2B calculation formula. It's pretty simple and can be writt
 * store the rounding error caused by the division in 22h.0
 * decrement the result 2B
 
-Hopefully that all makes perfect sense by now. I haven't shown where the next TDC value 33h is calculated, but we'll see that next in 021D. 
+Hopefully that all makes perfect sense by now. I haven't shown where the next TDC value 33h came from, but we'll see that next in 021D. 
 
 After this, the ex1 routine continues to run fuel injection logic, but we'll leave that for a separate investigation to keep things focused on ignition. 
 
@@ -169,15 +151,15 @@ The purpose of this routine is twofold:
 1. prepare for the reference sensor interrupt routine. 
 2. calculate the number of half-teeth to TDC for the next cylinder (stored in 33h)
 
-We usually get here from the speed sensor interrupt, after the spark has been fired. Back there, we calcualted the counter values we need to handle the next cylinder, 180 degrees away. But here in 021D we will get ready to take advantage of the upcoming reference sensor routine to re-sync, and calculate the values for cylinder A again. 
+We usually get here from the speed sensor interrupt, in 00B8, after the spark has been fired. Back there, we calcualted the counter values we need to handle the next cylinder, 180 degrees away. But here in 021D we will get ready to take advantage of the upcoming reference sensor routine to re-sync, and calculate the values for cylinder A again. 
 
-If we're calling this from the spark event for cyl A, then the re-sync part of this routine is useless because we won't get a ref sensor pulse before cyl B needs to fire. So we will just use the values we already calculated in 00B8. 
+If we're calling this from the spark event for cyl A, then the re-sync part of this routine is useless because we won't get a ref sensor pulse before cyl B needs to fire. So we will just use the values we already calculated in 00B8. I know that's confusing - there is some redundancy in the calculations which should become clearer when you've seen the whole thing. 
 
 First we initialize the KLR counter 2E from 1162. This will replace 2D in the reference sensor routine. 
 
-We set 22h.3. This flag will be used by the reference sensor routine to check if the dwell period should be on immediately. We'll more on this in just a moment, but for now just note that *setting* this flag indicates that the dwell should be *OFF*. 
+We set 22h.3. This flag will be used by the reference sensor routine to check if the dwell period should be on immediately. We'll see more on this in just a moment, but for now just note that *setting* this flag indicates that the dwell should be *OFF*. 
 
-The next section should now seem familiar:
+The next section should now seem mostly familiar:
 
 ```
 X0224:	mov	a,#0
@@ -207,7 +189,7 @@ If subtracting the dwell angle resulted in carry:
   add 2F dwell angle back again
 ```
 
-This ensures that if the dwell should have started before the reference sensor interrupt routine, then at least it'll start in that routine instead of waiting for the next speed sensor pulse. 
+This ensures that if the dwell should have started before the reference sensor interrupt routine, then at least it'll start in that routine instead of waiting for the next speed sensor pulse. This could happen at higher rpm where there's very little time available between ignition events. 
 
 Adding the dwell angle back to the total ensures that the next ignition event that happens in the speed sensor routine will be firing the spark. 
 
@@ -223,7 +205,7 @@ If zero:
 
 Here we repeat the same logic as we had with the dwell period above - if the division results in zero, this means the original value was 1 (this is because the division is really a rrc, rotate-right-into-carry). This again means that the total count we subtracted from 44 was too big, so we need to signal to the reference sensor routine that it should turn on the coil immediately. But in that case we should not include dwell in the counter that the speed sensor routine uses. 
 
-Now we store our final count value into 2C. This is essentially a "next counter value" variable. The ref sensor int routine will swap this into 2B, the one that the speed sensor actually uses. 
+Now we store our final count value into 2C. This is essentially a "next counter value" variable. The ref sensor int routine will swap this into 2B, the one that the speed sensor actually uses. Note that we don't subtract 1 this time as we did in 00B8. The reference sensor routine handles this. 
 
 )
 
@@ -235,7 +217,7 @@ Next we calculate the half-tooth count for the next TDC value, 33h.
 
 We load a constant from 1167+35h. On the 951, this is set to 84h (132) for the only possible values of 35h (0 and 1). This is 180 degrees in half-teeth. 
 
-Then we add base timing and acceleration timing adjustment, and store the result in 33h. (Next time around in 00B8 we'll subtract the latest spark advance and dwell count from that TDC value to get the countdown to the next ignition event, i.e. start dwell period)
+Then we add base timing and acceleration timing adjustment, and store the result in 33h. (Next time around in 00B8 we'll subtract the latest spark advance and dwell count from that TDC value to get the countdown to the next ignition event, i.e. start dwell period). 
 
 Finally we store the dwell count 2F into 30h, which the speed sensor routine will use as a generic duration event. This is probably redundant. 
 
@@ -259,23 +241,28 @@ c = int1 OR ie1
 if c:
 	c = c AND NOT 22h.1
 	if c: (in other words, "if (int1 OR ie1) AND NOT 22h.1...)
-		22h.0 = 1
+		22h.0 = 1 (we need 1 half-tooth correction)
 	else:
 		2B++
-		22h.0 = 0
+		22h.0 = 0 (we need 2 half-tooth corrections, which is one extra whole tooth)
 else:
 	22h.0 = 22h.1
 
+if 2B > 1:
+	2B--
+	
 if 2B == 1:
 	30 -= 2
+
+35h = 0
 
  ```
 
 ### Redundancy
 
- Recall that in 00B8, we calculated the next ignition event and KLR trigger event based on the next TDC count. Roughly speaking we added 180 degrees - I say "roughly" because the timing and dwell values change all the time, but spark events are roughly 180 degress apart). But then in 021D we calcualted these values again, this time relative to the reference sensor routine instead of the next TDC. Here, we overwrite the values from 00B8 with the ref-sensor based values. 
+ Recall that in 00B8, we calculated the next ignition event and KLR trigger event based on the next TDC count. Roughly speaking we added 180 degrees - I say "roughly" because the timing and dwell values change all the time, but spark events are still roughly 180 degress apart). But then immediately afterwards, in 021D, we calcualted these values again, this time relative to the reference sensor instead of the next TDC. Here, we overwrite the next-TDC based values from 00B8 with the ref-sensor based values. 
  
-We might ask why have this redundancy? The answer is really two things:
+We might ask: why have this redundancy? The answer is really two things:
 
 1. It's basically free, since it would be more complicated for the code at 00B8 to avoid the next-TDC based calculation when it's not needed
 2. It allows the engine to keep running without the ref sensor pulse, but still take advantage of it if it's there. 
@@ -284,9 +271,9 @@ The second point above needs a bit more explanation: suppose we lost a speed sen
 
 But it could be worse than that - if we lose a speed sensor pulse, it could happen again. This is really bad - it means that the timing would drift. If we didn't have the ref sensor pulse every revolution, the timing would drift to the point where the engine just can't run any more. With the ref sensor pulse, it will never drift my more than it can drift in one revolution. 
 In summary:
-* if both sensors are working perfectly, then the second timing calculation is totally redundant
-* if the speed sensor works perfectly, then the reference sensor only needs to work once to get the engine started
-* if the speed sensor signal drops intermittently, but the reference sensor works consistently, then the engine will still basically work. Depending on circumstances you might not even notice anything wrong. 
+* if both sensors are working perfectly, then the second timing calculation is totally redundant (but doesn't add any complexity)
+* if the speed sensor works perfectly, then the reference sensor only needs to work *once*, to get the engine started
+* if the speed sensor signal drops pulses intermittently, but the reference sensor works consistently, then the engine will still basically work. Depending on circumstances you might not even notice anything wrong. 
 
 ### Half-tooth rounding issues
 
@@ -294,11 +281,11 @@ After the initialization of those (potentially redundant) counter values, we hav
   
 Now here in the ref sensor routine we know we're using the ref sensor based values, so 22h.1 contains the rounding error we care about. But there's a catch - there's one more source of half-tooth error!
 
-The ref sensor is triggered by a set screw installed in the flywheel. The speed sensor is triggered by the teeth of the ring gear. But there's no guarantee of any particular phase relationship between the set screw and the ring gear. The set screw might line up exactly with the peak of a ring gear tooth, or it might be in the trough between two teeth, or it might be anywhere in between. Since we measure angles by counting ring gear teeth after the ref sensor pulse, this means that the required tooth count for a given spark advance varies randomly from one car to another. 
+The ref sensor is triggered by a set screw installed in the flywheel. The speed sensor is triggered by the teeth of the ring gear. But there's no guarantee of any particular phase relationship between the set screw and the ring gear. The set screw might line up exactly with the peak of a ring gear tooth, or it might be in the trough between two teeth, or it might be anywhere in between. Since we measure angles by counting ring gear teeth after the ref sensor pulse, this means that the required tooth count for a given spark angle varies randomly from one car to another. 
 
 The ref sensor routine accounts for this by checking if the speed sensor pulse arrives at the same time as the ref sensor pulse or not, and storing the answer as an extra half-tooth, just like the division rounding error we saw earlier. 
 
-So we might be adding a half-tooth correction for each of these sources of error. It wouldn't make a lot of sensse to add *two* half-tooth corrections though, since two halves make 1.
+So we might end up adding a half-tooth correction for *each* of these sources of error. It wouldn't make a lot of sensse to add *two* half-tooth corrections though, since two halves make 1.
 
 So the logic goes like this:
 
@@ -307,6 +294,7 @@ So the logic goes like this:
    * if we already have a half-tooth rounding correction, then add a *whole* tooth and remove the half-tooth correction
    * if we didn't already have a half-tooth correction, add one now
 
-The resulting, final half-tooth correction is stored in 22h.0, which is the location that actually controls the half-tooth correction logic we saw in the speed sensor routine. So 22h.0 serves a dual purpose - it stores the division rouding error, and then later it stores the final error. 
+The resulting, final half-tooth correction is stored in 22h.0, which is the location that actually controls the half-tooth correction logic we saw in the speed sensor routine. So 22h.0 serves a dual purpose - it stores the division rouding error in the next-TDC based calculation, and then later it stores the *final* error regardless of which source the error came from. 
 
-Now suppose we don't get any more ref sensor pulses after the engine starts, for some reason. We have to get at least one to get started - but from that point on, 22h.0 will include the ref sensor/speed sensor phase correction. 
+Now suppose we don't get any more ref sensor pulses after the engine starts, for some reason. We have to get at least one to get started - but from that point on, 22h.0 will include the ref sensor/speed sensor phase correction. For this reason, the current value 22h.0 is preserved during both the dwell (0097)
+and spark (00B8) calculations, and added to the calculation before being overwritten with any new rounding error. 

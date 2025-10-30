@@ -188,7 +188,21 @@ if 3A <= 3E:
 	WOT signal OFF (p1.5 LOW)
 ```
 
-The port outputs are set to ON by default after a reset, so in fact the KLR always turns the WOT on briefly immediately after receiving the trigger signal from the DME. However, the DME only reads the TPS at a specific point, so presumably this is timed to avoid reading it just after the trigger signal has been sent. The code above turns the WOT off very soon after the reset if 3A is less than or equal to 3E. The value of 3E is determined by a a one-axis map (rpm) but the map has the value 66 for all entries. 
+The port outputs are set to ON by default after a reset, so in fact the KLR always turns the WOT on briefly immediately after receiving the trigger signal from the DME. However, these brief pulses are filtered out by the KLR hardware so that the DME never sees them. 
+
+Here's a signal trace showing this situation. The blue trace is the raw TPS signal voltage and the red trace is the WOT output pin. Here we can see the state just before and after the WOT condition is signalled to the DME - the brief (p1.5):
+
+![](images/tps/tps_voltage_and_8048_WOT_output_1.jpg)
+
+
+The following scope trace was captured from the DME side. Blue is the KLR trigger signal (that the DME sends to reset the KLR) and black is the WOT signal that the DME actually sees:
+
+![](images/tps/klr_trigger_and_WOT_signal_1.jpg)
+
+The pulse on the blue line here corresponds to one of the many short pulses in the red trace from the KLR trace in the previous image - but as you can see these pulses are not present in the actual WOT signal. 
+
+
+The code above turns the WOT off very soon after the reset if 3A is less than or equal to 3E. The value of 3E is determined by a a one-axis map (rpm) but the map has the value 66 for all entries. 
 
 Working backwards with the value 66 and the knowledge that the nominal conversion ratio is 119/256, we get
 

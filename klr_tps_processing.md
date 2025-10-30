@@ -192,12 +192,12 @@ The port outputs are set to ON by default after a reset, so in fact the KLR alwa
 
 Here's a signal trace showing this situation. The blue trace is the raw TPS signal voltage and the red trace is the WOT output pin. Here we can see the state just before and after the WOT condition is signalled to the DME - the brief (p1.5):
 
-![](images/tps/tps_voltage_and_8048_WOT_output_1.jpg)
+![](images/tps/tps_voltage_and_8048_WOT_output_1.png)
 
 
 The following scope trace was captured from the DME side. Blue is the KLR trigger signal (that the DME sends to reset the KLR) and black is the WOT signal that the DME actually sees:
 
-![](images/tps/klr_trigger_and_WOT_signal_1.jpg)
+![](images/tps/klr_trigger_and_WOT_signal_1.png)
 
 The pulse on the blue line here corresponds to one of the many short pulses in the red trace from the KLR trace in the previous image - but as you can see these pulses are not present in the actual WOT signal. 
 

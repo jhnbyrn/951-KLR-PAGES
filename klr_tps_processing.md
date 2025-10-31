@@ -78,7 +78,7 @@ So the above code can be read as
 
 ```
 a:r3 = 3C * 3B
-3A ~= 3C * 3B/256)
+3A ~= 3C * (3B/256)
 ```
 
 The scaling numerator 3B is initialized to 119 in the trigger/reset routine. So the nominal scaling factor is 119/256, or about 0.46. 
@@ -212,7 +212,7 @@ So the minimum value that will trigger WOT is 67. Working backwards with the val
 
 67 * 256/119 ~=144
 
-So ~142 is the corresponding raw TPS signal value from 3C for the WOT threshold. We also saw earlier that the nominal power supply value is 201 (corresponding to about 3.9v). 
+So ~144 is the corresponding raw TPS signal value from 3C for the WOT threshold. We also saw earlier that the nominal power supply value is 201 (corresponding to about 3.9v). 
 
 And 144/201 = ~71.7%. 
 

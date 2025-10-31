@@ -224,5 +224,5 @@ So now we know that the WOT threshold is around 72% throttle. Finally, 72% of 90
 In the previous section we saw how the WOT threshold angle can be derived from the threshold value 66. 
 We can use similar reasoning to determine that 43h ends up with the it's range of 0-27 mapped to around 57%-86%. Thus for the purpose of the cycling valve control maps, throttle values below 57% are treated as 0 and values above 86% are treated as full throttle.
 
-Both the values 3A and 43 are used extensively throughout the KLR code as map lookups and thresholds for knock control and error checking. We won't go into the details of these uses here because understanting them generally requires a lot of background for the particular task being carried out. Instead, we'll cover these uses of throttle position when they come up in the various routines. 
+Both the values 3A and 43 are used extensively throughout the KLR code as map lookups and thresholds for knock control and error checking. We won't go into the details of these uses here because understanding them generally requires a lot of background for the particular task being carried out. Instead, we'll cover these uses of throttle position when they come up in the various routines. 
 

@@ -51,7 +51,7 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [How the Ignition Signal is Generated](ignition_signal.md) *This section gets into the code in detail and explains exactly how the KLR generates the iginition output signal*
 
-* [How the throttle position sensor is processed](klr_tps_processing.md) *Here we'll explore exactly how the KLR reads the varying voltage of the throttle position sensoe (TPS) and creates the wide-open-throttle (WOT) signal for the DME*
+* [How the throttle position sensor is processed](klr_tps_processing.md) *Here we'll explore exactly how the KLR reads the varying voltage of the throttle position sensor (TPS) and creates the wide-open-throttle (WOT) signal for the DME*
 
 * [RPM Map Axis](rpm_axis.md) *In this section we'll see how the raw engine speed we measured in the timer routine is turned into an rpm range value that can be used as the rpm axis for looking up map values*
 

@@ -132,7 +132,7 @@
 0xad mov  r1,#$3A
 0xaf add  a,@r1
 0xb0 jc   $00B4
-0xb2 anl  p1,#$DF
+0xb2 anl  p1,#$DF		;11011111
 0xb4 mov  r1,#$24
 0xb6 clr  a
 0xb7 xch  a,r6
@@ -275,15 +275,15 @@
 0x179 mov  @r1,a
 0x17a inc  r1
 0x17b mov  @r1,a
-0x17c mov  r1,#$39
-0x17e mov  @r1,#$C8
-0x180 mov  a,#$77
+0x17c mov  r1,#$39		;TPS power
+0x17e mov  @r1,#$C8		;39h <- 200
+0x180 mov  a,#$77		;119
 0x182 mov  r1,#$3B
-0x184 mov  @r1,a
+0x184 mov  @r1,a		;3B <- 119
 0x185 mov  r1,#$3C
-0x187 mov  @r1,a
+0x187 mov  @r1,a		;3C <- 119
 0x188 inc  r1
-0x189 mov  @r1,a
+0x189 mov  @r1,a		;3D <- 119
 0x18a inc  r1
 0x18b mov  @r1,a
 0x18c mov  r1,#$2C
@@ -420,11 +420,11 @@
 0x233 add  a,#$18
 0x235 jc   $0243
 0x237 mov  r0,#$52
-0x239 mov  a,@r0
-0x23a add  a,#$BF
-0x23c cpl  c
-0x23d mov  r2,#$33
-0x23f mov  r0,#$30
+0x239 mov  a,@r0		;load current MAP sensor pressure into a
+0x23a add  a,#$BF		;add 191
+0x23c cpl  c			;c=1 means an error, 0 means no error (checked in 0x32a/0x32c). So it's an error if the add did not carry, iow the MAP pressure value was <=64, that is ~54kpa or -7.8psi (that is 45kpa or 6.5psi before 10 was added in the ADC routine)
+0x23d mov  r2,#$33		;this appears to be setting the BCD for a bad MAP sensor
+0x23f mov  r0,#$30		;is this the event count for "bad MAP sensor"?
 0x241 call $032A
 0x243 mov  r0,#$2E
 0x245 mov  a,@r0
@@ -444,39 +444,39 @@
 0x25c mov  a,@r0
 0x25d clr  c
 0x25e jnz  $0262
-0x260 call $02B1
-0x262 mov  r0,#$60
-0x264 mov  a,@r0
-0x265 mov  r2,#$32
-0x267 jb7  $027B
-0x269 mov  r0,#$44
-0x26b mov  a,@r0
-0x26c add  a,#$DB
-0x26e jnc  $0272
-0x270 call $02B1
-0x272 mov  r0,#$60
-0x274 mov  a,@r0
-0x275 dec  r2
+0x260 call $02B1 		;reset the boost error event counter 35h to the value 64h (100)
+0x262 mov  r0,#$60		;load boost error location 60h into r0
+0x264 mov  a,@r0		;load actual boost error into a
+0x265 mov  r2,#$32		;BCD value for "boost too high"
+0x267 jb7  $027B		;boost error is 1's comp. so bit7=overboost
+0x269 mov  r0,#$44		;44h contains rpm axis
+0x26b mov  a,@r0		;load rpm axis value into a
+0x26c add  a,#$DB		;add 219
+0x26e jnc  $0272		;c=0 if rpm is > ~2800
+0x270 call $02B1		;this resets 35h to the value 64h (100), so no event count for underboost at low rpm
+0x272 mov  r0,#$60		;r0 now points to boost error location again
+0x274 mov  a,@r0		;load boost error into a
+0x275 dec  r2			; r2 now=31h, BCD value for "boost too low"
 0x276 cpl  a
-0x277 add  a,#$20
-0x279 jc   $027D
-0x27b add  a,#$20
-0x27d cpl  c
-0x27e mov  r0,#$6C
+0x277 add  a,#$20		;add 32 (i.e. subtract 32 because we just cpl'd)
+0x279 jc   $027D		;c=1 means the boost error was < 32
+0x27b add  a,#$20		;jmp to here if overboost (from 0x267), with a=boost error from 60h. We also get here if the previous -32 operation didn't carry, i.e. the underboost error was >=32.
+0x27d cpl  c			;for underboost, c=1 if the error was < 64. For overboost, c=1 if the error was > 32  
+0x27e mov  r0,#$6C		;set in ADC MAP read; used to rate limit updates to 52h (current measured boost), and rate limits error checking to 1/4 on rising boost
 0x280 mov  a,@r0
-0x281 jnz  $0289
-0x283 mov  r0,#$35
+0x281 jnz  $0289		;skip to the next test if boost error checking is being rate limited by 6Ch
+0x283 mov  r0,#$35		;here, r0 is an input parameter to a generic event counter routine
 0x285 mov  a,#$64
-0x287 call $032C
-0x289 mov  r0,#$3C
+0x287 call $032C		;error counter routine. c=0 no error. c=1, we have an error
+0x289 mov  r0,#$3C		;next test, throttle position
 0x28b mov  a,#$F4
 0x28d add  a,@r0
 0x28e cpl  c
-0x28f mov  r2,#$41
+0x28f mov  r2,#$41		;BCD code for TPS power
 0x291 jc   $0298
 0x293 mov  a,#$24
 0x295 add  a,@r0
-0x296 inc  r2
+0x296 inc  r2			;BCD code for TPS signal
 0x297 mov  a,@r0
 0x298 mov  @r0,a
 0x299 mov  r0,#$36
@@ -488,12 +488,16 @@
 	;; END of blink code calculation
 
 	;; stack manipulation for housekeeping functions
+	;; See page 2-5 of the MCS-48 pdf. Locations 16h and 17h are the top
+	;; of the stack (2-byte value).
+	;; We got here from the reset purely by jumping, no calls.
+	;; Thus the ret statement at 0x2B0 will use whatever we put on the stack 	;; in this routine below. 
 0x2a3 mov  r1,#$17
-0x2a5 mov  @r1,#$8
+0x2a5 mov  @r1,#$8		;17h <- 8 (locations will be 8xxh)
 0x2a7 dec  r1
 0x2a8 clr  a
-0x2a9 xch  a,@r1
-0x2aa jb0  $02AF
+0x2a9 xch  a,@r1		;a <- 16h
+0x2aa jb0  $02AF		;call the first function 0x800?
 0x2ac dec  a
 0x2ad dec  a
 0x2ae xchd a,@r1
@@ -577,7 +581,7 @@
 0x2fe movp a,@a
 0x2ff ret
 
-	;; 8-bit multiply function, 16-bit result
+	;; 8-bit multiply function (r3 x r6), 16-bit result in a:r3?
 0x300 mov  r5,#$9
 0x302 clr  c
 0x303 clr  a
@@ -624,10 +628,10 @@
 0x32c xch  a,@r0
 0x32d jnc  $0331
 0x32f dec  a
-0x330 mov  @r0,a
-0x331 jnz  $0335
-0x333 mov  a,r2
-0x334 mov  @r1,a
+0x330 mov  @r0,a		;count is dec'd and stored back if c (error)
+0x331 jnz  $0335		;just return if the error counter isn't 0 yet
+0x333 mov  a,r2			;r2 should contain the BCD value for the error
+0x334 mov  @r1,a		;now the address in r1 (33h) has the error BCD
 0x335 ret
 	;; END count errors
 
@@ -873,7 +877,7 @@
 	;; ADC function #4 (read ADC ch. 0 - 3)
 0x44c movx a,@r0
 0x44d orl  p1,#$8
-0x44f anl  p1,#$F4
+0x44f anl  p1,#$F4		;11110100
 0x451 xch  a,@r0
 0x452 jb4  $0480
 0x454 jb3  $047B
@@ -881,7 +885,7 @@
 0x457 mov  r1,a
 0x458 mov  a,@r0
 0x459 xrl  a,#$6
-0x45b mov  r0,#$2F
+0x45b mov  r0,#$2F		;knock sensor noise
 0x45d jz   $0476
 0x45f mov  a,#$C0
 0x461 add  a,r1
@@ -903,7 +907,7 @@
 0x479 mov  @r0,a
 0x47a ret
 0x47b xch  a,@r0
-0x47c mov  r0,#$2E
+0x47c mov  r0,#$2E		;battery voltage
 0x47e mov  @r0,a
 0x47f ret
 0x480 jb3  $0487
@@ -912,7 +916,7 @@
 0x485 nop
 0x486 ret
 0x487 xch  a,@r0
-0x488 mov  r0,#$39
+0x488 mov  r0,#$39		;TPS v+ ?
 0x48a mov  @r0,a
 0x48b ret
 	;; END ADC function #4
@@ -928,26 +932,26 @@
 0x497 ret
 	;; END ADC function #5
 
-	;; ADC function #6
+	;; ADC function #6 (MAP sensor?) Summary: read the ADC value, add 10 and compare it to the previous value to determine if boost is increasing or not. If it is increasing, then only update 52h and run boost error correction every 4th time. Otherwise, we keep the old value in 52h and run error checking every time. So boost has to be increasing for 4 cycles in a row to count as an increased value. 
 0x498 mov  r0,#$52
 0x49a movx a,@r0
-0x49b add  a,#$A
-0x49d mov  r4,a
+0x49b add  a,#$A		;add 10 to the value from 52h
+0x49d mov  r4,a			;r4 <- value from 52h + 10
 0x49e cpl  a
 0x49f add  a,@r0
-0x4a0 mov  r0,#$6C
-0x4a2 orl  p1,#$8
-0x4a4 anl  p1,#$F7
-0x4a6 jnc  $04B1
-0x4a8 mov  @r0,#$0
+0x4a0 mov  r0,#$6C		;used in blink code checking - we only trigger boost codes if this is 0 
+0x4a2 orl  p1,#$8		;latch or unlatch ALE?
+0x4a4 anl  p1,#$F7		;select 11110111 (iow address ch.7, TPS angle for the nead read cycle)
+0x4a6 jnc  $04B1		;c=0 if boost is increasing
+0x4a8 mov  @r0,#$0		;here 6Ch is set to 0 which enables boost error code checking
 0x4aa mov  r0,#$52
 0x4ac mov  a,r4
-0x4ad mov  @r0,a
-0x4ae mov  r4,#$FF
+0x4ad mov  @r0,a		;store the value from r4 into 52h
+0x4ae mov  r4,#$FF		;r4 <- 255
 0x4b0 ret
-0x4b1 inc  @r0
+0x4b1 inc  @r0			;inc the value in 6Ch
 0x4b2 mov  a,@r0
-0x4b3 jb2  $04A8
+0x4b3 jb2  $04A8		;looks like we only enable error code checking every 4th read?
 0x4b5 mov  r4,#$FF
 0x4b7 ret
 	;; END ADC function #6
@@ -1793,15 +1797,15 @@
 0x7fe movp a,@a
 0x7ff ret
 
-	;; housekeeping function list
-0x800 call $020F
+	;; housekeeping function list (add 0x800h to calls)
+0x800 call $020F		;call throttle angle calculation? (A0E or A0F)
 0x802 call $028D
 0x804 call $0257
 0x806 call $0282
 0x808 nop
 0x809 nop
-0x80a call $029E
-0x80c call $0100
+0x80a call $029E		;calculate ADC angles (A9E)
+0x80c call $0100		;read maps (900)
 0x80e nop
 0x80f nop
 0x810 call $0012
@@ -2289,20 +2293,29 @@
 0xa09 outl bus,a
 0xa0a add  a,#$3
 0xa0c add  a,#$4
+0xa0e jmp  $00B9		;added manually by me, see note below!
 	;; END RPM axis map
 
-	;; read throttle angle calculation (not sure where exactly it begins)
-0xa0e jmp  $00B9
-0xa10 movd p4,a
+	;; read throttle angle calculation.
+	;; This was disassembled incorrectly.
+	;; Location 0A0E = 04, this should be part of the map above
+	;; location 0A0F = B9 = 1011 1001 = mov r1, XX
+	;; location 0A10 = 3C, so we have "mov r1, 3C".
+	;; location 0A11 = F1 = 1111 0001 = mov a, @r1
+
+	;;0xa0e jmp  $00B9
+	;;0xa10 movd p4,a	
+
+0xa0f mov  r1,#$3C		;added manually by me, see note above
 0xa11 mov  a,@r1
 0xa12 cpl  a
 0xa13 inc  r1
 0xa14 add  a,@r1
 0xa15 mov  r1,#$3F
-0xa17 jc   $0A1F
-0xa19 add  a,#$6
-0xa1b jc   $0A1F
-0xa1d mov  @r1,#$B
+0xa17 jc   $0A1F		;c=1 if 3C > 3D (throttle increasing?)
+0xa19 add  a,#$6		
+0xa1b jc   $0A1F		;c=1 if 3C > 3D-6
+0xa1d mov  @r1,#$B		;3F <- 11=0000 01011
 0xa1f mov  a,@r1
 0xa20 jz   $0A23
 0xa22 dec  a
@@ -2315,19 +2328,19 @@
 0xa2b mov  a,@r1
 0xa2c mov  r3,a
 0xa2d sel  mb0
-0xa2e call $0300
+0xa2e call $0300		;8x8=16 multiply, so r3:a = 3Ch x 3Bh. 3B is initialized to 119 in the trigger routine. 
 0xa30 sel  mb1
-0xa31 dec  r1
-0xa32 mov  @r1,a
-0xa33 add  a,#$CB
+0xa31 dec  r1			;r1 <- 3A
+0xa32 mov  @r1,a		;3A <- high byte of the multiply
+0xa33 add  a,#$CB		;203
 0xa35 jc   $0A38
 0xa37 clr  a
-0xa38 mov  r1,#$43
-0xa3a mov  @r1,a
-0xa3b mov  a,#$E3
+0xa38 mov  r1,#$43		
+0xa3a mov  @r1,a		;43h <- 3Ah + 203, or zero if 3Ah+203 < 255
+0xa3b mov  a,#$E3		;227
 0xa3d add  a,@r1
 0xa3e jnc  $0A42
-0xa40 mov  @r1,#$1C
+0xa40 mov  @r1,#$1C		;43h <- 28 if 43h is > 
 0xa42 mov  r1,#$39
 0xa44 mov  a,@r1
 0xa45 mov  r6,a
@@ -2335,9 +2348,9 @@
 0xa48 mov  a,@r1
 0xa49 mov  r3,a
 0xa4a sel  mb0
-0xa4b call $0300
+0xa4b call $0300		;r3:a = 39h x 3Bh (high byte)
 0xa4d sel  mb1
-0xa4e add  a,#$A3
+0xa4e add  a,#$A3		;163
 0xa50 jz   $0A56
 0xa52 cpl  a
 0xa53 inc  a
@@ -2829,12 +2842,18 @@
 0xc7c dec  r6
 0xc7d call $0598
 0xc7f movx @r1,a
-0xc80 mov  a,@r1
+	;; 0xc80 mov  a,@r1		
 	;; END target boost map
 
+	;; This must be incorrectly disassemlbed because 480 (C80) is called
+	;; as the routine
+	;; In any case this is where we call to from A82
+	;; r0 = 43h
+	;; r1 = 44h
 	;; read boost/cv feedforward map
+0xc80 mov  a,@r1		;added my me to fix the above mistake
 0xc81 rrc  a
-0xc82 rrc  a
+0xc82 rrc  a			;divide 43h by 4 to get 0-7 range
 0xc83 anl  a,#$F
 0xc85 mov  r2,a
 0xc86 mov  a,@r0
@@ -2955,13 +2974,15 @@
 0xd0a mov  @r0,a
 0xd0b mov  r1,#$47
 0xd0d mov  r2,#$0
+	;; The upper nibble of 47h represents 0-4 in steps of 0.25. The value in 7Ah is multipled by this; the values depend on rpm:
+	;; low-medium: 66  (x1), medium-high: 55 (x0.75), high: 44 (x0.5). The final value is the threshold; the current reading must be *lower* than the threshold to count as knock; therefore this coefficient makes knock detection *less* sensitive at high rpm. 	
 0xd0f mov  a,@r0
 0xd10 mov  r0,a
 0xd11 mov  r4,a
 0xd12 rlc  a
-0xd13 call $07C1
+0xd13 call $07C1		;0xFC1
 0xd15 call $07C1
-0xd17 call $07BD
+0xd17 call $07BD		;0xFDB
 0xd19 call $07BD
 0xd1b mov  a,@r1
 0xd1c swap a
@@ -2975,6 +2996,7 @@
 0xd26 mov  a,@r1
 0xd27 rrc  a
 0xd28 mov  @r1,a
+
 0xd29 mov  r0,#$73
 0xd2b mov  r1,#$49
 0xd2d mov  r3,#$4
@@ -3172,12 +3194,12 @@
 0xe2f ret
 	;; END exponential smoothing function
 
-	;; PID derivative function
+	;; PID derivative function. Location 52h contains actual boost and 51h contains target boost (from the map read routine). Here they are compared for the error value. At 0xe38, carry is set if actual boost was higher than target, i.e. overboost. 
 0xe30 mov  r1,#$52
 0xe32 mov  a,@r1
 0xe33 cpl  a
 0xe34 dec  r1
-0xe35 add  a,@r1
+0xe35 add  a,@r1 
 0xe36 mov  r1,#$64
 0xe38 jnc  $0E56
 0xe3a mov  r2,a
@@ -3397,10 +3419,10 @@
 0xf5c mov  r1,#$4B
 0xf5e mov  a,@r1
 0xf5f mov  r2,a
-0xf60 mov  r1,#$33
+0xf60 mov  r1,#$33		;33h is current blink code
 0xf62 mov  a,@r1
 0xf63 jz   $0F69
-0xf65 add  a,#$EF
+0xf65 add  a,#$EF		;EFh+11h=0
 0xf67 jnz  $0F81
 0xf69 mov  a,r4
 0xf6a mov  @r0,a
@@ -3416,7 +3438,7 @@
 0xf77 mov  r1,#$33
 0xf79 mov  a,@r1
 0xf7a jnz  $0F7E
-0xf7c mov  @r1,#$11
+0xf7c mov  @r1,#$11		;33h <- 11 (blink code 1-1)
 0xf7e djnz r4,$0F6F
 0xf80 ret
 	;; END cv final output calculation
@@ -3472,6 +3494,7 @@
 0xfb9 inc  r0
 0xfba djnz r7,$0FB6
 0xfbc ret
+
 0xfbd mov  a,r0
 0xfbe clr  c
 0xfbf rrc  a

@@ -1,8 +1,8 @@
-# How the Throttle Position Sensor is Processed
+# How the throttle position sensor is processed
 
 ## Overview
 
-The 951 has a throttle position sensor that looks a lot like the ones found in the non-turbo (NA) cars. But people are often surprised at the differences. The NA car's throttle position sensor (more properly called a throttle position switch) just contains two microswitches - one that indicates when the throttle plate is at the idle position, and one to indicate when it's at wide-open-throttle (WOT). 
+The 951 has a throttle position sensor that looks a lot like the ones found in the non-turbo (NA) cars. But people are often surprised at the differences. The NA car's throttle position sensor (more properly called a throttle position *switch*) just contains two microswitches - one that indicates when the throttle plate is at the idle position, and one to indicate when it's at wide-open-throttle (WOT). 
 
 The turbo TPS on the other hand has just one microswitch, for idle, and a potentiometer that measures the exact position of the throttle. There's no WOT switch. Upon seeing this one might assume, justifiably, that the DME uses the potentiometer to determine when the throttle angle should be regarded as WOT. But to the surpise of many people, the DME doesn't see the signal from the pot at all! Instead, that signal comes here to the KLR. It's the KLR that determines when the throttle is wide open, and it signals that to the DME with a high/low logic voltage signal (where *low* means we're at WOT). Inside the DME, this signal is treated like the WOT microscwitch from the non-turbo cars. 
 
@@ -44,8 +44,8 @@ After this comes the code that checks the WOT threshold and sends the signal to 
 
 Here we'll examine how the raw TPS signal (3C) and power supply (39) values are processed for use throughout the KLR code. This process actually has two separate outputs that represent throttle position:
 
-3A - the throttle position in degrees
-43 - a value ranging from 0-27, used for cycling value control map lookups. 
+* 3A - the throttle position in degrees
+* 43 - a value ranging from 0-27, used for cycling value control map lookups. 
 
 The raw TPS signal and power supply readings are processed in the routine that starts at A0F. This is called from the function list at 800, which in turns is called in a strange, indirect way from the routine at 2A3 after the blink code logic (using stack manipulation so that the __ret__ statement "returns" to the next function in the list). 
 
@@ -66,10 +66,10 @@ The part that concerns us now begins at A26:
 0xa2b mov  a,@r1
 0xa2c mov  r3,a
 0xa2d sel  mb0
-0xa2e call $0300		;8x8=16 multiply, so r3:a = 3Ch x 3Bh. 3B is initialized to 119 in the trigger routine. 
+0xa2e call $0300
 0xa30 sel  mb1
-0xa31 dec  r1			;r1 <- 3A
-0xa32 mov  @r1,a		;3A <- high byte of the multiply
+0xa31 dec  r1
+0xa32 mov  @r1,a
 ```
 
 The routine at 300 is an 8x8 multiply that uses r3 and r6 as inputs and returns the high byte of its output in a, and the low byte in r3. Frequently (as is the case here) only the high byte is used and the low byte is discarded. This is effectively a rough division by 256 (with the remainder discarded). 
@@ -90,11 +90,11 @@ The next section sets the TPS map input value 43h:
 0xa35 jc   $0A38
 0xa37 clr  a
 0xa38 mov  r1,#$43		
-0xa3a mov  @r1,a		;43h <- 3Ah + 203, or zero if 3Ah+203 < 255
+0xa3a mov  @r1,a
 0xa3b mov  a,#$E3		;227
 0xa3d add  a,@r1
 0xa3e jnc  $0A42
-0xa40 mov  @r1,#$1C		;43h <- 28 if 43h is > 
+0xa40 mov  @r1,#$1C
 ```
 
 The logic here goes like this
@@ -120,7 +120,7 @@ Next comes the really interesting part, where the mysterious 3B is calculated:
 0xa48 mov  a,@r1
 0xa49 mov  r3,a
 0xa4a sel  mb0
-0xa4b call $0300		;a:r3 = 39h x 3Bh (high byte)
+0xa4b call $0300
 0xa4d sel  mb1
 0xa4e add  a,#$A3		;163
 0xa50 jz   $0A56
@@ -192,27 +192,31 @@ The port outputs are set to ON by default after a reset, so in fact the KLR alwa
 
 Here's a signal trace showing this situation. The blue trace is the raw TPS signal voltage and the red trace is the WOT output pin. Here we can see the state just before and after the WOT condition is signalled to the DME - the brief (p1.5):
 
+
 ![](images/tps/tps_voltage_and_8048_WOT_output_1.png)
+
 
 
 The following scope trace was captured from the DME side. Blue is the KLR trigger signal (that the DME sends to reset the KLR) and black is the WOT signal that the DME actually sees:
 
+
 ![](images/tps/klr_trigger_and_WOT_signal_1.png)
+
 
 The pulse on the blue line here corresponds to one of the many short pulses in the red trace from the KLR trace in the previous image - but as you can see these pulses are not present in the actual WOT signal. 
 
 
 The code above turns the WOT off very soon after the reset if 3A is less than or equal to 3E. The value of 3E is determined by a a one-axis map (rpm) but the map has the value 66 for all entries. 
 
-Working backwards with the value 66 and the knowledge that the nominal conversion ratio is 119/256, we get
+So the minimum value that will trigger WOT is 67. Working backwards with the value 67 and the knowledge that the nominal conversion ratio is 119/256, we get
 
-66 * 256/119 = 141.9
+67 * 256/119 ~=144
 
 So ~142 is the corresponding raw TPS signal value from 3C for the WOT threshold. We also saw earlier that the nominal power supply value is 201 (corresponding to about 3.9v). 
 
-And 142/201 = ~70%. 
+And 144/201 = ~71.7%. 
 
-So now we know that the WOT threshold is around 70% throttle. Finally, 70% of 90 degrees is 63 degrees, so pretty close to the 65 deg. specified in the DME Test Plan. 
+So now we know that the WOT threshold is around 72% throttle. Finally, 72% of 90 degrees is just under 65 degrees, so pretty close to the 65 deg. specified in the DME Test Plan. 
 
 
 ## Uses of the TPS

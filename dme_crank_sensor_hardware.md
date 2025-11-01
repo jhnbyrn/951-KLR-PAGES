@@ -114,7 +114,7 @@ Immediately after we do this calculation, we calculate the next-TDC value again 
 
 Here's a diagram that might help to visualize what's going on with these calculations. In this diagram, the red arrows pointing to the right indicate addition and the blue arrows pointing left indicate subtraction:
 
-![](images/ignition_timing/180_timing_calculation_1.png)
+![](images/ignition_timing/180_timing_calculation_2.png)
 
 
 Now, the program does this next-TDC business for every ignition event, not just the second one after the ref sensor pulse. As we just saw, the counter for the next ignition event is therefore based on the number of teeth between a given ignition event and the start of the next dwell period. 

@@ -31,13 +31,15 @@ So ideally we want a circuit that produces a clear digital pulse every time the 
 
 For some reason (possibly due to signal noise concerns) the DME's circuitry does something a little different. It uses an *adaptive peak threshold*, which triggers the digital pulse when the raw signal reaches around 40% of it's peak. How does it know how high the peak will be if it hasn't happened yet? It uses the value of the previous peak (or maybe an average of a few previous peaks). 
 
-The result of this is that the digital pulse appears before the sensor is perfectly lined up, so there is an offset between the pulse and the zero crossing point. But because the ramp-up of the raw signal is very close to a straight line, the offset comes out to a pretty much constant angle of around 1.35 flywheel teeth, or 3.7 degrees. Here's a scope capture of the raw signals next to their digitized counterparts
+The result of this is that the digital pulse appears before the sensor is perfectly lined up, so there is an offset between the pulse and the zero crossing point. But because the ramp-up of the raw signal is very close to a straight line, the offset comes out to a pretty much constant angle of around 1.35 flywheel teeth, or 3.7 degrees. But because the 8051 generally just counts falling edges, we should be concerned with what this offset amounts to in those terms. 
+
+Here's a scope capture of the raw signals next to their digitized counterparts
 
 
 ![](images/ignition_timing/crank_sensors_with_digitization_1.png)
 
 
-Here, the green trace is the digitized ref sensor and the black trace is the digitized speed sensor. 
+Here, the green trace is the digitized ref sensor and the black trace is the digitized speed sensor. This reveals that the offset of the ref sensor pulse is one falling edge early. This allows the program to treat the ref sensor pulse as exactly __60 degrees BTDC__, which is a nice round number to work with in the code. 
 
 The device that does this digitization is a custom Bosch chip (known as S100 on the DME's PCB) and there isn't much information about it. What we know is that it takes 2 differential VR signals as inputs, and produces digital outputs. The reference sensor's digital latches, and needs to be reset every revolution by a pulse to the S100's pin 11. 
 

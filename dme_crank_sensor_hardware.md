@@ -15,7 +15,7 @@ But *what* known reference point? That's where the aptly-named reference sensor 
 That's the basic idea. Now let's see what these VR sensor signals actually look like on an oscilloscope:
 
 
-![](images/ignition_timing/crank_sensors_with_digitization_zoomed_out_1.png)
+![](images/ignition_timing/crank_sensors_zoomed_out_1.png)
 
 Here the reference sensor is shown in blue and the speed sensor in red. There's quite a bit of variation in the speed sensor strength, but there's no real significance to that. 
 
@@ -27,7 +27,9 @@ Of course these need to be digitized so that they can be processed by the 8051 m
 
 You might guess that the point where the pulse crosses zero volts on the way down is the exact moment that the object being sensed is closest to the sensor, and you'd be right. 
 
-So ideally we want a circuit that produces a clear digital pulse every time the raw sensor signal crosses the zero-volt line. The type of circuit that does that is called a zero-cross detector. For some reason (possibly due to signal noise concerns) the DME's circuitry does something a litle different. It uses an *adaptive peak threshold*, which triggers the digital pulse when the raw signal reaches around 40% of it's peak. How does it know how high the peak will be if it hasn't happened yet? It uses the value of the previous peak (or maybe an average of a few previous peaks). 
+So ideally we want a circuit that produces a clear digital pulse every time the raw sensor signal crosses the zero-volt line. The type of circuit that does that is called a zero-cross detector. See the [MAX9924 series](https://www.analog.com/media/en/technical-documentation/data-sheets/MAX9924-MAX9927.pdf) for some great info on these. 
+
+For some reason (possibly due to signal noise concerns) the DME's circuitry does something a little different. It uses an *adaptive peak threshold*, which triggers the digital pulse when the raw signal reaches around 40% of it's peak. How does it know how high the peak will be if it hasn't happened yet? It uses the value of the previous peak (or maybe an average of a few previous peaks). 
 
 The result of this is that the digital pulse appears before the sensor is perfectly lined up, so there is an offset between the pulse and the zero crossing point. But because the ramp-up of the raw signal is very close to a straight line, the offset comes out to a pretty much constant angle of around 1.35 flywheel teeth, or 3.7 degrees. Here's a scope capture of the raw signals next to their digitized counterparts
 
@@ -46,7 +48,7 @@ It can be pretty confusing to remember the polarity of these signals when readin
 * the 8051's interrupts can only trigger on a falling edge
 * The reference sensor trigger pulse is a falling edge that triggers INT0
 * Most of the speed sensor pulse counting is done with the falling edge that triggers INT1
-* Thus the interupt edge flag ie1 being *set* corresponds to INT1 being *low*
+* Thus the interupt edge flag __ie1__ being *set* corresponds to INT1 being *low*
 * The 8051 can read the state of these INT0/INT1 signals directly to check for rising edges
 
 The 951 flywheel gear has 132 teeth, so each tooth is 360/132 = 2.72727... degrees. Since the S100 chip produces pulses for both edges of the tooth, the software can count these edges separately and thus measure angles to within 1.36363... degrees. This is the maximum precision that the DME is capable of. 
@@ -59,7 +61,7 @@ Most of this discussion is centered on counting the tooth edges (black pulses) b
 
 ## Half-tooth errors and corrections
 
-Because only the falling edges trigger the interrupt, it's much simpler for the program to count only falling edges most of the time. So in general, when the final counter variable is being prepared, it's loaded with the required angle in *whole* teeth. This is done by dividing the half-tooth count value by two. Of course if the half-tooth count was an odd number, we would lose the remainder. To deal with this, the remainder is stored separately and applied at the end of the count if necessary. This remainder represents a half-tooth, so the way it's applied is simply by delaying the ignition event for one more edge. 
+Because only the falling edges trigger the interrupt, it's much simpler for the program to count only falling edges, most of the time. So in general, when the counter variable is being prepared to measure some angle, it's loaded with the required angle in *whole* teeth. This is done by dividing the half-tooth count value by two. Of course if the half-tooth count was an odd number, we would lose the remainder. To deal with this, the remainder is stored separately and applied at the end of the count if necessary. This remainder represents a half-tooth, so the way it's applied is simply by delaying the ignition event for one more edge. 
 
 When it's time to fire the ignition event, the general rule is that the program waits for the next rising edge, by polling the state of INT1. Thus the default behavior is to always add one half-tooth to the count. 
 
@@ -67,7 +69,7 @@ If if a half-tooth correction is required, the program waits for an extra fallin
 
 Now, looking at the signal traces above, you might notice that the reference sensor pulse is asserted roughly in the middle of the low period of the speed sensor - that is, halfway between two flywheel teeth. That's a consequence of the way that the ring gear bolts to the flywheel in the 951. But the Motronic program doesn't assume this particular phase relationship. It actually checks the state of the speed sensor signal at the moment the ref sensor asserts. If it looks like it does in my image, then all is well. But if the speed sensor pulse was already high at this moment, that means that the first falling edge that will be counted will be up to half a tooth earlier. If this situation occurs, then the program compensates with *another* half-tooth correction, similar to the division rounding error we just noted above. 
 
-Here's a diagram illustrating the normal situation and a couple of other theoretical possiblities:
+Here's a diagram illustrating the normal situation and a couple of other theoretical possiblities, and what correction is needed (if any) for each:
 
 
 ![](images/ignition_timing/half_tooth_correction_1.png)
@@ -77,34 +79,36 @@ As with the traces shown earlier, the ref sensor pulse is shown here in green. T
 
 As you can see, there's no guarantee that the phase error is exactly one half-tooth. But one half-tooth is the best we can do, and at 1.36363... degrees it's good enough. 
 
-To the best of my knowledge, the second and third situations shown here can't actually occur on the 951 because the ring gear only bolts to the flywheel one way. But, there are various plausible reasons why the Bosch programmers might have done written the code to handle this:
+To the best of my knowledge, the second and third situations shown here can't actually occur on the 951 because the ring gear only bolts to the flywheel one way. See [this discussion on Carpokes for more detail on that](https://www.carpokes.com/viewtopic.php?t=4521). But, there are various plausible reasons why the Bosch programmers might have written the code to handle this:
 
-* I might be wrong about the ring gear
+* we might be wrong about the ring gear
 * it might be different on the 944 non-turbo (NA) which has 130 teeth
-* the Motronic system was used on other cars where maybe this situation can occur (some cars have a press-fit ring gear)
-* it might be just been classic *defensive programming* on principle
+* the Motronic system was used on other cars besides the Porsche 944, where maybe this situation can occur (some cars have a press-fit ring gear)
+* it might be just been classic *defensive programming*, on principle
 
-The truth could be one, or several, or none of these reasons - all we know for sure is that the code *does* handle this situation, and it would be tricky to understand if you didn't know about this!
+The truth could be one, or several, or none of these reasons - all we know for sure is that the code *does* handle this situation, and some parts of it would be tricky to understand if you didn't know about this!
 
 In order to keep the half-tooth correction logic simple, these two sources of half-tooth error are always consolidated when the counter value is prepared. The logic is simple:
 
-* if exactly one half-tooth correction is required (regardless of which source) then set a flag
-* if two half-tooth corrections are needed, then clear the flag and add one whole tooth to the count
+* if exactly one half-tooth correction is required (regardless of which source) then set a flag that will cause the correction to happen at the end of the count. 
+* if *two* half-tooth corrections are needed, then __clear__ the flag and __add one__ whole tooth to the count
 * if no corrections are needed then the flag is cleared and the count left as-is
 
 This consolidation logic happens in the ref sensor interrupt handler. 
 
 ## Handling two cylinders per rotation
 
-As we have seen, the reference sensor provides a critical sychronization pulse for ever engine rotation. But two cylinders fire in every rotation, so we have to be able to calculate the timing for the second event without the benefit of a reference sensor pulse. 
+As we have seen, the reference sensor provides a critical sychronization pulse for every engine rotation. But two cylinders fire in every rotation, so we have to be able to calculate the timing for the second event without the benefit of a reference sensor pulse. 
 
-The calculations to do this are not very complicated but it can be hard to vizualize because of the way the calculations overlap. 
+The calculations to do this are not very complicated, but they can be hard to vizualize because of the way they overlap from one ignition event to the next. 
 
 The best way to think about it is to assume that when the spark fires, we already have a next-TDC tooth count stored in a variable. Don't worry about where it came from just yet!
 
-Now given that we have this value, we can figure out when the next dwell period should begin with the simple expression
+Now given that we have this next-TDC value, we can figure out when the next dwell period should begin with the simple expression
 
-next dwell = next_TDC - (next spark advance + next dwell duration)
+```
+next_dwell = next_TDC - (next spark advance + next dwell duration)
+```
 
 Immediately after we do this calculation, we calculate the next-TDC value again for future use. The key to understanding this is that the next-TDC is always *current advance + 180 degrees* away; but the spark advance and dwell values that we will eventually subtract from that might be different from the ones we have now. So we calculate next-TDC, but then leave the *use* of this next-TDC value until the next cycle. In online discussions people will often say things like "the next ignition event is 180 degrees away" - that is *roughly* true, and good enough for casual discussions, but to be precse, it will vary from 180 as the ignition timing varies from one cycle to the next! 
 

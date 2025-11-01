@@ -15,7 +15,7 @@ But *what* known reference point? That's where the aptly-named reference sensor 
 That's the basic idea. Now let's see what these VR sensor signals actually look like on an oscilloscope:
 
 
-![](images/ignition_timing/crank_sensors_zoomed_out_1.png)
+![](images/ignition_timing/raw_crank_sensors_zoomed_out_1.png)
 
 Here the reference sensor is shown in blue and the speed sensor in red. There's quite a bit of variation in the speed sensor strength, but there's no real significance to that. 
 

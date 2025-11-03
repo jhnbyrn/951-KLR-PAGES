@@ -12,15 +12,15 @@ Roughly speaking the ignition timing is achieved by:
 * starting the ignition event when that counter reaches zero, and 
 * resetting the counter for the next ignition event. 
 
-There are two types of ignition event that use this counter technique: dwell and spark. First, the counter counts down to the start of the dwell period, and we turn the coil current on. Then we immediately reload the counter variable with the dwell period and the countdown begins again. When it reaches zero again, we turn the coil current off to fire the spark and reload the counter for the next ignition event. 
+There are two types of ignition event that use this counter technique: dwell and spark. First, the counter counts down to the start of the dwell period, and we turn the coil current on. Then we immediately reload the same counter variable with the dwell period and the countdown begins again. When it reaches zero again, we turn the coil current off to fire the spark and reload the counter for the next ignition event. 
 
-This next ignition event is the start of the dwell period for the next cylinder, which is around "180 degrees minus dwell angle" away from where we are right now (because two cylinders fire in every complete rotation). 
+This next ignition event is the start of the dwell period for the next cylinder, which is around "180 degrees minus dwell angle" away from where we fire the spark (because two cylinders fire in every complete rotation). 
 
-There is also a separate counter for the KLR trigger event. This trigger signal is a brief pulse that's fired about 70 degrees BTDC for every cylinder. This logic all happens within the speed sensor routine but it more or less independent of the ignition events. 
+There is also a separate counter for the KLR trigger event. This trigger signal is a brief pulse that's fired about 71 degrees BTDC for every cylinder. This logic all happens within the speed sensor routine but otherwise it more or less independent of the ignition events. 
 
 Fuel injection is always done just after the second spark event in the rotation, but is not timed precisely with reference to TDC. 
 
-That's a very low resolution outline of what happens. But there are many details that need to be understood! So we'll walk through the relevant routines in pseudo-code and take a look at some signal traces along the way. 
+That's a very low resolution outline of what happens. But there are many details that need to be understood! So we'll walk through the relevant routines in pseudo-code.
 
 ## Hardware setup
 
@@ -30,7 +30,7 @@ As a very brief summary:
 
 * each crank sensor signal is digitzed and sent to one of the 8051's external interrupt pins, both of which which trigger on the falling edge
 * the reference sensor triggers INT0 and the speed sensor INT1
-* thus the ref sensor interrupt routine runs once per revolution at 60 deg. BTDC and the speed sensor interrupt routine runs once for every flywheel tooth. 
+* thus the ref sensor interrupt routine runs once per revolution at ~60 deg. BTDC and the speed sensor interrupt routine runs once for every flywheel tooth. 
 
 That's no substitute for reading the complete crank sensor article, but it should be enough to get going. We'll start with the reference sensor routine. 
 
@@ -130,7 +130,7 @@ Then we set 35h to zero. This is an index variable that keeps track of which of 
 
 Finally we set the coil to a predetermined state in 22h.3. The reason for this is that at higher rpm, the dwell needs to start before the ref sensor pulse happens. This flag indicates if the state needs to be set immediately within the ref sensor routine. Later we'll see how this flag gets determined. 
 
-## The countdown
+## The speed sensor interrupt routine (countdown)
 
 The interrupt handler is located at 13h, but the code there just increments the rpm counter and then jumps to the main handler routine at 005C. We're not interested in the rpm measurement aspect right now so we'll take a look at 005C. 
 
@@ -236,6 +236,11 @@ We know we *just* detected a falling edge, immediately before this code ran. So 
 
 Note that next we *always* wait for another falling edge, regardless of which edge we fired on. That means another whole tooth after the one we manually counted. This guarantees that the phase of the flywheel teeth is always the same at this point, regardless of whether we took the half-tooth correction branch or not. This of course means that the next calculation of 2B must decide again if a half-tooth correction is needed - it doesn't automatically propagate. So in total we are now at 2 teeth after the counter reached zero, but the ignition event might have been *just now* or one half-tooth ago. 
 
+This diagram explains the timing of the event:
+
+![](images/ignition_timing/final_ignition_event_timing_1.png)
+
+
 Why don't we manually count this extra edge so that the rpm and KLR counters are up to date? That's a subtle point - note that immediately afterwards, we enable external interrupts on EXT1 again. But we didn't clear the edge flag from this extra edge. That means that the interrupt is still pending as far as the 8051 is concerned, and it will trigger immediatley upon being enabled. So the extra edge that we waited for will actually be counted by another instance of the routine that interrupts *this* one. 
 
 The careful reader may noticed that the ignition output signal (p1.1) is alway *toggled* here, never set to 1 or 0 explicitly. The reason is that we don't know or care what the actual state of the signal is at this point! Firing the ignition coil consists of a 2 step process:
@@ -249,7 +254,30 @@ With that said, in the next section we *do* check explicitly the actual state of
 
 Starting at 0097, we store the acc and psw registers (since we're in an interrupt routine and the code we interrupted might be in the middle of using them for some calculation)
 
-Then (recalling that 30h is the previously calculated duration of whatever ignition event we're doing),
+```
+X0097:	
+	push	acc
+	push	psw
+	jb	p1.1,X00b8
+	clr	a
+	mov	c,22h.0
+	addc	a,30h
+	rrc	a
+	dec	a
+	mov	22h.0,c
+	clr	ex1
+	add	a,2bh
+	mov	2bh,a
+	setb	ex1
+	clr	ie0
+	setb	ex0
+X00b3:	
+	pop	psw
+	pop	acc
+	ret
+```
+
+In pseudo-code (recalling that 30h is the previously calculated duration of whatever ignition event we're doing),
 
 ```
 if not p1.1 (coil is ON, so we have just started dwell):
@@ -273,6 +301,44 @@ When we do integer division of an odd number of half-teeth, we lose one half-too
 So now we have accounted for both sources of half-tooth error, with the final result in 22h.0.
 
 Now we return (to whatever was happening before the interrupt). We're in the dwell period now and the logic at the start of this routine will be repeated each time the speed sensor interrupt routine tune, until this new 2B counter value reaches zero. When that happens, then p1.1 will be toggled again, turning the coil OFF to fire the spark, and when we get to the *if* statement we just looked at, we'll take the other branch, which we explore now:
+
+```
+X00b8:	push	dph
+	push	dpl
+	push	b
+	mov	dptr,#X1160
+	clr	a
+X00c2:	
+	mov	c,22h.0
+	addc	a,33h
+	subb	a,31h
+	clr	c
+	subb	a,57h
+	clr	c
+	subb	a,2fh
+	rrc	a
+	dec	a
+	mov	22h.0,c
+	clr	ex1
+	add	a,2bh
+	mov	2bh,a
+	setb	ex1
+	mov	a,#3
+	add	a,35h
+	movc	a,@a+dptr
+	clr	ex1
+	add	a,2dh
+	mov	2dh,a
+	setb	ex1
+	acall	X021d
+	clr	ie0
+	setb	ex0
+	mov	psw,#18h
+X00f0:	
+	ljmp	X1029
+```
+
+The logic is like this (following on from the __if__ statement in the last block we looked at):
 
 ```
 else: (coil is OFF, so we just fired the spark)
@@ -312,7 +378,7 @@ After this, the ex1 routine continues to run fuel injection logic and some other
 
 Next we need to explore this 021D routine.
 
-## 021D
+## Preparing for the next rotation: 021D
 
 The purpose of this routine is twofold: 
 
@@ -343,11 +409,28 @@ X0224:
 
 Here we loading the ref sensor half-tooth count which is stored as a constant at 1160. On the 951, with 132 flywheel teeth, this value is 44, corresponding to 60 degrees. 
 
-Next we subtract our base timing value (31h) plus one (from the setb c), acceleration timing adjustment (57h) and our dwell angle (2Fh). (Note that subb always subtracts the carry flag as well as the intended value - that's why it's cleared manually between each subb). Note the extra -1 here via the carry flag. This means that the timing is advanced one half-tooth from where it otherwise would be. This would compensate perfectly for the fact that the ref sensor's zero crossing point is 58.64 degrees BTDC, whereas the BTDC half-tooth count located at 1160 is 44, indicating 60 degrees. In other words, the ref sensor pulse is one half-tooth late so we might expect the timing to be advanced by that amount. What's strange about this is that as noted in the crank sensor article, the digitized ref sensor pulse is already advanced by about 1.5 teeth, so if anything we should expect to see a reduction in advance. 
+Next we subtract our base timing value (31h) plus one (from the setb c), acceleration timing adjustment (57h) and our dwell angle (2Fh). (Note that subb always subtracts the carry flag as well as the intended value - that's why it's cleared manually between each subb). Note the extra -1 here via the carry flag. This means that the timing is advanced one half-tooth from where it otherwise would be. 
 
 Anyway, the result of the code above is the number of half teeth we must count from the ref sensor to reach the start of the dwell period - but there are some more details we need to take into account. 
 
 The jnc instruction after the above block will jump if the sutraction of the dwell value 2Fh caused an overflow - that is, the total number of half-teeth we need to subtract was more than 44. 
+
+So,
+
+```
+	jnc	X0237
+	clr	c
+X0233:	
+	clr	22h.3
+	addc	a,2fh
+X0237:	
+	clr	c
+X0238:	
+	rrc	a
+	jz	X0233
+	mov	2ch,a
+	mov	22h.1,c
+```
 
 The logic goes like this
 
@@ -386,6 +469,19 @@ We store carry into 22h.1 - this is the carry from the rrc, so it indicates if w
 
 Next we calculate the half-tooth count for the next TDC value, 33h. 
 
+```
+	mov	a,#7
+	add	a,35h
+X0243:	
+	movc	
+	a,@a+dptr
+	add	a,31h
+	add	a,57h
+	mov	33h,a
+	mov	30h,2fh
+	ret
+```
+
 We load a constant from 1167+35h. Recall that 35h is the index of the firing event - it's always either 0 or 1, indicating which of the two cylinders will fire next in the current rotation. On the 951, this constant is set to 84h (132) for the only possible values of 35h (0 and 1). This is 180 degrees in half-teeth. 
 
 Then we add base timing and acceleration timing adjustment, and store the result in 33h. (Next time around in 00B8 we'll subtract the latest spark advance and dwell count from that TDC value to get the countdown to the next ignition event, i.e. start dwell period). 
@@ -403,7 +499,7 @@ We touched on the so-called trigger signal for the KLR earlier. The KLR needs to
 
 The way that the KLR trigger timing is handled can be a little confusing when reading the code. In years past, knowledgeable people have posted on forums that the KLR trigger signal is 11 degrees before the ignition signal. This is not correct but it's an understandable mistake. 
 
-The place to start is in 021D where the counter 2E is initialized with the constant value 252. This value replaces 2D in the ref sensor routine, so the speed sensor pulses will start decrementing this counter from 252 starting, at 22 teeth BTDC. When the spark fires, in 00B8 we add the constant value 66 to the 2D KLR counter. Now 66 teeth is 180 degrees, so we are really intializing the KLR trigger counter for the next cylinder at this point. This is very likely where the 11 degrees mistake came from - when we add 66 to 252, it's going to overflow and so we're essentially adding 180 degrees minus 4 teeth (which is ~11 degrees). That corresponds to ~11 degrees before the next spark event (assuming the timing stays the same). 
+The place to start is in 021D where the counter 2E is initialized with the constant value 252. This value replaces 2D in the ref sensor routine, so the speed sensor pulses will start decrementing this counter from 252 starting at 22 teeth BTDC. When the spark fires, in 00B8 we add the constant value 66 to the 2D KLR counter. Now 66 teeth is 180 degrees, so we are really intializing the KLR trigger counter for the next cylinder at this point. This is very likely where the 11 degrees mistake came from - when we add 66 to 252, it's going to overflow and so we're essentially adding 180 degrees minus 4 teeth (which is ~11 degrees). That corresponds to ~11 degrees before the next spark event (assuming the timing stays the same). 
 
 But recall that the 2D counter starts decrementing at the ref sensor routine, not the spark event. So we are really initializing 2D to a point that's 4 teeth or 11 degrees before the ref sensor pulse. Therefore the KLR trigger will fire at 26 teeth or 71 degrees BTDC. 
 
@@ -421,7 +517,10 @@ Let's count this in whole teeth.
 * In 021D, the timing calculation always has an extra -1 via the __setb c__ at 227. But this is in half-teeth, so this is an advance of 0.5
 * Elsewhere, we always decrement 2B by 1, either just after the final calulation (in 0097 and 00B8), or in the ref sensor routine. Since 2B is in whole teeth, this is an advance of 1. (The exception is when 2B=1 in the ref sensor routine; then we compromise by reducing the dwell duration 30h by 2 half-teeth). 
 
+Also recall from the crank sensor article that the ref sensor interrupt pulse fires around 1.5 teeth before the true zero-crossing point of the sensor signal. As a result there's an extra falling edge counted by the speed sensor routine. The ref sensor trigger screw is located at 21.5 teeth BTDC, or 58.64 degrees. But this advance of the digital pulse puts the ref sensor interrupt routine at a little over 60 degrees BTDC. There doesn't appear to be anything that compensates for this but it's probably not a big deal because it's a small angle and it's consistent. 
+
 So although it's very confusing, it does all work out in the end. 
+
 
 
 

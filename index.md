@@ -56,7 +56,7 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [DME crankshaft sensors](dme_crank_sensor_hardware.md) *We explore the basics of how the DME measures crankshaft angles, without getting into the weeds of the actual code*
 
-* [DME ignition timing routine](ignition_timine_code.md) *This is the code-walkthrough companion for the crank sensor article; here we __do__ get into the weeds of the actual code!* 
+* [DME ignition timing routine](ignition_timing_code.md) *This is the code-walkthrough companion for the crank sensor article; here we __do__ get into the weeds of the actual code!* 
 
 ## KLR Hardware
 

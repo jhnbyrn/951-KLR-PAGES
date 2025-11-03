@@ -376,7 +376,7 @@ Now let's break down the 2B calculation formula. It's pretty simple and can be w
 * store any new rounding error caused by the division in 22h.0
 * decrement the result 2B
 
-Again (as with the dwell calculation) we include the *previous* value of 22h.0 in the new calculation. Hopefully everything here makes perfect sense by now. I haven't shown where the next TDC value 33h came from, but we'll see that next in 021D. 
+Again (as with the dwell calculation) we include the *previous* value of 22h.0 in the new calculation. And again we add the result to the existing 2B which might now have counted down past zero into some negative value. Hopefully everything here makes perfect sense by now. I haven't shown where the next TDC value 33h came from, but we'll see that next in 021D. 
 
 After this, the ex1 routine continues to run fuel injection logic and some other things, but we'll leave that for a separate investigation to keep things focused on ignition for now. 
 

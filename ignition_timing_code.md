@@ -24,6 +24,8 @@ That's a very low resolution outline of what happens. But there are many details
 
 ## Hardware setup
 
+The 8051's __port 1 pin 1__ (p1.1 in the code) is the ignition signal output. When it's low, we consider it "on" - that is, current is flowing through the coil. 
+
 In case you haven't read the crank sensor stuff already, I'll give a brief introduction here. From this point on I'll asume some basic familiarity with that stuff. 
 
 As a very brief summary:
@@ -95,8 +97,8 @@ else:
 
 if 2B > 1:
 	2B--
-else if 2B == 1: (this can only happen without 22h.3 being off if a=2 or 3 at 0237)
-	30 -= 2
+else if 2B == 1:
+	30 -= 2 (we can't decrement 2B to zero, so shorten the dwell period instead)
 
 35h = 0
 
@@ -104,7 +106,7 @@ p1.1 = 22h.3
 
 ```
 
-Later we'll see how 2C and 2E are calculated. As noted in the comments above, these are the coutner values relative to the reference sensor's position BTDC. The locations that they overwrite here (2B and 2D) already contain suitable values, but they're relative to the next-TDC value previously calcualted. Thus if the ref sensor pulse never happens for any reason, the engine will continue to run using those redundant counter values. 
+Later we'll see how 2C and 2E are calculated. As noted in the comments above, these are the counter values relative to the reference sensor's position BTDC. The locations that they overwrite here (2B and 2D) already contain suitable values, but they're relative to the next-TDC value previously calcualted. Thus if the ref sensor pulse doesn't happen for some reason, the engine will continue to run using those redundant counter values. 
 
 The tricky part is next - this is where we consolidate the to sources of half-tooth error. These errors are explained in detail in the crank sensor article, but as a quick recap: we might need to add one or two extra half-teeth to the counter values because:
 
@@ -113,22 +115,22 @@ The tricky part is next - this is where we consolidate the to sources of half-to
 
 So the logic goes like this:
 
- * if int1 *is not* set at the same time as int0, then we only care about the half-tooth rounding error from the division
+ * if int1 *is not* set at the same time as int0, then we only care about the half-tooth rounding error from the division (if there is one)
  * if int1 *is* set at the same time as int0, then:
    * if we already have a half-tooth rounding correction, then add a *whole* tooth and remove the half-tooth correction
    * if we didn't already have a half-tooth correction, add one now
 
-The resulting, final half-tooth correction is stored in 22h.0, which is the location that actually controls the half-tooth correction logic we saw in the speed sensor routine. 
+The resulting, final half-tooth correction is stored in 22h.0, which is the location that actually controls the half-tooth correction logic we'll see soon in the speed sensor routine. 
 
 Now suppose we don't get any more ref sensor pulses after the engine starts, for some reason. We have to get at least one to get started - but from that point on, 22h.0 will include the ref sensor/speed sensor phase correction. For this reason, the current value of 22h.0 set here is later preserved during both the dwell (0097) and spark (00B8) calculations, and added to the calculation before being overwritten with any new rounding error. 
 
-Next we decrement our counter 2B. The reason for this is that when the counter reaches zero and it's time to fire the ignition event, we will end up delaying for one whole tooth before firing the event. This helps to guarntee that the event is fired with refernce to a ver precise position, but it does need to be compensated. Decrementing the counter here has the effect of advancing the timing by one edge, so that compensates for the delay we'll have later. 
+Next we decrement our counter 2B. The reason for this is that when the counter reaches zero and it's time to fire the ignition event, we will end up delaying for one whole tooth before firing the event. This helps to guarantee that the event is fired with refernce to a very precise position, but it does need to be compensated for. Decrementing the counter here has the effect of advancing the timing by one edge, so that takes care of it. 
 
-There's an exception to this though - if 2B is equal to exactly 1, then we can't decrement it because the counter would roll over to 255 upon the first speed sensor interrupt! The workaround for this is that we decrement the dwell period 30h instead. This will cause the dwell to end sooner, thus advancing the spark to compensate for the delay. Why decrement 30h *twice*? Because 30h represents the dwell period in half-teeth, whereas 2B is whole teeth. 
+There's an exception to this though - if 2B is equal to exactly 1, then we can't decrement it because the counter would roll over to 255 upon the first speed sensor interrupt! The workaround for this is that we decrement the dwell period 30h instead. This will cause the dwell to end sooner, thus advancing the spark to compensate for the delay. A short reduction in dwell time typically won't hurt anything, and it's the best we can do in this scenario, which is fairly unlikely to happen anyway. Why decrement 30h *twice*? Because 30h represents the dwell period in half-teeth, whereas 2B is whole teeth. 
 
 Then we set 35h to zero. This is an index variable that keeps track of which of the two cylinders in the rotation is going to fire next. 
 
-Finally we set the coil to a predetermined state in 22h.3. The reason for this is that at higher rpm, the dwell needs to start before the ref sensor pulse happens. This flag indicates if the state needs to be set immediately within the ref sensor routine. Later we'll see how this flag gets determined. 
+Finally we set the coil to a predetermined state in 22h.3. The reason for this is that at higher rpm, the dwell may need to start before or during the ref sensor routine. This flag indicates if the state needs to be set immediately within the ref sensor routine. Later we'll see how this flag gets determined. 
 
 ## The speed sensor interrupt routine (countdown)
 
@@ -140,6 +142,8 @@ The main variables to remember here are
 * 22.0 - half-tooth error correction
 * 30 - the duration of the ignition event 
 * 33 - tooth count to the next TDC
+
+We start with the "short circuit" path, where the the ignition counter hasn't reached zero yet. 
 
 ```
 X005c:	
@@ -155,7 +159,7 @@ X0096:
 
 ```
 
-We start with the "short circuit" path, where the the ignition counter hasn't reached zero yet. In pseudo code it's like this:
+In pseudo code it's like this:
 
 
 ```
@@ -241,9 +245,9 @@ This diagram explains the timing of the event:
 ![](images/ignition_timing/final_ignition_event_timing_1.png)
 
 
-Why don't we manually count this extra edge so that the rpm and KLR counters are up to date? That's a subtle point - note that immediately afterwards, we enable external interrupts on EXT1 again. But we didn't clear the edge flag from this extra edge. That means that the interrupt is still pending as far as the 8051 is concerned, and it will trigger immediatley upon being enabled. So the extra edge that we waited for will actually be counted by another instance of the routine that interrupts *this* one. 
+Why don't we manually count this extra edge so that the rpm and KLR counters are up to date? That's a subtle point - note that immediately afterwards, we enable external interrupts on EXT1 again. But we didn't clear the edge flag from this extra edge. That means that the interrupt is still pending as far as the 8051 is concerned, and it will trigger immediatley upon being enabled. So the extra edge that we waited for will actually be counted by another instance of the routine that interrupts *this* one. If you didn't think that was possible, bear in mind that we are technically not in an interrupt any longer, because we called reti earlier. The call stack still has the program location from somewhere in the main loop when the original interrupt was triggered, but the reti instruction tells the 8051 that we're finished servicing the interrupt and new interrupts are allowed to happen. If this is too tricky to understand, read up on 8051 interrupts and the reti instruction - that will clear things up. 
 
-The careful reader may noticed that the ignition output signal (p1.1) is alway *toggled* here, never set to 1 or 0 explicitly. The reason is that we don't know or care what the actual state of the signal is at this point! Firing the ignition coil consists of a 2 step process:
+The careful reader may noticed that the ignition output signal (p1.1) is alway *toggled* here, never set to 1 or 0 explicitly. The reason is that we don't know or care what the actual state of the signal is at this point. Firing the ignition coil consists of a 2 step process:
 
 * coil ON to start dwell, i.e. charge the coil
 * coil OFF to fire the spark
@@ -252,7 +256,7 @@ We treat these 2 steps the same in this part of the code, so we don't bother to 
 
 With that said, in the next section we *do* check explicitly the actual state of p1.1, because from this point on we really do need to handle dwell and spark differently. 
 
-Starting at 0097, we store the acc and psw registers (since we're in an interrupt routine and the code we interrupted might be in the middle of using them for some calculation)
+Starting at 0097, we store the acc and psw registers (since we're in an unofficial interrupt, and the main loop code we'll be returning to  might be in the middle of using them for some calculation)
 
 ```
 X0097:	
@@ -277,7 +281,7 @@ X00b3:
 	ret
 ```
 
-In pseudo-code (recalling that 30h is the previously calculated duration of whatever ignition event we're doing),
+In pseudo-code (recalling that 30h is the previously calculated duration of the dwell period),
 
 ```
 if not p1.1 (coil is ON, so we have just started dwell):
@@ -290,17 +294,17 @@ if not p1.1 (coil is ON, so we have just started dwell):
 	ret
 ```
 
-Recall that earlier we saw 22h.0 being used to control whether an extra half-tooth is counted before the ignition event. Here the current value of 22h.0 is preserved in the next counter calculation. The reason for preserving this is that we won't get another ref sensor interrupt before the next ignition event. 
+Recall that earlier we saw 22h.0 being used to control whether an extra half-tooth is counted before the ignition event. Here the current value of 22h.0 is preserved in the next counter calculation. The reason for preserving this is that we won't get another ref sensor interrupt before the next ignition event. Including it in our calculation here means that whatever half-tooth correction was calulated in the ref sensor routine will now propagate to the new event. 
 
-Another interesting thing here is that we add the *existing* value of 2B. Wait, isn't that zero? We're in the speed sensor interrupt routine, in the path where 2B reached zero right? Well, yes but we exited the interrupt context, and later re-enabled the interrupt after firing the ignition event. So now we're just in a plain old routine that can be interrupted. And since 2B had previously reached zero, any subsequent interrupts will roll over to 255 and keep decrementing from there! So when we add our dwell calculation to 2B, an existing value of 255 has the effect of adding -1; 254 means -2 and so on. This makes sense because the dwell has already been on for that number of teeth. 
+Another interesting thing here is that we add the *existing* value of 2B. Wait, isn't that zero? We're in the speed sensor interrupt routine, in the code path where 2B reached zero right? Well, yes but we exited the interrupt context, and later re-enabled the interrupt after firing the ignition event. So now we're just in a plain old routine that can be interrupted. And since 2B had previously reached zero, any subsequent interrupts will roll over to 255 and keep decrementing from there! So when we add our dwell calculation to 2B, an existing value of 255 has the effect of adding -1; 254 means -2 and so on. This makes sense because the dwell has already been on for that number of teeth. 
 
-Note also that we subtract 1 from the whole tooth count. Recall that when preparing to fire the event earlier, we waited for an extra tooth that wasn't part of the count - so this corrects that. Now you might object to this, noting that the ref sensor routine already accounts for this by decrementing 2B. But remember that the ref sensor routine *overwrites* 2B with 2C - and as we'll see a little later, 2C doesn't have this sutraction baked in. 
+Note also that we subtract 1 from the whole tooth count. Recall that when preparing to fire the event earlier, we waited for an extra tooth that wasn't part of the count - so this corrects that. Now you might object to this, noting that the ref sensor routine already accounts for this by decrementing 2B. But remember that the ref sensor routine *overwrites* 2B with 2C - and as we'll see a little later, 2C doesn't have this subtraction baked in. 
 
 When we do integer division of an odd number of half-teeth, we lose one half-tooth. This lost bit is in the carry flag because the division was done with "rrc". So now we store this bit in 22h.0. As you saw earlier, this controls whether we'll delay ignition by an extra half-tooth or not. 
 
 So now we have accounted for both sources of half-tooth error, with the final result in 22h.0.
 
-Now we return (to whatever was happening before the interrupt). We're in the dwell period now and the logic at the start of this routine will be repeated each time the speed sensor interrupt routine tune, until this new 2B counter value reaches zero. When that happens, then p1.1 will be toggled again, turning the coil OFF to fire the spark, and when we get to the *if* statement we just looked at, we'll take the other branch, which we explore now:
+Now we return (to whatever was happening before the original interrupt). We're in the dwell period now and the logic at the start of this routine will be repeated each time the speed sensor interrupt routine runs, until this new 2B counter value reaches zero. When that happens, then p1.1 will be toggled again, turning the coil OFF to fire the spark, and when we get to the *if* statement we just looked at, we'll take the other branch, which we explore now:
 
 ```
 X00b8:	push	dph
@@ -346,7 +350,7 @@ else: (coil is OFF, so we just fired the spark)
 	push b
 	
 	# Now we calcultate the count to the next ignition event
-	2B = ((33h+22h.0) - (31h + 57h + 2Fh)) / 2	(see below for an explanation)
+	2B = 2B + ((33h+22h.0) - (31h + 57h + 2Fh)) / 2	(see below for an explanation)
 	2B--
 	22h.0 = remainder of the division, i.e. any missing half-tooth	
 	Look up the constant at fire event index + 3 (35h+3)
@@ -359,7 +363,7 @@ else: (coil is OFF, so we just fired the spark)
 
 The value in 35h keeps track of which of the two cylinders will fire next. Recall that we have 2 cylinders firing per rotation. One reaches TDC soon after the reference sensor pulse, and the other reaches TDC 180 degrees later. This variable allows us to keep track of which cylinder we're working with (although most of the time we don't really care)
 
-We push some registers that we're going to use since we're in an interrupt. 
+We push some registers that we're going to use, for the same reason as before. 
 
 Now let's break down the 2B calculation formula. It's pretty simple and can be written like this:
 
@@ -409,7 +413,7 @@ X0224:
 
 Here we loading the ref sensor half-tooth count which is stored as a constant at 1160. On the 951, with 132 flywheel teeth, this value is 44, corresponding to 60 degrees. 
 
-Next we subtract our base timing value (31h) plus one (from the setb c), acceleration timing adjustment (57h) and our dwell angle (2Fh). (Note that subb always subtracts the carry flag as well as the intended value - that's why it's cleared manually between each subb). Note the extra -1 here via the carry flag. This means that the timing is advanced one half-tooth from where it otherwise would be. 
+Next we subtract our base timing value (31h) plus one (from the setb c), acceleration timing adjustment (57h) and our dwell angle (2Fh). (Note that subb always subtracts the carry flag as well as the intended value - that's why it's cleared manually between each subb). Note the extra -1 here via the carry flag. This means that the timing is advanced one half-tooth from where it otherwise would be. Recall from earlier that the speed sensor routine waits for a falling edge (one whole tooth) and then fires on the next rising edge if there's no correction (one half-tooth later). This advance compensates for that half-tooth delay. 
 
 Anyway, the result of the code above is the number of half teeth we must count from the ref sensor to reach the start of the dwell period - but there are some more details we need to take into account. 
 

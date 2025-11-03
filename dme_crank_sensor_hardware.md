@@ -39,7 +39,7 @@ Here's a scope capture of the raw signals next to their digitized counterparts
 ![](images/ignition_timing/crank_sensors_with_digitization_1.png)
 
 
-Here, the green trace is the digitized ref sensor and the black trace is the digitized speed sensor. This reveals that the offset of the ref sensor pulse is one falling edge early. This allows the program to treat the ref sensor pulse as exactly __60 degrees BTDC__, which is a nice round number to work with in the code. 
+Here, the green trace is the digitized ref sensor and the black trace is the digitized speed sensor.
 
 The device that does this digitization is a custom Bosch chip (known as S100 on the DME's PCB) and there isn't much information about it. What we know is that it takes 2 differential VR signals as inputs, and produces digital outputs. The reference sensor's digital latches, and needs to be reset every revolution by a pulse to the S100's pin 11. 
 
@@ -165,3 +165,5 @@ The KLR trigger pulses are brief but clear enough in the picture.
 ## Summary
 
 Now you should have a pretty good overview of the the way that the DME program measures angles and produces the all-important output signals. Of course, we didn't look at any code. That will come next. But it should be much easier to read the code with the images you've seen here in your head. 
+
+Here's the [code walkthrough](ignition_timing_code.md) for the ignition signal generation. 

@@ -1,4 +1,4 @@
-## DME ignition timing routine
+# DME ignition timing routine
 
 ## Overview
 

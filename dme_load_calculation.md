@@ -1,14 +1,20 @@
 # DME load calculation
 
+In this article, we'll take a look at the DME's load calculation, which happens to double as the base fuel injector pulse width. We will avoid getting into the actual details of the code and stick to high-level concepts. Nevertheless, we will have to look at some real numbers and maps because this is a strange part of the code and there really isn't a simpler way to understand it. 
+
+We'll break down the actual code and work through a a real life fuel pulse example from my running car in [this separate article](dme_load_code_walkthrough.md) 
+
 ## Overview
 
-As you know, the fuel requirements of an engine depend largely on the mass of air entering the engine. You may also know that the Motronic engine management system meausres air flow by volume using a mechanical "barn-door" airflow meter (AFM for short). This AFM has a built-in temperature sensor (that works exactly like the coolant temperature sensor described *here*). Even though the fuel requirement is based on the mass of air, this volume measurement combined with the air temperature measurement is good enough for fuel calculations (as well as ignition timing calculations). For some simpler airflow based calculations, the air temperature isn't used at all. 
+As you know, the fuel requirements of an engine depend largely on the mass of air entering the engine. You may also know that the Motronic engine management system meausres air flow by volume using a mechanical "barn-door" airflow meter (*AFM* for short). This AFM has a built-in temperature sensor (that works exactly like the coolant temperature sensor described [here](ntc_info.md)). Even though the fuel requirement is based on the mass of air, this volume measurement combined with the air temperature measurement is good enough for fuel calculations (as well as ignition timing calculations). For some simpler airflow-based calculations in the DME, the air temperature isn't used at all. 
 
-The airflow measurement is typically not used in its raw form the way that, say engine speed is. This is partly because the AFM's output is not linear with respect to airflow, and partly because raw airflow (even if linear) isn't really what determines fuel requirements. Instead, the airflow measurement is combined with rpm and transformed in various ways to produce a number commonly called *load*. Here's a quick rundown of how the raw AFM signal is processed (not necessarily in the exact order that it happens in the code):
+The airflow measurement is typically *not* used in its raw measured form in the way that, say engine speed is. This is partly because the AFM's output is not linear with respect to airflow, but also partly because raw airflow (even if linear) isn't really what determines fuel control requirements in a fuel injected engine. The reason for this is that fuel is injected in pulses once per revolution. So a change in engine speed is always automatically compensated for; doubling the rpm doubles the fuel, all other things being equal. So it's really the airflow *per revolution* that determines how the injector pulse width should be modulated. 
 
-1. It is divided by rpm to produce an airflow-per-cycle quantity; this is what really determines fuel requirements, and is the essence of the concept of load
-2. It is linearized; the physical AFM produces a voltage signal that's logarithmic with respect to airflow volume
-3. It is scaled using various constants, and turned into *two* numbers:
+To that end, the airflow measurement is combined with rpm and transformed in various ways to produce a number commonly called *load*. Here's a quick rundown of how the raw AFM signal is processed (not necessarily in the exact order that it happens in the code):
+
+1. It is divided by rpm to produce an airflow-per-cycle quantity; this is what really determines fuel pulse requirements, and is the essence of the concept of *load*
+2. It is *linearized*; the physical AFM produces a voltage signal that's logarithmic with respect to airflow volume
+3. It is *scaled* using various constants, and turned into __two__ numbers:
    * a 16-bit number that serves as the fuel injector pulse width in appropriate units, namely *timer ticks*. 
    * an 8-bit number that's used as an input for map lookups and various other calculations
 

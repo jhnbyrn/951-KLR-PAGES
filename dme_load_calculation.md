@@ -40,12 +40,14 @@ Table 1 (10F4):
 | 174 | 160 | 147 | 135 | 247 | 227 | 208 | 191 |
 
 
+
 Table 2 (10FC):
 
 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 |---|---|---|---|---|---|---|---|
 | 1 | 2 | 3 | 4 | 4 | 5 | 6 | 7 |
 
+(Note, that's not a typo in Table 2, the number 4 really is repeated twice!)
 
 Table 3 (1104):
 

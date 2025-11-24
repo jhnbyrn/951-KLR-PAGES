@@ -89,7 +89,7 @@ Now we can summarize the AFM transfer algorithm as follows:
 
 Believe it or not, that results in an exponential curve! And here is that curve overlayed with the stepped function:
 
-![](images/dme_fuel_calculation/afm_tables_1_2_3.png)
+![](images/dme_fuel_calculation/afm_tables_1_2_3_combined.png)
 
 
 It might be interesting to know exactly *which* exponential function the AFM transfer funciton encodes. I won't bore you with the details, but working backwards from the stepped values we started with, it's easy to figure out that a close approximation is

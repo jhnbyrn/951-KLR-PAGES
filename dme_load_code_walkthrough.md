@@ -31,7 +31,7 @@ X0381:	jnb	23h.2,X03a7
 ;
 ```
 
-We'll skip over that because it's not very interesting, and get to the section that usually applies to a running engine;
+We'll skip over that because it's not very interesting, and get to the section that usually applies to a running engine:
 
 ```
 X03a7:	
@@ -46,9 +46,9 @@ X03a7:
 
 This divides 50 by current rpm and stores the quotient in r7. The routine at 04EA returns
 
-remainder * 256 / rpm.
+```remainder * 256 / rpm```
 
-So the end result is that r7:r6 = 12800/rpm (of course we're talking about the usual rpm/40 here, not true rpm). That might seem like an arbitrary number, but it results in the final load value having the units we want for __timer0__ to control the injector pulse width. 
+So the end result is that r7:r6 = 12800/rpm (of course we're talking about the usual rpm/40 here, not true rpm). That might seem like an arbitrary number, but it results in the final load value having the units we want for __timer0__, to control the injector pulse width. 
 
 ```
 X03b1:	
@@ -78,7 +78,7 @@ We look up Table 1 (10F4) using our 0-7 scaled AFM value.
 
 Next we call the 8x16 multliply at 04D9. This multiplies r7:r6 by a and returns a 24-bit value in r7:r6:r5. 
 
-Next we look up Table 2, again using the scaled 0-7 AFM value. We shift r7:r6:r5 left by the number of times in the map. In other words, we mul by 2^n where n is the value in the map corresponding to the airflow range 0-7. 
+Next we look up Table 2, again using the scaled 0-7 AFM value. We shift r7:r6:r5 left by the number of times in the map. In other words, we multiply by 2^n where n is the value in the map corresponding to the airflow range 0-7. 
 
 Then,
 
@@ -105,8 +105,11 @@ Here, we read Table 3, this time using the *remainder* from the 0-7 scaling. We 
 
 This code clamps the 16-bit value r7:r6 to the min/max values found in 1173 and 1174 (ecah multiplied by 25 in the 043D routine). Note r5 was discarded again - this is another division by 256. The clamping values are
 
-MIN: 425
-MAX: 5500
+
+|Parameter|Value|
+|--|--|
+|MIN| 425|
+|MAX| 5500 |
 
 
 Next we filter the transformed load value using exponential smoothing, with a coefficient that depends on rpm:
@@ -176,7 +179,8 @@ Clearly 28 mod 32 gives a quotient of 0 and a remainder of 28. So the values we 
 | Table 2 | 1 |
 | Table 3 | 220 |
 
-Following the logic in the code we looked at, we get:
+
+For simplcity, we'll ignore the low-pass filtering part for now, because we're looking at steady-state operation. So following the logic in the code we looked at, we get:
 
 ```((12800//21) * 174 * 2 * 220) // 256**2 = 711```
 
@@ -194,6 +198,9 @@ Let's compare that to what we actually see in the scope measurement of the injec
 
 At around 1980us, it's pretty close to what we expected. Of course we can't expect it to be exact - I used an approximately for the dead time - but this is certainly in the neighborhood of what we should expect. 
 
+Returning briefly to the min/max values we saw earlier, we can easily figure out that the limits they impose on injector pulse width would be a minimum of 850us and a max of 11000us, that is 0.85 to 11ms. 
+
 Now you should have a pretty good understanding of the role that the airflow meter plays in the whole system, and how fuel is metered out. 
 
-There remains the fuel maps to explore, along with closed loop correction and a few fuel related parts. For now I just want to point out that even though some of the fuel maps only use a single axis (rpm), you can see from this that air flow always plays the same basic role. 
+There remains the fuel maps to explore, along with closed loop correction and a few fuel related parts. For now I just want to point out that even though some of the fuel maps only use a single axis (rpm), you can see from this that air flow always plays the same basic role in fuel calculations. The reson we have fuel maps that use load and rpm *at all* is because we want the fueling to have some non-linear relationship to each of those quantities - that is, we want to adjust the air-fuel ratio, not just the basic fuel quantity. But the details of that will have to wait!
+

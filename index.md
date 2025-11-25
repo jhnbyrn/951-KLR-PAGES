@@ -52,6 +52,10 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [How the DME reads engine temperature](ntc_info.md) *This section breaks down the details of the DME's main temperature sensor and explains how temperature is measured and used in the code*
 
+* [How engine load is calculated](dme_load_calculation.md) *This explores the concept of load and explains how it's calculated from airflow and RPM*
+
+* [Engine load code walkthrough](dme_load_code_walkthrough.md) *Here we explore the actual code for load calculation, and work through an example to calculate the expected fuel pulse width*
+
 * [The idle stabilizer valve routine](isv_routine.md) *This is a detailed code walkthrough of the routine that controls the ISV*
 
 * [DME crankshaft sensors](dme_crank_sensor_hardware.md) *We explore the basics of how the DME measures crankshaft angles, without getting into the weeds of the actual code*

@@ -2,7 +2,7 @@
 
 In this article, we'll take a look at the DME's load calculation, which happens to double as the base fuel injector pulse width. We will avoid getting into the actual details of the code and stick to high-level concepts. Nevertheless, we will have to look at some real numbers and maps because this is a strange part of the code and there really isn't a simpler way to understand it. 
 
-We'll break down the actual code and work through a a real life fuel pulse example from my running car in [this separate article](dme_load_code_walkthrough.md) 
+We'll break down the actual code and work through a a real life fuel pulse example from my running car in [this separate article](dme_load_code_walkthrough.md).
 
 ## Overview
 
@@ -113,19 +113,4 @@ or, more conventionally
 
 This can be varied to scale the function vertically and horizontally (within reason) by changing only the map values -  but without changing the code, it can't be changed to anything other than an exponential function if we want it to be smooth. The basic reason behind this is that the multiplication by 2^n used with Table 2 is hard coded. 
 
-## The code
-
-
-## Examples:
-
-Idle (~540mv):
->>> ((12800//21) * 174 * 2 * 220) // 256**2
-711
-
-Double this to get 1422us, add ~500us latency, we get 1922us. Scope shows ~2018us
-
-2K RPM (~1.31v)
->>> ((12800//50) * 147 * 8 * 137) // 256**2
-629
-
-Double this to get ~1258us, add ~500us latency to get 1758us. Scope shows 1747us. 
+The good news is that despite the strangeness of this approach, the code that implements it is simple and easy to follow once you know what it does. So I recommend taking a look at the [code walkthrough](dme_load_code_walkthrough) next. 

@@ -2,7 +2,7 @@
 
 In [DME load calculation](dme_load_calculation.md) we explored the concept of how the DME calculates load without getting too deep in the weeds. Now we'll look more closely at the details!
 
-This is a very straightfoward routine code-wise. It's hard to understand why it does what it does without the high-level discussion, so I recommend you read the overview linked above first. But once you had seen that, what followed is pretty simple and there shouldn't be any need for c-like pseudo-code. Most of the tricky stuff is in the multi-byte division and multiplication routines which we won't get into here. 
+This is a very straightfoward routine code-wise. It's hard to understand *why* it does what it does without the high-level discussion, so I recommend you read the overview linked above first. But once you have seen that, what follows here is pretty simple and there shouldn't be any need for c-like pseudo-code. Most of the tricky stuff is in the multi-byte division and multiplication routines which we won't get into here. 
 
 ## Code walkthrough
 
@@ -186,6 +186,14 @@ The timer ticks are 2us each, so double this to get 1422us. Now, we haven't cove
 
 Let's compare that to what we actually see in the scope measurement of the injector pulse width:
 
+
+
 ![](images/dme_fuel_calculation/afm_scope_trace_3.png)
 
+
+
 At around 1980us, it's pretty close to what we expected. Of course we can't expect it to be exact - I used an approximately for the dead time - but this is certainly in the neighborhood of what we should expect. 
+
+Now you should have a pretty good understanding of the role that the airflow meter plays in the whole system, and how fuel is metered out. 
+
+There remains the fuel maps to explore, along with closed loop correction and a few fuel related parts. For now I just want to point out that even though some of the fuel maps only use a single axis (rpm), you can see from this that air flow always plays the same basic role. 

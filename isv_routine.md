@@ -102,7 +102,7 @@ The differences with the alternate path are:
 
 * idle target speed is 800rpm regardless of temperature (whereas the normal map is 840 at normal temps, and higher at lower temps). 
 * there is no flare for startup or idle return after coasting
-* turning AC on does not change increase the target idle speed as it does with the normal path. 
+* turning AC on does not increase the target idle speed as it does with the normal path. 
 
 If you're seeing these behaviors and wondering why, check if ADC channel 5 is grounded!
 

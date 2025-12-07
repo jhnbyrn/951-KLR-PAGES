@@ -61,7 +61,7 @@ Next we call 0A4A to initialize the correction values to __r1:r0__ = 0 and 7E:7D
 
 Then we jump to 09C5 (open loop PWM). 
 
-## 08CB Idle and WOT: 
+## 08D4 Idle and WOT: 
 This section runs if both the idle and WOT signals are present. This means someone has connected a jumper in the diagnostic port in order to defeat the ISV control, for idle screw adjustment (see the factory documentation). 
 
 Here we load a constant from 1160+3C, which has the value 17h (23 decimal). We divide that by 2 to get 11. The PWM correction __r1:r0__ is initialized to 2816(i.e.r1=11). Then and then we jump to 0A05/1B40, skipping all further ISV logic and going straight to the timer1 high/low time calculation. 

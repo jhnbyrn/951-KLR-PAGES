@@ -1,5 +1,5 @@
 # How the Motronic DME Maps Work
-The DME has many, many maps - over 80 in fact. They're stored in the second 4k of program memory. 
+The DME has many, many maps - over 80 in fact. They're stored in the upper 4k of program memory. 
 
 Extracting the map info can be useful for tools like TunerPro and also generally just for visualizing and understanding the parameters the engine was designed to work with. So let's dive into the Motronic map structure. 
 
@@ -13,25 +13,25 @@ For practical reasons, however, the DME code doesn't work directly in these fami
 30 | 139 | 178
 25 | 23 | 21
 
-This is much more obscure - clearly there's some translation needed to get from units (in the code) to common everyday units like degrees C and revolutions per minutee. 
+This is much more obscure - clearly there's some translation needed to get from these numbers to common everyday units like degrees C and revolutions per minute. 
 
-But it's worse - even this less familiar representation is still not how it's actually stored! Here's what that same map truly looks like, in it's native setting, viewed in a hex editor:
+But wait, it's worse - even this representation I just showed you is *still* not how the map is actually stored in the DME's memory! Here's what that same map truly looks like, in it's native setting, viewed in a hex editor:
 
 
 ![](images/dme_map_reading/idle_target_map_1.png)
 
 
-It might be a little clearer to copy those raw bytes and format them here:
+It might be a little clearer to copy those raw bytes and format them here (we ignore the two grey columns on the left and right):
 
 `13 03 6d 27 4d 19 17 15`
 
-That's quite a bit different from the more readable ones we just looked at. So how does this pile of numbers represent a map of target engine speeds? In the following sections we'll break this down piece by piece and learn how that nice human-readable representations are derived from the raw data. 
+Now that's quite a bit different from the more readable representations we just looked at. So how does this pile of numbers represent a map of target engine speeds? In the following sections we'll break this down piece by piece and learn how those nice human-readable representations are derived from the raw data. 
 
 First, note that the values I pulled from the raw source are in hexadecimal form. When we want to help with readability, we'll convert them to decimal. (Sometimes, I might even remember to tell you when I do that). Here's a breakdown of the structure of the raw map:
 
 * first byte: input variable 
 * second byte: axis length (let's call it "n" - in this case, n=3)
-* next n bytes: axis values, i.e headings
+* next n bytes: axis values, aka headings aka *breakpoints*
 * next n bytes: the actual values (this is what TunerPro XDF files generally consider to be the "start" of the map) 
 
 Now each of these might seem a little cryptic so I'll explain them one by one. 
@@ -48,19 +48,19 @@ This value is the RAM address of the input variable. In the Motronic code, key e
 
 So in our example map above, the first byte is 13 and that tells us that this map depends on engine temp (NTC). 
 
-There are exceptions to this conention, though. There are some maps that don't use a fixed, global variable and so their purpose can be a little harder to ascertain. The [NTC sensor linearization map](ntc_info.md) is a good example. The DME has 2 of these sensors and they use the same linearization map. So for this map, the input value is read from the location __r4__, which is a general purpose register that gets re-used a lot. Other exaples include the [ISV closed loop gain maps](isv_routine.md). These maps use rpm as their input, but not the current rpm value located at 37h. The rpm value they use is the closed loop error (i.e. the difference between the current rpm and the target rpm). 
+There are exceptions to this, though. There are some maps that don't use a fixed, global variable and so their purpose can be a little harder to ascertain. The [NTC sensor linearization map](ntc_info.md) is a good example. The DME has 2 of these sensors and they use the same linearization map. So for this map, the input value is read from the location __r4__, which is a general purpose register that gets re-used a lot. Before this map is read in the code, the raw sensor value has to be loaded into __r4__. Other exaples include the [ISV closed loop gain maps](isv_routine.md). These maps use rpm as their input, but not the current rpm value located at 37h. The rpm value they use is the closed loop error (i.e. the difference between the current rpm and the target rpm). 
 
 ## Second byte: the length of the axis
-This is pretty straightforward; the number 3 in this example just tells us that there are 3 values in the axis! So this map only cares about 3 different temperature ranges. As a rule, the right-most value in the map applies to all input values to the right, and vice-versa for the left. So for instance if the right-most axis number was 0 deg. C, then the value corresponding to that would apply for all temperatures below 0C. 
+This is pretty straightforward; the number 3 in this example just tells us that there are 3 values in the axis! In other words, it's the number of columns in the table I showed you earlier. So this map only cares about 3 different temperature ranges. As a rule, the right-most value in the map applies to all input values to the right, and vice-versa for the left. So for instance if the right-most axis number was 0 deg. C, then the value corresponding to that would apply for all temperatures below 0C. 
 
 ## Next n bytes: the axis values
 This is where things start to get a little more complicated. We said earlier that the 3 values following the axis length are the headings of the map. Let's look at these values in decimal to make things clearer:
 
 ```109 39 77```
 
-Now you might ask things like: what do these numbers mean? Are they C, or F? Don't tell me they're Kelvins?! Let's leave the question of units until a little later and for now just deal with questions like: why are they spaced so unevenly, and why don't they go in one direction? 
+Now you might ask things like: what do these numbers mean? Are they Celcius, or Fahrenheit? (don't tell me they're Kelvins!) Let's leave the question of units until a little later and for now just deal with questions like: why are they spaced so unevenly, and why aren't they consistently ascending or descending? 
 
-For reasons that will be clearer later, Motronic software encodes map headings as diffs or deltas instead of the values you'd expect. The best way to explain this is to explain what the code does. Let's say we have an input value of 177. The map routine will start at the right-hand end of the axis, and start adding the headings, one at a time, to the input value until the add results in an overflow. 
+For reasons that will be clearer later, Motronic software encodes map headings as *diffs* or *deltas* instead of the values you'd expect. The best way to explain this is to explain what the map reading code does. Let's say we have an input value of 177. The map routine will start at the right-hand end of the axis, and start adding the headings, one at a time, to the input value until the add results in an overflow. 
 
 For example we'll get
 
@@ -82,12 +82,12 @@ The short explanation here is that the units of engine speed are RPM/40. That is
 
 How do we know that? The way engine speed is measured in Motronic is by counting the number of speed sensor pulses within a fixed timer interval. That part can be ascertained by reading the code. But to know that 1 unit equals 40RPM, someone had to go an count the teeth on the flywheel! And someone always has to do something like that to answer such questions. 
 
-A word about units and naming conventions. Everyone and I mean everyone uses the term "rpm" interchangeably with "engine speed" and I don't want to be that guy so I will just keep doing that to avoid confusion. But the Motronic maps don't deal in rpm, strictly speaking they use units of rpm/40. 
+A word about units and naming conventions. Everyone and I mean everyone uses the term "rpm" interchangeably with "engine speed" and I don't want to be "that guy" so I will just keep doing that to avoid confusion. But the Motronic maps don't deal in rpm, strictly speaking they use units of rpm/40. 
 
 ### Units: Battery voltage
 First let's address why this is necessary, and then how it's even possible. The DME needs to know the current battery voltage because many critial things in the engine perform differently depending on the voltage, for example fuel injectors, ignition coils etc. Pulse widths and dwell times need to be adjusted for the battery voltage. 
 
-The DME measuring it's own supply voltage is possible because the ADC has a fixed 5v reference, and the supply voltage is divided by approximately 3.5 before being read into one of the ADC's channels. So it can measure voltages up to around 17.5v, and the measurement is not affected by the actual battery voltage as long as it's high enough to maintain the 5v supply for the ADC
+The DME measuring it's own supply voltage is possible because the ADC has a fixed 5v reference, and the supply voltage is divided by approximately 3.5 before being read into one of the ADC's channels. So it can measure voltages up to around 17.5v, and the measurement is not affected by the actual battery voltage as long as it's high enough to maintain the 5v supply for the ADC.
 
 My rough calculations give a conversion rate of 1 unit in the code equals 0.0686 volts. 
 
@@ -100,7 +100,9 @@ You can read all the details of how the NTC sensor is processed in the [How the 
 ## 2-Axis (3D) Maps
 The maps we have seen so far as 1-axis maps, also known as "2D" maps (2D because we can visualize them as graphs in 2D space). But many of the DME's maps use 2 axes. These are the so-called 3D maps. These maps require 2 input variables, so they can be visualized as tables with multiple rows and columns, or as surfaces in 3D space. 
 
-Here's an example of each, using the ignition dwell map from the stock 951 DME (found at location 0x13DC). As a table:
+Here's an example of each of those types of visualization, using the ignition dwell map from the stock 951 DME (found at location 0x13DC). 
+
+First, as a table:
 
 
 | RPM \ Voltage | 6   | 8   | 10  | 12  | 14  | 16  | 16.5 |
@@ -119,7 +121,8 @@ Here's an example of each, using the ignition dwell map from the stock 951 DME (
 | 6480          | 106 | 106 | 106 | 106 | 103 | 86  | 51   |
 
 
-And as a surface plot:
+
+And, as a surface plot:
 
 ![](images/dme_map_reading/example_surface_plot_dwell_2.png)
 

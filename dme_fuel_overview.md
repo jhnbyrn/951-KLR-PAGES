@@ -1,3 +1,5 @@
+# 944 DME Fueling Overview
+
 The fueling section of the DME code is the most complicated part of the program. The idea is simple enough: measure some key variables (load, rpm etc.) and determine how much fuel to inject. But the range of variables and the way that they affect the final fuel quantity is very comlpicated.
 
 Here's a quick overview of the most important fuel adjustments the DME performs (in no particular order):
@@ -43,20 +45,21 @@ So in summary we always start with a BPW which should get us 14.7 AFR and then t
 
 Let's take a look at some actual fuel maps in raw form and analyze their meaning a little. 
 
-RPM/Load |     21 |    26 |     37  |     42 |     48 |    53  |     63 |     79 |     90 |    100 |    122 |    142
----------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------
-     800 |    133 |   133  |  133   | 133    | 133    | 133    | 132    | 131    | 131    | 131    | 131    | 131
-     960 |    133    133    133    132    132    132    132    132    132    132    132    132
-    1120 |    133    133    133    132    132    132    132    132    132    132    132    132
-    1440 |    133    134    134    134    134    134    136    136    137    137    137    137
-    1760 |    133    134    134    135    136    136    136    136    137    143    143    143
-    2080 |    133    134    135    136    136    137    137    137    137    138    149    149
-    2400 |    133    134    136    136    136    137    137    137    138    140    148    148
-    3360 |    133    135    136    136    138    138    138    138    139    140    141    150
-    4000 |    133    135    136    136    138    138    138    139    139    140    141    147
-    4640 |    133    135    137    137    139    139    139    139    139    139    139    143
-    5600 |    133    135    136    136    136    137    137    137    137    137    137    138
-    6240 |    136    136    138    138    138    137    136    136    136    136    136    136
+	
+| RPM (0x37) \ Load (0x49) | 21 | 26 | 37 | 42 | 48 | 53 | 63 | 79 | 90 | 100 | 122 | 142 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 800 | 133 | 133 | 133 | 133 | 133 | 133 | 132 | 131 | 131 | 131 | 131 | 131 |
+| 960 | 133 | 133 | 133 | 132 | 132 | 132 | 132 | 132 | 132 | 132 | 132 | 132 |
+| 1120 | 133 | 133 | 133 | 132 | 132 | 132 | 132 | 132 | 132 | 132 | 132 | 132 |
+| 1440 | 133 | 134 | 134 | 134 | 134 | 134 | 136 | 136 | 137 | 137 | 137 | 137 |
+| 1760 | 133 | 134 | 134 | 135 | 136 | 136 | 136 | 136 | 137 | 143 | 143 | 143 |
+| 2080 | 133 | 134 | 135 | 136 | 136 | 137 | 137 | 137 | 137 | 138 | 149 | 149 |
+| 2400 | 133 | 134 | 136 | 136 | 136 | 137 | 137 | 137 | 138 | 140 | 148 | 148 |
+| 3360 | 133 | 135 | 136 | 136 | 138 | 138 | 138 | 138 | 139 | 140 | 141 | 150 |
+| 4000 | 133 | 135 | 136 | 136 | 138 | 138 | 138 | 139 | 139 | 140 | 141 | 147 |
+| 4640 | 133 | 135 | 137 | 137 | 139 | 139 | 139 | 139 | 139 | 139 | 139 | 143 |
+| 5600 | 133 | 135 | 136 | 136 | 136 | 137 | 137 | 137 | 137 | 137 | 137 | 138 |
+| 6240 | 136 | 136 | 138 | 138 | 138 | 137 | 136 | 136 | 136 | 136 | 136 | 136 |
 
 The way to read these numbers is as fractions, where the denominator is 128. This value of 128 is not explicitly stored anywhere. Instead, the value that's read from the map is divided by 128 in the code after the map is read. The reason it's done this way is that division by 128 (or indeed any power of 2) is very easy and efficient in 8-bit assembly code. But unfortunately it does complicate the code quite a bit. 
 
@@ -66,24 +69,25 @@ So with that in mind, we can see that a map cell value of say 134 really means 1
 
 Now let's take a look at the wide-open throttle fuel map:
 
-  RPM |    Value
-------|-----------------
-    1000 |      138
-    1480 |      143
-    2000 |      149
-    2120 |      151
-    2240 |      154
-    2520 |      157
-    3000 |      157
-    3280 |      159
-    3520 |      159
-    4000 |      157
-    4520 |      152
-    5000 |      146
-    5520 |      141
-    5800 |      138
-    6000 |      136
-    6240 |      136
+| (0x37) | Value |
+|---|---|
+| 1000 | 138 |
+| 1480 | 143 |
+| 2000 | 149 |
+| 2120 | 151 |
+| 2240 | 154 |
+| 2520 | 157 |
+| 3000 | 157 |
+| 3280 | 159 |
+| 3520 | 159 |
+| 4000 | 157 |
+| 4520 | 152 |
+| 5000 | 146 |
+| 5520 | 141 |
+| 5800 | 138 |
+| 6000 | 136 |
+| 6240 | 136 |
+
 
 The most obvious fact to note here is that it only has one input - rpm. This fact has led to a lot of confusion over the years, with tuners often believing (wrongly) that "the AFM is ignored" or "load plays no role in WOT fueling". Of course you now know that can't be true - the BPW is always used, and is always derived from the AFM signal. 
 
@@ -95,4 +99,60 @@ Of course all this assumes that the BPW was correct to begin with, and that is b
 
 So let me say it once more: the AFM is not ignored at wide open throttle!
 
+## Appendix
 
+Here are the US 944 Turbo (O2 sensor/cat equipped cars) fuel maps for idle, part throttle and WOT in AFR form:
+
+### Idle
+Short name: 49
+Location: 1538h
+
+| RPM (0x37) | Value |
+|---|---|
+| 720 | 14.70 |
+| 800 | 14.36 |
+| 880 | 14.36 |
+| 1280 | 14.25 |
+| 1920 | 14.25 |
+
+### Part-throttle
+Short name: 79
+Location: 148Ch
+
+| RPM (0x37) \ Load (0x49) | 21 | 26 | 37 | 42 | 48 | 53 | 63 | 79 | 90 | 100 | 122 | 142 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 800 | 14.15 | 14.15 | 14.15 | 14.15 | 14.15 | 14.15 | 14.25 | 14.36 | 14.36 | 14.36 | 14.36 | 14.36 |
+| 960 | 14.15 | 14.15 | 14.15 | 14.25 | 14.25 | 14.25 | 14.25 | 14.25 | 14.25 | 14.25 | 14.25 | 14.25 |
+| 1120 | 14.15 | 14.15 | 14.15 | 14.25 | 14.25 | 14.25 | 14.25 | 14.25 | 14.25 | 14.25 | 14.25 | 14.25 |
+| 1440 | 14.15 | 14.04 | 14.04 | 14.04 | 14.04 | 14.04 | 13.84 | 13.84 | 13.73 | 13.73 | 13.73 | 13.73 |
+| 1760 | 14.15 | 14.04 | 14.04 | 13.94 | 13.84 | 13.84 | 13.84 | 13.84 | 13.73 | 13.16 | 13.16 | 13.16 |
+| 2080 | 14.15 | 14.04 | 13.94 | 13.84 | 13.84 | 13.73 | 13.73 | 13.73 | 13.73 | 13.63 | 12.63 | 12.63 |
+| 2400 | 14.15 | 14.04 | 13.84 | 13.84 | 13.84 | 13.73 | 13.73 | 13.73 | 13.63 | 13.44 | 12.71 | 12.71 |
+| 3360 | 14.15 | 13.94 | 13.84 | 13.84 | 13.63 | 13.63 | 13.63 | 13.63 | 13.54 | 13.44 | 13.34 | 12.54 |
+| 4000 | 14.15 | 13.94 | 13.84 | 13.84 | 13.63 | 13.63 | 13.63 | 13.54 | 13.54 | 13.44 | 13.34 | 12.80 |
+| 4640 | 14.15 | 13.94 | 13.73 | 13.73 | 13.54 | 13.54 | 13.54 | 13.54 | 13.54 | 13.54 | 13.54 | 13.16 |
+| 5600 | 14.15 | 13.94 | 13.84 | 13.84 | 13.84 | 13.73 | 13.73 | 13.73 | 13.73 | 13.73 | 13.73 | 13.63 |
+| 6240 | 13.84 | 13.84 | 13.63 | 13.63 | 13.63 | 13.73 | 13.84 | 13.84 | 13.84 | 13.84 | 13.84 | 13.84 |
+
+### WOT
+Short name: 75
+Location: 1544h
+
+| RPM (0x37) | Value |
+|---|---|
+| 1000 | 13.63 |
+| 1480 | 13.16 |
+| 2000 | 12.63 |
+| 2120 | 12.46 |
+| 2240 | 12.22 |
+| 2520 | 11.98 |
+| 3000 | 11.98 |
+| 3280 | 11.83 |
+| 3520 | 11.83 |
+| 4000 | 11.98 |
+| 4520 | 12.38 |
+| 5000 | 12.89 |
+| 5520 | 13.34 |
+| 5800 | 13.63 |
+| 6000 | 13.84 |
+| 6240 | 13.84 |

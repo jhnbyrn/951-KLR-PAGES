@@ -97,11 +97,13 @@ But in the 951, the WOT driving mode is active whenever the throttle position is
 
 Of course all this assumes that the BPW was correct to begin with, and that is based on the real airflow measurement. If that measurement is wrong for any reason (e.g. intake leaks, damaged AFM etc., or exceeding the AFM's limits) then your AFR under WOT will be wrong! The fact that load isn't used in the map lookup won't save your BPW! 
 
-So let me say it once more: *the AFM is not ignored at wide open throttle!*
+So let me say it once more: __the AFM is not ignored at wide open throttle!__
 
-## Appendix
+## Appendix - AFR Maps
 
-Here are the US 944 Turbo (O2 sensor/cat equipped cars) fuel maps for idle, part throttle and WOT in AFR form:
+Here are the US 944 Turbo (O2 sensor/cat equipped cars) fuel maps for idle, part throttle and WOT in AFR form. 
+
+Note that at idle and part throttle, O2 equipped cars will have the AFR pulled back down to 14.7 normally. This is disabled at WOT. If you want to know more about the "short names" shown below, see [this article on how Motronic maps are referenced](dme_map_locations.md)
 
 ### Idle
 Short name: 49\

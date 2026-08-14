@@ -103,7 +103,7 @@ So let me say it once more: __the AFM is not ignored at wide open throttle!__
 
 Here are the US 944 Turbo (O2 sensor/cat equipped cars) fuel maps for idle, part throttle and WOT in AFR form. 
 
-Note that at idle and part throttle, O2 equipped cars will have the AFR pulled back down to 14.7 normally. This is disabled at WOT. If you want to know more about the "short names" shown below, see [this article on how Motronic maps are referenced](dme_map_locations.md)
+Note that at idle and part throttle, O2 equipped cars will have the AFR pulled back down to 14.7 normally. This is disabled at WOT. If you want to know more about the "short names" shown below, see [this article on how Motronic maps are referenced.](dme_map_locations.md)
 
 ### Idle
 Short name: 49\

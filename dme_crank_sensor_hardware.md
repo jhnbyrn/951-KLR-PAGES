@@ -63,13 +63,15 @@ Most of this discussion is centered on counting the tooth edges (black pulses) b
 
 ## Half-tooth errors and corrections
 
-Because only the falling edges trigger the interrupt, it's much simpler for the program to count only falling edges, most of the time. So in general, when the counter variable is being prepared to measure some angle, it's loaded with the required angle in *whole* teeth. This is done by dividing the half-tooth count value by two. Of course if the half-tooth count was an odd number, we would lose the remainder. To deal with this, the remainder is stored separately and applied at the end of the count if necessary. This remainder represents a half-tooth, so the way it's applied is simply by delaying the ignition event for one more edge. 
+The basic unit of timing in the DME code is one half of a flywheel tooth. That's the finest resolution that can reasonaly be achieved, and corresponds to about 1.36 degrees. But because only the falling edges of the crank signals actually trigger the interrupt, it's much simpler for the program to count only falling edges, most of the time. So in general, when the counter variable is being prepared to measure some angle, it's loaded with the required angle in *whole* teeth. This is done by dividing the half-tooth count value by two. 
+
+You can probably see the issue here - of course if the half-tooth count we started with was an odd number, we would lose the remainder when we divide it by two. To deal with this, the remainder is stored separately and applied at the end of the count if necessary. This remainder represents a half-tooth, so the way it's applied is simply by delaying the ignition event for one more edge. 
 
 When it's time to fire the ignition event, the general rule is that the program waits for the next rising edge, by polling the state of INT1. Thus the default behavior is to always add one half-tooth to the count. 
 
-If if a half-tooth correction is required, the program waits for an extra falling edge. 
+If if a half-tooth correction is required, the program waits for an *extra* falling edge. 
 
-Now, looking at the signal traces above, you might notice that the reference sensor pulse is asserted roughly in the middle of the low period of the speed sensor - that is, halfway between two flywheel teeth. That's a consequence of the way that the ring gear bolts to the flywheel in the 951. But the Motronic program doesn't assume this particular phase relationship. It actually checks the state of the speed sensor signal at the moment the ref sensor asserts. If it looks like it does in my image, then all is well. But if the speed sensor pulse was already high at this moment, that means that the first falling edge that will be counted will be up to half a tooth earlier. If this situation occurs, then the program compensates with *another* half-tooth correction, similar to the division rounding error we just noted above. 
+Now, looking at the signal traces above, you might notice that the reference sensor pulse is asserted roughly in the middle of the low period of the speed sensor - that is, halfway between two flywheel teeth. That's a consequence of the way that the ring gear bolts to the flywheel in the 951. But the Motronic program doesn't assume this particular phase relationship. It actually checks the state of the speed sensor signal at the moment the ref sensor asserts. If it looks the way it does in my image, then all is well. But if the speed sensor pulse was already high at this moment, that means that the first falling edge that will be counted will be up to half a tooth earlier. If this situation occurs, then the program compensates with *another* half-tooth correction, similar to the division rounding error we just noted above. 
 
 Here's a diagram illustrating the normal situation and a couple of other theoretical possiblities, and what correction is needed (if any) for each:
 
@@ -77,7 +79,7 @@ Here's a diagram illustrating the normal situation and a couple of other theoret
 ![](images/ignition_timing/half_tooth_correction_1.png)
 
 
-As with the traces shown earlier, the ref sensor pulse is shown here in green. The first falling edge after the ref sensor pulse in each case is highlighted in red. The first example is the normal situation; the second and third examples show how the first falling edge will be counted sooner than normal. 
+As with the traces shown earlier, the ref sensor pulse is shown here in green. The first falling edge after the ref sensor pulse in each case is highlighted in red. The first example is the normal situation; the second and third examples show how, depending on the hardware setup, the first falling edge could be counted sooner than normal, requiring compensation. 
 
 As you can see, there's no guarantee that the phase error is exactly one half-tooth. But one half-tooth is the best we can do, and at 1.36363... degrees it's good enough. 
 
@@ -119,9 +121,11 @@ Here's a diagram that might help to visualize what's going on with these calcula
 ![](images/ignition_timing/180_timing_calculation_2.png)
 
 
+As the picture says, assume we're at the ignition event. The current ignition advance value indicates how far away TDC for the current cylinder is. Adding 180 degrees to *that* gets us the tooth count for *next* TDC. A little later, when we have the advance and dwell time for the next ignition event ready, subtracting these two values from the tooth count to next TDC gets us the tooth count to the start of the next dwell period. If we had simply added 180 degrees to the current ignition event, we'd be assuming that the timing advance will be the same for the next cycle. 
+
 Now, the program does this next-TDC business for every ignition event, not just the second one after the ref sensor pulse. As we just saw, the counter for the next ignition event is therefore based on the number of teeth between a given ignition event and the start of the next dwell period. 
 
-But the ref sensor interrupt handler obviously must use a counter that's based on the refer sensor's location BTDC, which is totally different. This might seem like a contradiction. In fact, after every spark the program calculates two counter values for the next event: the next-TDC based count, and the ref sensor based count. When the ref sensor pulse happens, the ref sensor based count is swapped in. If the ref sensor pulse doens't happen before the next ignition event needs to happen, then the next-TDC based count will be used by default. 
+But the ref sensor interrupt handler obviously must use a counter that's based on the ref sensor's location BTDC, which is totally different. This might seem like a contradiction. In fact, after every spark the program calculates two counter values for the next event: the next-TDC based count, and the ref sensor based count. When the ref sensor pulse happens, the ref sensor based count is swapped in. If the ref sensor pulse doens't happen before the next ignition event needs to happen, then the next-TDC based count will be used by default. 
 
 Thus the next-TDC based calculation is really only needed for the second cylinder in the rotation, and is redundant for the first. But if the ref sensor pulse never arrives for some reason, the program will fall back to the next-TDC based count - so the engine will keep running without skipping a beat. 
 

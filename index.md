@@ -52,6 +52,8 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [How the DME reads engine temperature](ntc_info.md) *This section breaks down the details of the DME's main temperature sensor and explains how temperature is measured and used in the code*
 
+* [An overview of the DME fuel maps](dme_fuel_overview.md) *An explanation of the role that fuel maps actually play, and the concept of the base pulse width*
+
 * [How engine load is calculated](dme_load_calculation.md) *This explores the concept of load and explains how it's calculated from airflow and RPM*
 
 * [Engine load code walkthrough](dme_load_code_walkthrough.md) *Here we explore the actual code for load calculation, and work through an example to calculate the expected fuel pulse width*

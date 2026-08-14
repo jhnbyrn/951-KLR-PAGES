@@ -20,15 +20,15 @@ And the simplest, most important thing we can say from this perspective is that 
 
 The second most important thing to say is that the steps that lead to this final number can be divided into two kinds: the base calulation, and the adjustments. 
 
-To explain this in more detail, let's first dispense with a common misconception about fuel maps. If you've heard of fuel maps before, and you're aware that they allow a fuel value to be looked up by various inputs like rpm and load, you might expect that the cells of the maps contain the number we're looking for - that is, something that represents a certain amount of injector on-time. Or at least something that can be translated into on-time. But that's not the case, at least in the Motronic system. In this system, the maps only contain fractions that multiply an existing injector pulse width number (usually to increase it a by a small proportion, but occasionally to reduce it). 
+To explain this in more detail, let's first dispense with a common misconception about fuel maps. If you've heard of fuel maps before, and you're aware that they allow a fuel value to be looked up by various inputs like rpm and load, you might expect that the cells of the maps contain the number we're looking for - that is, something that represents a certain amount of injector on-time. But that's not the case, at least in the Motronic system. In this system, the maps only contain fractions that multiply an existing injector pulse width number (usually to increase it a by a small proportion, but occasionally to reduce it). 
 
 The same thing is true for basically all the fuel adjustments - the fuel quality switch, altitude adjustment, temperature adjustments etc. They're all just fractions that mean things like "increase fuel by 6%". 
 
-So where does this existing pulse width value come from? It's calculated from two numbers: rpm and airflow. The details are somewhat involved because of the way the AFM works, but roughly speaking it's airflow divided by rpm. There is some scaling to convert the resulting number into an appropriate number of timer ticks for the routine that controls the injector, and we call this number the base pulse width, or BPW. 
+So where does this existing pulse width value come from? It's calculated from two numbers: rpm and airflow. The details are somewhat involved because of the way the AFM works, but roughly speaking it's airflow divided by rpm. There is some scaling to convert the resulting number into an appropriate number of timer ticks for the routine that controls the injector, and we call this number the base pulse width, or BPW. You can read a detailed explanation of how this BPW is calculated [here](dme_load_calculation.md).
 
 The BPW is calibrated based on the known fuel delivery rate of the engine so that it always results in an AFR of 14.7:1 - as long as the AFM is working correctly (with no leaks), the injectors are clean, the wiring is in good shape, and the fuel pressure regulator is working correctly. 
 
-Now you have surely heard the term "load" used in reference to fuel injection systems as a sort of measurment of how hard the engine is working at a given moment. And you might know that this is measured as airflow per rpm, that is airflow divided by rpm. That means that BPW and load are really the same thing! In Motronic, there are two different numbers used for BPW and load, just because the units need to be different. The injector pulse time needs to be a fairly large, 16-bit number, since it counts timer ticks with high resolution. But there's also a load value that's used as a map input for various things, which needs to be scaled into a smaller 8-bit value to work with the map lookup routine. But rest assured these two numbers represent the same thing, and are always proportional - in fact the smaller, 8-bit load value is literally just the high byte of the BPW value. 
+Now you have surely heard the term "load" used in reference to fuel injection systems as a sort of measurment of how hard the engine is working at a given moment. And you might know that this is measured as airflow per rpm, that is airflow divided by rpm. That means that BPW and load are really the same thing! In Motronic, there are two different numbers used for BPW and load, just because the units need to be different. The injector pulse time needs to be a fairly large, 16-bit number, since it counts timer ticks with high resolution. But there's also a load value that's used as a map input for various things, which needs to be scaled into a smaller 8-bit value to work with the map lookup routine. But rest assured these two numbers represent the same thing, and are always proportional. (*Note: If you're following along with the code, the BPW is stored in r7:r6 and the 8-bit load value is stored in 49h*).
 
 Now, if a 14.7 AFR was all we ever needed, then the calculation of the BPW would be the end of the story, and no fuel maps would be needed at all. The maps exist because 14.7 is not always the ideal AFR. Lots of conditions require a richer AFR. The ideal AFR depends on many factors, but most commonly load, boost and temperature. Wait, load? Again? That's confusing right? We already used airflow to calculate load, i.e. BPW, to get the AFR to 14.7, and now I'm saying we sometimes use the load value again to get a different AFR? Well yes, that is exactly what I'm saying. The 14.7 ratio is appropriate for fairly light loads. When the engine is working harder (that is, more airflow per rpm) we usually want a richer mixture. And when the engine is boosting, we want it even richer still to help with cooling.
 
@@ -65,7 +65,7 @@ The way to read these numbers is as fractions, where the denominator is 128. Thi
 
 (I don't want to get too deep into the weeds of that here, so for now I'll just say that what happens is this: the 16-bit BPW gets multiplied by the raw map cell value, resulting in a 24-bit number, but then the top two bytes are taken as the result, discarding the lower byte. This constitutes an rough division by 256. Then the result is shifted to the left one place, which is a multiplication by 2. Thus overall we have division by 128. This entire process needs to be repeated for every map that's looked up in the fuel calculation process.)
 
-So with that in mind, we can see that a map cell value of say 134 really means 134/128=~1.046, which means a roughly 4.6% increase in fuel over the base 14.7 AFR, in other words about 14.0 AFR. So when visualizing these maps, we could show each cell as an AFR to indicate its true meaning. 
+So with that in mind, we can see that a map cell value of say 134 really means 134/128=~1.046, which means a roughly 4.6% increase in fuel over the base 14.7 AFR, in other words about 14.0 AFR. So when visualizing these maps, we could show each cell as an AFR to indicate its true meaning. See the Appendix at the end for examples of this. 
 
 Now let's take a look at the wide-open throttle fuel map:
 
@@ -97,14 +97,14 @@ But in the 951, the WOT driving mode is active whenever the throttle position is
 
 Of course all this assumes that the BPW was correct to begin with, and that is based on the real airflow measurement. If that measurement is wrong for any reason (e.g. intake leaks, damaged AFM etc., or exceeding the AFM's limits) then your AFR under WOT will be wrong! The fact that load isn't used in the map lookup won't save your BPW! 
 
-So let me say it once more: the AFM is not ignored at wide open throttle!
+So let me say it once more: *the AFM is not ignored at wide open throttle!*
 
 ## Appendix
 
 Here are the US 944 Turbo (O2 sensor/cat equipped cars) fuel maps for idle, part throttle and WOT in AFR form:
 
 ### Idle
-Short name: 49
+Short name: 49\
 Location: 1538h
 
 | RPM (0x37) | Value |
@@ -116,7 +116,7 @@ Location: 1538h
 | 1920 | 14.25 |
 
 ### Part-throttle
-Short name: 79
+Short name: 79\
 Location: 148Ch
 
 | RPM (0x37) \ Load (0x49) | 21 | 26 | 37 | 42 | 48 | 53 | 63 | 79 | 90 | 100 | 122 | 142 |
@@ -135,7 +135,7 @@ Location: 148Ch
 | 6240 | 13.84 | 13.84 | 13.63 | 13.63 | 13.63 | 13.73 | 13.84 | 13.84 | 13.84 | 13.84 | 13.84 | 13.84 |
 
 ### WOT
-Short name: 75
+Short name: 75\
 Location: 1544h
 
 | RPM (0x37) | Value |

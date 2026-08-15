@@ -24,8 +24,6 @@ X1d2d:
 
 We start by loading the FQS map location into dptr and then calling the map lookup routine 05CD. Bit 2 of the resulting value is cleared (that bit is used only for timing adjustments). 
 
-[show FQS map here]
-
 Here's what this FQS map looks like:
 
 FQS voltage at ADC | 0 | 0.68 | 1.43 | 2.0 | 2.4 | 2.66 | 2.94 | 3.14
@@ -36,12 +34,14 @@ This map takes the FQS value (read by the ADC) as input and maps it to the range
 
 Clearing bit 2 has the effect of mapping the second four positions onto the first - in other words, for fueling purposes, positions 4-7 are identical to 0-3. (The only difference with these later 4 positions is that they also include an ignition timing change.)
 
-Recall that the map lookup routine restores the dpts to it's "home" value of 1160, so adding our FQS map value to 1B before the dptr lookup gets us to 1160+1B+fqs_value, that is, 117B+fqs_value. The locations starting at 117B contain:
+Recall that the map lookup routine restores the dpts to it's "home" value of 1160, so adding our FQS map value to 1B before the dptr lookup gets us to __1160 + 1B + fqs_value__, that is, __117B+fqs_value__. The locations starting at 117B contain:
 
-0: 80h (128)
-1: 84h (132) + 3.1%
-2: 7Ch (124) - 3.1%
-3: 88h (136) + 6.25%
+| FQS Position | Hex value | Decimal value | Effect on fuel |
+|--------------|--------------|--------------|--------------|
+|0 |  80h |  128 | 0 |
+|1 |  84h | 132 | + 3.1% |
+|2 |  7Ch | 124 | - 3.1% |
+|3 | 88h | 136 | + 6.25% |
 
 Recall from XX that fuel adjustment values are generally fractions with a denominator of 128, so 128 means "multiply the fuel pulse by 1" and 132 means "multiply the fuel pulse by 132/128, that is ~1.031. More on this shortly. 
 
@@ -226,7 +226,20 @@ X0422:
 	mov	r1,#50h
 ```
 
-## Appendix
+## Appendix A: FQS Measurements
+
+Actual voltages measured at the FQS channel on the ADC:
+
+0 - 0
+1 - 1.143v
+2 - 1.754v
+3 - 2.281v
+4 - 2.516v
+5 - 2.839v
+6 - 3.048v
+7 - 3.254v
+
+## Appendix B: The Accumulation Routines 1DF0 and 1DE7
 
 First, dividing by 256 is handled by simply discarding the lowest byte of a multi-byte product. Let's say we have a 16-bit value (like the base fuel pulse for instance) stored in r7:r6. If we multiply this by an 8-bit value, the result will be a 24-bit value in r7:r6:r5. Now suppose that some time later we need to do another multiplication by another 8-bit value. If we treat r7:r6 as a 16-bit number, and just repeat the multiplication process we did before, then we have discarded the lower byte of the first result (r5), effectively performing a rough division by 256. It can be hard to spot this in the code, because there's no explicit step to discarding r5 - we simply don't use it in subsequent multiplications!
 

@@ -26,7 +26,13 @@ We start by loading the FQS map location into dptr and then calling the map look
 
 [show FQS map here]
 
-This map takes the FQS value (read by the ADC) as input and maps it to the range 0-7. 
+Here's what this FQS map looks like:
+
+FQS voltage at ADC | 0 | 0.68 | 1.43 | 2.0 | 2.4 | 2.66 | 2.94 | 3.14
+--|------|------|------|------|------|------|------|
+FQS switch position | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+
+This map takes the FQS value (read by the ADC) as input and maps it to the range 0-7, indicating which of the eight possible positions the switch is in. 
 
 Clearing bit 2 has the effect of mapping the second four positions onto the first - in other words, for fueling purposes, positions 4-7 are identical to 0-3. (The only difference with these later 4 positions is that they also include an ignition timing change.)
 
@@ -169,6 +175,30 @@ X1de0:
 	mov	4eh,r6
 	mov	4fh,r7
 	ljmp	X1053
+```
+
+And that's pretty much it for this particular fuel adjustment routine. But I think it's helpful to jump away to another routine to see where these values actually get used. So, the code below is run just after the base pulse width is calculated, as discussed [here](dme_load_calculation.md).
+
+What this code does, in brief is:
+* multiply the base pulse width in r7:r6 by the adjustment value we just calculated in 4F:4E
+* look up the injector dead-time map based on battery voltage and store the result in 54h
+* store the final fuel value into 4B:4A - these will be the timer high and low bytes for the routine that controls the injectors
+
+The routine at 0455 is a 16x16 bit multiply routine that produces a 24 bit result (the lowest byte is discarded). 
+
+The next part is a little tricky to understand. Recall that earlier we saw how 50h was used to keep track of how many times our fuel calculation needed to be multiplied by 2, and also that these multiplications were done by shifting the bits to the left. But the routine that handles that (0509, both here and in 1DF0) stops in its tracks if the value in the leftmost bit is a 1. Otherwise we'd lose information when we shift that bit out to the left. That can happen sometimes in 1DF0 because we're working with 24 bit values. Here, the 16x16 multiply produces a 32 bit result, which opens up more space, so if there are any outstanding multiplies needed, 50h will have a record of that and we can do it here. 
+
+This is a pretty complicated way of doing it - why not leave all the bit shifting until this point? Honestly I don't know, but that's how it works. 
+
+The reason for the __pop 50h__ instruction is that 50h was previously pushed onto the stack because the acceleration enrichment routine uses its own copy of 50h. We'll cover that in another article though. 
+
+```
+X0405:	
+	ljmp	X1032
+X0408:	
+	push	50h
+X040a:	
+	ljmp	X1035 ; call acceleration enrichment routine
 ```
 
 ```

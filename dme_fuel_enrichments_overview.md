@@ -14,7 +14,7 @@ The four fuel options are 0, +3.1%, -3.1% and +6.25%.
 ## Intake air temperature
 This is handled immediately after the FQS logic. Its's just a typical map lookup using 12h (intake air temperature). 
 
-![](images/dme_fuel_calculation/iat_map_42.png)
+![](images/dme_fuel_calculation/iat_map_42_1.png)
 
 The purpose of the intake air temperatures sensor is shrouded in myth. It's commonly reported that the AFM measures air volume, and that therefore a temperature measurement is needed to convert this into mass. But it's clear that this map doesn't compensate for the changes in air density caused by temperature. 
 
@@ -49,13 +49,13 @@ The actual result of the enrichment calculation is stored in 3Ch and is applied 
 
 There are actually two distinct kinds of post-startup enrichment. The most typical is adjustment for a cold engine. This means less then 65C (determined by the threshold value A2h stored at 117F). Below that temperature, Map 40 is used to add fuel based on the coolant (NTC II) temperature:
 
-![](images/dme_fuel_calculation/engine_temp_map_40.png)
+![](images/dme_fuel_calculation/engine_temp_map_40_1.png)
 
 It might seem strange that this map goes *up* between 15C and 35C, but bear in mind that this is just one of several maps that are applied, and the effects of the temperature inside the cylinders and intake have highly non-linear effects on the chemistry of fuel atomization and evaporation. The overall combination of cranking enrichment and post-start enrichment still decreases consistently with temperature - it's just distribiuted differently between the two, probably as a result of empirical testing.
 
 At or above 65C, Map 41 is used instead, and this is an air temperature based map:
 
-![](images/dme_fuel_calculation/iat_map_41.png)
+![](images/dme_fuel_calculation/iat_map_41_1.png)
 
 Note that this map does nothing below 55C, which is a pretty high temperature for air. So we can probably conclude that this map is meant for heat-soak enrichment. I'm not sure what it is about really hot air that makes an engine run lean, but it is a known phenomenon that you can read more about [here](https://www.hpacademy.com/forum/efi-tuning/show/lean-hot-start/).
 
@@ -81,13 +81,13 @@ These raw values get multplied by 32 and divided by 256, resulting in a overall 
 
 As a graph
 
-![](images/dme_fuel_calculation/engine_temp_map_83.png)
+![](images/dme_fuel_calculation/engine_temp_map_83_1.png)
 
 But this adjustment - which is very extreme at lower temperatures - is only in force for up to 12 cycles during cranking. The counter variable 4D counts revolutions and after 12, the adjustment routine starts to scale the cranking enrichment down. The scaling down is also triggered by reaching 600rpm (determined by Map 84). This reduction is done by the combination of two maps, 85 and 86. 
 
 Here's Map 85:
 
-| 0x4D | Value |
+| Fuel injection event count (0x4D) | Value |
 |---|---|
 | 0 | 251 |
 | 20 | 83 |

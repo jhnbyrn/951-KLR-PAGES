@@ -1,8 +1,27 @@
-# A Walkthrough of the Fuel Routine
+# A Walkthrough of the Fuel Adjustment Routine
 
 The main fuel adjustments are done by the routine starting at 1D23 (note: the opendme annotations incorrectly call this routine "lookup_dwell_angle". 
 
-It starts with this section:
+We can summarize the adjustments made here like this:
+1. FQS
+2. Air temperature
+3. Altitude
+4. Startup
+5. Warmup
+6. Driving mode (idle/PT/WOT)
+
+These are by no means all the fuel calculations! There is also acceleration enrichment, handled elsewhere, and various other adjustments that will need their own separate articles. But this is the closet thing to a "main" fuel adjustment routine, other than the [base pulse calculation](dme_load_calculation.md).
+
+The general pattern of this code is roughly this:
+1. look up a fuel adjustment multiplier from a map
+2. multiply that by the current adjustment
+3. repeat
+
+Throughout this process, the running total is stored as a 16-bit value in r7:r6. 
+
+One slight complication is that while most fuel adjustments are in this mlutiplier form, a few (including warmup enrichment) are represented as additive values. This doesn't really complicate most of the routine though, because the logic of combining the adjustments is hidden away in two helper routines, 1DF0 and 1DE7. You can think of 1DF0 as a routine that handles multiplier values, and 1DE7 as an extension of 1DF0 that handles additive values. You'll see one or the other of these routines being called after a map lookup throughout this routine, so knowing this in advance should help a bit. The actual details of these two routines are a little tricky, and are explained in the Appendix. 
+
+On to the routine itself - it all starts with this section:
 
 ```
 X1d23:	
@@ -30,20 +49,20 @@ FQS voltage at ADC | 0 | 0.68 | 1.43 | 2.0 | 2.4 | 2.66 | 2.94 | 3.14
 --|------|------|------|------|------|------|------|
 FQS switch position | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
 
-This map takes the FQS value (read by the ADC) as input and maps it to the range 0-7, indicating which of the eight possible positions the switch is in. 
+This map takes the FQS value (read by the ADC) as input and maps it to the range 0-7, indicating which of the eight possible positions the switch is in. I've included actual voltage measurements made at the ADC input Channel 7 in the Appendix section. 
 
 Clearing bit 2 has the effect of mapping the second four positions onto the first - in other words, for fueling purposes, positions 4-7 are identical to 0-3. (The only difference with these later 4 positions is that they also include an ignition timing change.)
 
-Recall that the map lookup routine restores the dpts to it's "home" value of 1160, so adding our FQS map value to 1B before the dptr lookup gets us to __1160 + 1B + fqs_value__, that is, __117B+fqs_value__. The locations starting at 117B contain:
+Recall that the map lookup routine restores the dptr to it's "home" value of 1160, so adding our FQS map value to 1B before the dptr lookup gets us to __1160 + 1B + fqs_value__, that is, __117B+fqs_value__. The locations starting at 117B contain:
 
-| FQS Position | Hex value | Decimal value | Effect on fuel |
+| Offset (FQS Position) | Hex value | Decimal value | Effect on fuel |
 |--------------|--------------|--------------|--------------|
 |0 |  80h |  128 | 0 |
 |1 |  84h | 132 | + 3.1% |
 |2 |  7Ch | 124 | - 3.1% |
 |3 | 88h | 136 | + 6.25% |
 
-Recall from XX that fuel adjustment values are generally fractions with a denominator of 128, so 128 means "multiply the fuel pulse by 1" and 132 means "multiply the fuel pulse by 132/128, that is ~1.031. More on this shortly. 
+As discussed in [this overview](dme_fuel_overview.md), most fuel adjustment values are fractions with a denominator of 128, so 128 means "multiply the fuel pulse by 1" and 132 means "multiply the fuel pulse by 132/128, that is ~1.031. More on this shortly. 
 
 So now we have stored our FQS value in b, and next we look up map 42 (2Ah). Map 42 is the air temperature correction map and its raw form is
 
@@ -60,7 +79,7 @@ At this point we should take a moment to consider how this fraction based interp
 
 The most efficient way for the 8051 to divide by 128 is to divide by 256 and multiply by 2. The reason for this is that dividing by 256 is very easy - almost free, and multiplying by 2 is also very easy. 
 
-The routine at 1DFO takes care of this, and uses 50h to keep track of how many times the value should be doubled. This is why 50h is set to the value 2 at the end of the code above: we performed 2 lookups that use this /128 pattern. 
+The routine at 1DFO takes care of this, and uses 50h to keep track of how many times the value should be doubled. This is why 50h is set to the value 2 at the end of the code above: we performed 2 lookups that use this /128 pattern. The details of how it works are kind of tricky so I've left a full expanation for the Appendix section at the end. 
 
 Returning to the code at hand, we check if 25h.7 is set. This bit being set indicates that the altitude sensor is active, which corresponds to an altitutde of > 1000M. If this is set, we do a dptr lookup for 1160+6B=11CB, which contains the value 78h, that is 120 decimal. 
 
@@ -76,7 +95,7 @@ X1d44:	jnb	23h.2,X1da9
 
 The bit 23h.2 indicates that the engine is cranking; thus what follows is startup-specific code that we'll skip over for now. In steady-state operation, the code will jump to 1DA9, so we'll pick things up there. This is where warm-up enrichment is incoroporated. 
 
-The warm-up enrichment is a little complicated - it's a 2-map process. First the basic temperature adjustment is looked up from one map based on engine temperature. But then this adjustment value is scaled by the value from another map based on rpm and load. We'll get into the details now but I just wanted to give a brief overview of this first. 
+The warm-up enrichment is a little complicated - it's a 2-map process. First the basic temperature adjustment is looked up from one map based on engine temperature. But then this adjustment value is scaled by the value from another map based on rpm and load. We'll get into the details next:
 
 ```
 X1da9:	
@@ -104,6 +123,8 @@ These maps are very similar - they take engine temp (NTC II) as input and return
 | 11.45 | 45 |
 | 16.71 | 15 |
 | 69.34 | 0 |
+
+This map is a little different from the other fuel adjustments in that the values represent additive increases in fuel. That is, a value of 15 for example means "add 15/128". This logic is handled in the 1DE7 routine, which is explained in more detail in the Appendix. 
 
 Next:
 
@@ -139,9 +160,9 @@ Map 48 (idle, location 1486h):
 | 520 | 255 |
 | 1520 | 255 |
 
-These two follow a slightly different rule from the fuel adjustment maps we've seen so far: with these, the denominator is 255. So a value of 255 indicates no effect, and 128 will reduce the warm-up enrichment value from map 43 by half. This rule is implemented by the routine 1DE7, which in turn calls 1DF0 which we discussed earlier. 
+These two follow a slightly different rule from the fuel adjustment maps we've seen so far: with these, the denominator is 255. So a value of 255 indicates no effect, and 128 will reduce the warm-up enrichment value from map 43 by half. 
 
-At this point we add the startup enrichment value 3C; this was calculated in the part we skipped over, but it follows the same rule as the warmup enrichment in that the denominator is 255, so it needs 1DE7 to be called:
+At this point we add the startup enrichment value 3C; this was calculated in the part we skipped over, but it follows the same pattern as the warmup enrichment so it needs 1DE7 to be called:
 
 ```
 	mov	a,3ch
@@ -193,15 +214,6 @@ This is a pretty complicated way of doing it - why not leave all the bit shiftin
 The reason for the __pop 50h__ instruction is that 50h was previously pushed onto the stack because the acceleration enrichment routine uses its own copy of 50h. We'll cover that in another article though. 
 
 ```
-X0405:	
-	ljmp	X1032
-X0408:	
-	push	50h
-X040a:	
-	ljmp	X1035 ; call acceleration enrichment routine
-```
-
-```
 X040d:	
 	mov	r0,4eh
 	mov	r1,4fh
@@ -230,22 +242,90 @@ X0422:
 
 Actual voltages measured at the FQS channel on the ADC:
 
-0 - 0
-1 - 1.143v
-2 - 1.754v
-3 - 2.281v
-4 - 2.516v
-5 - 2.839v
-6 - 3.048v
-7 - 3.254v
+| FQS Position | ADC input voltate |
+|--------------|-------------------|
+| 0 |  0 |
+| 1 | 1.143v |
+| 2 | 1.754v |
+| 3 | 2.281v |
+| 4 | 2.516v |
+| 5 | 2.839v |
+| 6 | 3.048v |
+| 7 | 3.254v |
 
 ## Appendix B: The Accumulation Routines 1DF0 and 1DE7
 
-First, dividing by 256 is handled by simply discarding the lowest byte of a multi-byte product. Let's say we have a 16-bit value (like the base fuel pulse for instance) stored in r7:r6. If we multiply this by an 8-bit value, the result will be a 24-bit value in r7:r6:r5. Now suppose that some time later we need to do another multiplication by another 8-bit value. If we treat r7:r6 as a 16-bit number, and just repeat the multiplication process we did before, then we have discarded the lower byte of the first result (r5), effectively performing a rough division by 256. It can be hard to spot this in the code, because there's no explicit step to discarding r5 - we simply don't use it in subsequent multiplications!
+The fuel adjustment routine basically looks up a series of maps and combines the resulting values. That's what we discussed in details in the main article. But we glossed over how the values are combined, because it's complicated and messy. Here we'll discuss that code in detail. 
 
-Next, mutiplying by 2 is nothing more than shifting the bits to the right. 
+There are 2 routines here, 1DF0 and 1DE7. Strictly speaking they are different entry points to a single routine, in the sense that if we call 1DE7, then 1DF0 will run also (see the code below). 
 
-In the fuel adjustment code that we're looking at, there are helper routines that take care of this division by 128. We won't get into every detail here, but for now, just remember that:
+The best way to understand these is to look at 1DF0 first. 
 
-* 1DFO multiplies the value in __a__ by r7:r6 and later code effectively divides by 256 by simply ignoring the lower byte __r5__. 
-* 50h keeps track of how many times to we need to multiply by 2.
+
+```
+X1de7:	
+	jz	X1dfb
+	add	a,#80h
+	jnc	X1df0
+	rrc	a
+	inc	50h
+X1df0:	
+	lcall	X04d9
+	mov	a,50h
+X1df5:	inc	a
+	lcall	X0509
+	mov	50h,a
+X1dfb:	ret
+```
+
+Starting at 1DF0, first we call 04D9 which is the Motronic's 8x16 multiply routine. This routine multiplies __a__ by r7:r6, with a 24 bit result in r7:r6:r5. 
+
+Generally the code that calls 1DF0 puts the fuel adjustment value in a, and the previous adjustment value is already in r7:r6 (see the start of this article). 
+
+Next we increment 50h and call 0509 which is the left-shift routine. That routine shifts the bits of r7:r6:r5 to the left as many times as indicated by 50h. Crucially, this routine guards the case where the leftmost bit is 1. In that case, it stops shifting the bits, but leaves the number of outstanding shift steps in a. Here, after 0509 returns, we store that value back into 50h. 
+
+Let's think about this for a minute. You know from earlier that the reason for shifting the bits to the left is to multiply by two, and this is needed because it's part of the division by 128. Generally, one map lookup requires one multiplication by two and one division by 256 to get an overall division by 128. But sometimes multiple adjustments are combined without calling 1DF0 (for example, see the beginning of the adjustments earlier). In that case, 50h must be "primed" with the number of such lookups. Thus when 1DF0 is called, 50h could contain 3. But it's quite possible that there isn't enough space to shift the bits of the resulting value to the left without running into the end. In that case, 0509 will stop but it will return a record of the number of shift steps that were omitted in a, and now we're storing that in 50h. 
+
+Later, as we saw in the main article, at 040D, the fuel value is turned into a 32 bit number, which opens up more empty space on the left. At that point we perform the remaining outstanding bit shift steps using the value in 50h. 
+
+This is a really confusing way of handling this. Why not just leave all the bit shifting until 040D? I really have no idea and it was pretty hard to figure out what was going on here. Maybe that was the idea!
+
+
+Now let's take a look at 1DE7. This routine is used for the warm-up enrichment (which we covered earlier) and acceleration enrichment maps (which we didn't cover here). The difference with these maps is that the values they contain represent additive increases in fuel rather than multipliers. 
+
+```
+X1de7:	
+	jz	X1dfb
+	add	a,#80h
+	jnc	X1df0
+	rrc	a
+	inc	50h
+X1df0:
+	...
+X1dfb:	ret
+```
+
+Firstly, if __a__ is zero, we short-circuit and return. 
+
+Next we add 128 (80h) to the input value, which has the effect of biasing it to match the existing multiplicative fuel adjustments. For example if the input in __a__ was 15, this step would turn that into 15+128, which is the correct value to multiply the existing fuel adjustment by. In other words it has the same effect as having the value 143 in one of the other maps. 
+
+If this addition doesn't overflow, then we simply call 1DF0 and everything proceeds as before. If there is an overflow, we divide the result by 2 and increment 50h which will cause the final value to get doubled later when there's more room. 
+
+This might seem strange, but when we rotate right, the carry bit (which is set from the overflow) rotates in from the left, leaving us with the overflow value *plus* 128. Thus the effect of this code is to leave us with (a+128)/2, which will be restored to the full value by doubling later. 
+
+An example might make it clearer. Let's say the intput is 166, the highest value from Map 32, corresponding to the lowest temperature. When we do 
+
+```
+128 + 166 = 294
+```
+
+...we get an overflow, leaving us with a=38 and the carry bit set. Then the rrc instruction turns this into 
+
+```
+128 + 19 = 147
+```
+
+...because the rrc divides 38 by 2 but also puts the carry bit on the left. 
+
+Now because we incremented 50h, we will eventually double our final value, which restores us to 294. 
+

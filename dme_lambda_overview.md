@@ -40,9 +40,9 @@ By far the most interesting of these conditions is the load limit. Generally it'
 
 Let's take a look at the part throttle fuel map, Map 79 - I'll show the same map surface from a couple of angles for clarity:
 
-![](images/part_throttle_surface_map_79_1.png)
+![](images/dme_fuel_calculation/part_throttle_surface_map_79_1.png)
 
-![](images/part_throttle_surface_map_79_2.png)
+![](images/dme_fuel_calculation/part_throttle_surface_map_79_2.png)
 
 It's pretty clear that just above a load value of 100, the maps shoots up into very rich AFRs. This area of the map will actually result in closed loop control being disabled, even though we stay well away from WOT. 
 

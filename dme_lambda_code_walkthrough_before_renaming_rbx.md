@@ -1,21 +1,21 @@
 ```
-mov	r2,#3eh		;Map 62
+	mov	r2,#3eh		;Map 62
 	jnb	t0,X0a65
 	mov	r2,#41h		;Use Map 65 if code plug set
 X0a65:	lcall	X051d
-	mov	18h,a		;18h, for unchanged
+	mov	rb3r0,a		;18h, for unchanged
 	lcall	X051d		;Map 63 or 66
-	mov	19h,a		;19h, for changed/lean
+	mov	rb3r1,a		;19h, for changed/lean
 	lcall	X051d		;Map 64 or 67
-	mov	1ah,a		;1A, for changed/not-lean
+	mov	rb3r2,a		;1A, for changed/not-lean
 	ret	
 ;
 X0a75:	
 	jnb	23h.4,X0a7b
-	mov	1bh,#80h
+	mov	rb3r3,#80h
 X0a7b:	
-	mov	r0,1ch		;1Ch, low byte of final correction
-	mov	r1,1bh		;1Bh, high byte of final correction
+	mov	r0,rb3r4	;1Ch, low byte of final correction
+	mov	r1,rb3r3	;1Bh, high byte of final correction
 	mov	c,p1.7		;1=lean, according to opendme
 	cpl	c
 	mov	20h.2,c		;so now 20h.2=0 means lean
@@ -35,17 +35,19 @@ X0a94:
 	sjmp	X0aa1
 ;Changed from lean->not-lean
 X0a9c:	
-	mov	a,1ah		; call 0BD4 with a=1Ah, Map 64
+	mov	a,rb3r2		; call 0BD4 with a=1Ah, Map 64
 	lcall	X0bd4
 X0aa1:	
-	mov	1ch,r0		;1Ch
-	mov	1bh,r1		;1Bh
+	mov	rb3r4,r0	;1Ch
+	mov	rb3r3,r1	;1Bh
 	mov	c,20h.2
 	mov	24h.6,c		;store new 20h.2 value for next time
-	ljmp	X105c 		;jumps to 1CB7, so the after this is an unreachable version
+	ljmp	X105c ;jumps to 1CB7, so the code below is unreachable
 ;
 ```
 
+
+My comments added to the alternate (actually used) version by chatgpt:
 ```
 X1cb7:
 	jb	23h.2,X1d0b	; cranking -> clear 24h.5, causing no correction later
@@ -99,12 +101,18 @@ X1cf8:
 	movc	a,@a+dptr
 	add	a,r2		; roughly 21C
 
-X1d01:
+X1d01:2
 	clr	c
-	subb	a,13h		; 13h = coolant temperature
+	subb	a,rb2r3		; rb2r3 = 13h = coolant temperature
 	mov	24h.5,c		; set 24h.5 if coolant temperature is above the threshold
 	lcall	X0b50		; clamping routine for r1:r0
 	sjmp	X1d0d
+```
+
+```
+X1d0b:	clr	24h.5
+X1d0d:	ljmp	X0afb
+
 ```
 
 ```
@@ -147,8 +155,8 @@ X0b2e:
 	jc	X0b42		; if ALL flags are set, do a correction, otherwise the code below wipes it out to 1
 	mov	r0,#0
 	mov	r1,#80h
-	mov	1ch,r0		; 1Ch, low byte of lambda correction
-	mov	1bh,r1		; 1Bh, high byte of lambda correction
+	mov	rb3r4,r0	; 1Ch, low byte of lambda correction
+	mov	rb3r3,r1	; 1Bh, high byte of lambda correction
 	clr	24h.2
 X0b42:	
 	ljmp	X1062
@@ -189,8 +197,8 @@ X0b5d:
 X0b67:	
 	mov	a,r3		; a <- 147 or 90 depending on how we jumped here
 	mov	r1,a
-	mov	1ch,r0		; 1Ch, low byte of lambda correction
-	mov	1bh,r1		; 1Bh, high byte of lambda correction
+	mov	rb3r4,r0	; 1Ch, low byte of lambda correction
+	mov	rb3r3,r1	; 1Bh, high byte of lambda correction
 	jb	24h.1,X0b89	; return. 24h.1 was previously noted as flagging that lambda correction is load-inhibited (49h > 102)
 	jb	24h.2,X0b83	; check timer, clr 24h.0 if timer=0, return
 	mov	a,#45h		; 11A5, contains FFh, 255
@@ -214,7 +222,7 @@ X0b89:
 ```
 ; Called when lambda is unchanged
 X0bcd:	
-	mov	a,18h		; 18h, lambda adjustment for unchanged state
+	mov	a,rb3r0		; 18h, lambda adjustment for unchanged state
 	mov	b,#1
 	sjmp	X0bdd
 ;
@@ -224,7 +232,7 @@ X0bcd:
 X0bd4:	
 	cpl	a
 	inc	a
-	add	a,19h		; 19h; this subtracts a from 19h
+	add	a,rb3r1		; 19h; this subtracts a from 19h
 	mov	b,#10h		; we'll be multiplying by 16
 	clr	24h.4
 ;
@@ -257,4 +265,131 @@ X0bf8:
 	mov	r1,a
 X0bfc:
 	ret
+```
+
+
+Original code with no comments:
+```
+X0afb:	
+	lcall	X105f
+	jnb	p1.6,X0b18
+	jb	p1.7,X0b18
+	jb	24h.3,X0b10
+	setb	24h.3
+	clr	24h.4
+	mov	a,#43h
+	movc	a,@a+dptr
+	mov	3eh,a
+X0b10:	
+	mov	a,3eh
+	jnz	X0b2e
+	clr	24h.7
+	sjmp	X0b2e
+;
+X0b18:	
+	jb	24h.4,X0b28
+	setb	24h.4
+	clr	24h.3
+	clr	24h.2
+	setb	24h.0
+	mov	a,#44h
+	movc	a,@a+dptr
+	mov	3eh,a
+X0b28:	
+	mov	a,3eh
+	jnz	X0b2e
+	setb	24h.7
+X0b2e:	
+	mov	c,24h.5
+	anl	c,24h.7
+	anl	c,24h.0
+	mov	24h.5,c
+	jc	X0b42
+	mov	r0,#0
+	mov	r1,#80h
+	mov	rb3r4,r0
+	mov	rb3r3,r1
+	clr	24h.2
+X0b42:	
+	ljmp	X1062
+;
+X0b45:	
+	lcall	X0455
+	mov	a,#1
+	lcall	X0509
+	ljmp	X1065
+;
+X0b50:	
+	mov	a,#46h
+	movc	a,@a+dptr
+	mov	r3,a
+	clr	c
+	mov	a,r1
+	subb	a,r3
+	jc	X0b5d
+	mov	r0,#0
+	sjmp	X0b67
+;
+X0b5d:	
+	mov	a,#47h
+	movc	a,@a+dptr
+	mov	r3,a
+	clr	c
+	subb	a,r1
+	jc	X0b89
+	mov	r0,#0ffh
+X0b67:	
+	mov	a,r3
+	mov	r1,a
+	mov	rb3r4,r0
+	mov	rb3r3,r1
+	jb	24h.1,X0b89
+	jb	24h.2,X0b83
+	mov	a,#45h
+	movc	a,@a+dptr
+	cjne	a,#0ffh,X0b7f
+	clr	24h.2
+	setb	24h.0
+	sjmp	X0b89
+;
+X0b7f:	
+	setb	24h.2
+	mov	3fh,a
+X0b83:	
+	mov	a,3fh
+	jnz	X0b89
+	clr	24h.0
+X0b89:	ret
+```
+
+```
+X0bcd:	mov	a,rb3r0
+	mov	b,#1
+	sjmp	X0bdd
+;
+X0bd4:	cpl	a
+	inc	a
+	add	a,rb3r1
+	mov	b,#10h
+	clr	24h.4
+X0bdd:	mul	ab
+	jnb	b.7,X0be4
+	mov	b,#7fh
+X0be4:	jnb	20h.2,X0bec
+	cpl	c
+	cpl	a
+	xrl	b,#0ffh
+X0bec:	addc	a,r0
+	mov	r0,a
+	mov	a,b
+	addc	a,r1
+	mov	r1,a
+	clr	a
+	jb	20h.2,X0bf8
+	cpl	c
+	cpl	a
+X0bf8:	jc	X0bfc
+	mov	r0,a
+	mov	r1,a
+X0bfc:	ret
 ```

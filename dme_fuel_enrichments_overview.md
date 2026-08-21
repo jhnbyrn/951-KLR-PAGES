@@ -1,6 +1,8 @@
 # DME fuel enrichments
 
-This article covers various fuel enrichments performed in the 944 DME. This doesn't include everything - acceleration enrichment will be covered elsewhere. But those included here are handled together in one place, so it's natural to cover them together. 
+This article covers various fuel enrichments performed in the 944 DME. This is a high level overview - for more detail on the code, see the [detailed code walkthrough](dme_fuel_enrichments_code_walkthrough.md) 
+
+This doesn't include everything - acceleration enrichment will be covered elsewhere. But those included here are handled together in one place, so it's natural to cover them together. 
 
 This covers:
 * Fuel quality switch (FQS)
@@ -138,7 +140,12 @@ Overlaying Maps 43 and 35 shows that they're basically the same below 15C anyway
 
 ![](images/dme_fuel_calculation/engine_temp_maps_43_45_overlay_1.png)
 
-Thi sudden drop in Map 43 between roughly 10C and 16C probably corresponds to the O2 sensor starting to wake up. The details of how the O2 sensor affects this process will have to wait for another time though!
+Thi sudden drop in Map 43 between roughly 10C and 16C probably corresponds to the O2 sensor starting to wake up. The coolant temperature threshold for the closed loop fuel control is around 21C. Clearly from the maps there's still signficant extra fuel at that temperature (about 11% in the US map, and 26% in the RoW map).It would take some experimentation to see exactly what happens at this point. We might expect that the closed loop routine will remove this extra fuel, but that's not necesarily guaranteed, because there are two reasons why extra fuel gets injected:
+
+* to compensate for poor atomization causing a lean AFR
+* to actually enrich the AFR
+
+In other words, when the engine is cold, some extra fuel is needed just to maintain a normal 14.7 AFR. So injecting 11% extra fuel (beyond the base pulse width) might not bring the AFR below 14.7 - in fact the closed loop control might even be adding fuel at that point! But the only way to know for sure is to monitor a running engine, and at the time of writing, it's not cold enough where I live for that. 
 
 The second Map in this calculation is a 2-axis rpm/load map for part throttle, and a 1-axis rpm map for idle. 
 

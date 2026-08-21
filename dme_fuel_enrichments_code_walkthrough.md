@@ -1,5 +1,7 @@
 # A Walkthrough of the Fuel Adjustment Routine
 
+This is a detailed code walkthrough of the main fuel adjustment routine for the 944T DME. For a gentler overview that explains the process without getting into the weeds of the code, see [this overview article](dme_fuel_enrichments_overview.md)
+
 The main fuel adjustments are done by the routine starting at 1D23 (note: the opendme annotations incorrectly call this routine "lookup_dwell_angle". 
 
 We can summarize the adjustments made here like this:
@@ -20,7 +22,7 @@ There's a general pattern in this code roughly like this:
 
 But there are exceptions! The cranking enrichment in particular is very tricky. 
 
-Throughout this process, the running total is stored as a 16-bit value in r7:r6. 
+Throughout this process, the running total is stored as a 16-bit value in r7:r6, and at the end it's stored in 4F:4E
 
 ## Fractional values
 Now there is one thing that can be hard to keep track of when reading fuel map related code, and I can't avoid explaining this before we get into the code. The fuel adjustment values are generally fractions, most commonly using a denominator of 128, but occasionally other values. Now there's no easy way to store fractions as individual values in a simple 8-bit system like the 8051. Instead, only the numerator is stored, and the division by 128 must happen in the code. But division is generally complicated in a system like this. Luckily, both division and multiplication by powers of 2 are relatively simple (for the same reason that powers of 10 are easy in our everyday decimal system). The way that division by 128 is typically achieved is by:
@@ -46,11 +48,11 @@ rl a
 
 Now we have effectively achieved division by 128 with a minimum of instructions. But these two steps can often be very far removed from each other in the code, making it really hard to keep track of things. 
 
-To complicate matters further, our fuel value is stored as a 16 bit number, so instead of using the __mul__ instruction, we will often call the 8x16 multiply routine, which  multiplies an 8-bit number with r7:r6, and produces a 24-bit result in r7:r6:r5 - and then we often later call it again, which effectively discards the low byte r5, again in a very subtle, easy-to-miss way. 
+To complicate matters further, our fuel value is stored as a 16 bit number, so instead of using the __mul__ instruction, we will often call the 8x16 multiply routine __04D9__, which  multiplies an 8-bit number with r7:r6, and produces a 24-bit result in r7:r6:r5 - and then we often later call it again, which effectively discards the low byte r5, again in a very subtle, easy-to-miss way. Think of it like this: if the routine takes r7:r6 as input, and returns r7:r6:r5 as output, then simply chaining multiple calls is going to result in a division by 256 each time!
 
 In the fuel adjustment routine we're looking at here, the left-shifts are tracked using the variable 50h. This location keeps track of the number of times we need to multiply by two to get the denominator to come out right. But there are complications with that too, which are explained later. 
 
-One more slight complication is that while most fuel adjustments are in this multiplier form, a few (including warmup enrichment) are represented as additive values. This doesn't really complicate most of the routine though, because the logic of combining the adjustments is hidden away in two helper routines, 1DF0 and 1DE7. You can think of 1DF0 as a routine that handles multiplier values, and 1DE7 as an extension of 1DF0 that handles additive values. You'll see one or the other of these routines being called after a map lookup throughout this routine, so knowing this in advance should help a bit. The actual details of these two routines are a little tricky, and are explained in the Appendix. 
+One more slight complication is that while most fuel adjustments are in this multiplier form, a few (including warmup enrichment) are represented as additive values. This doesn't really complicate most of the routine though, because the logic of combining all the adjustments together is hidden away in two helper routines, 1DF0 and 1DE7. You can think of 1DF0 as a routine that handles multiplier values, and 1DE7 as an extension of 1DF0 that handles additive values. You'll see one or the other of these routines being called after a map lookup throughout this routine, so knowing this in advance should help a bit. The actual details of these two routines are explained in the Appendix. 
 
 ## FQS, intake air temperature, and altitude
 On to the routine itself - it all starts with this section:
@@ -75,13 +77,27 @@ X1d2d:
 
 We start by loading the FQS map location into dptr and then calling the map lookup routine 05CD. Bit 2 of the resulting value is cleared (that bit is used only for timing adjustments). 
 
-Here's what this FQS map looks like:
+Here's what this raw FQS map looks like:
+
+| 0x17 | Value |
+|---|---|
+| 0 | 0 |
+| 35 | 1 |
+| 73 | 2 |
+| 102 | 3 |
+| 122 | 4 |
+| 136 | 5 |
+| 150 | 6 |
+| 160 | 7 |
+
+
+Let's render it in a slightly more readable form:
 
 FQS voltage at ADC | 0 | 0.68 | 1.43 | 2.0 | 2.4 | 2.66 | 2.94 | 3.14
 --|------|------|------|------|------|------|------|
 FQS switch position | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
 
-This map takes the FQS value (read by the ADC) as input and maps it to the range 0-7, indicating which of the eight possible positions the switch is in. I've included actual voltage measurements made at the ADC input Channel 7 in the Appendix section. 
+This map takes the FQS value in 17h (read by the ADC) as input and maps it to the range 0-7, indicating which of the eight possible positions the switch is in. I've included actual voltage measurements made at the ADC input Channel 7 in the Appendix section. 
 
 Clearing bit 2 has the effect of mapping the second four positions onto the first - in other words, for fueling purposes, positions 4-7 are identical to 0-3. (The only difference with these later 4 positions is that they also include an ignition timing change.)
 
@@ -94,9 +110,7 @@ Recall that the map lookup routine restores the dptr to it's "home" value of 116
 |2 |  7Ch | 124 | - 3.1% |
 |3 | 88h | 136 | + 6.25% |
 
-As discussed in [this overview](dme_fuel_overview.md), most fuel adjustment values are fractions with a denominator of 128, so 128 means "multiply the fuel pulse by 1" and 132 means "multiply the fuel pulse by 132/128, that is ~1.031. More on this shortly. 
-
-So now we have stored our FQS value in b, and next we look up map 42 (2Ah). Map 42 is the air temperature correction map and its raw form is
+So now we have stored our FQS value in b, and next we look up Map 42 (2Ah). Map 42 is the air temperature correction map and its raw form is
 
 | Air temperature (C) | Value |
 |---|---|
@@ -107,20 +121,15 @@ So now we have stored our FQS value in b, and next we look up map 42 (2Ah). Map 
 
 The value from this is multiplied with our FQS value in b and we store the result in r7:r6. 
 
-At this point we should take a moment to consider how this fraction based interpretation is implemented in the code. Otherwise the code we're about to walk through would be more confusing that it needs to be!
+Next, we check if 25h.7 is set. This bit being set indicates that the altitude sensor is active, which corresponds to an altitutde of > 1000M. If this is set, we do a dptr lookup for 1160+6B=11CB, which contains the value 78h, that is 120 decimal. 
 
-The most efficient way for the 8051 to divide by 128 is to divide by 256 and multiply by 2. The reason for this is that dividing by 256 is very easy - almost free, and multiplying by 2 is also very easy. 
-
-The routine at 1DFO takes care of this, and uses 50h to keep track of how many times the value should be doubled. This is why 50h is set to the value 2 at the end of the code above: we performed 2 lookups that use this /128 pattern. The details of how it works are kind of tricky so I've left a full expanation for the Appendix section at the end. 
-
-Returning to the code at hand, we check if 25h.7 is set. This bit being set indicates that the altitude sensor is active, which corresponds to an altitutde of > 1000M. If this is set, we do a dptr lookup for 1160+6B=11CB, which contains the value 78h, that is 120 decimal. 
-
-The call to 1DF0 multiplies r7:r6 by the value in a and shifts to the left (i.e. doubles) the number of times specified in 50h. The multiplication or r7:r6 with a will result in a 24-bit value r7:r6:r5, but the next time we call 1DF0, it will again use just r7:r6, discarding r5, thus effectively dividing by 256. 
+The call to 1DF0 handles combining this adjustment with r7:r6. 
 
 At this point, r7:r6 contains the product of the FQS, air temperature and altitude adjustments. 
 
 ## Cold start enrichments
-Then:
+
+Next we have:
 
 ```
 X1d44:	
@@ -139,9 +148,9 @@ X1d52:
 
 The bit 23h.2 indicates that the engine is cranking; thus what follows is startup-specific code. There are 2 adjustment stages within this cranking-specific block: cranking enrichment, and post-start enrichment. 
 
-The post-start enrichment is handled first. The result will end up in 3C, which is decremented in the main loop. 
+The post-start enrichment is handled first. The result will end up in 3C, which is decremented in the main loop. The result is that this kind of enrichment is phased out within around 30 seconds after startup regardless of temperature or rpm. 
 
-We load map 40 or 41 depending on the coolant temperature. The constant 1F points to location 117F, which contains A2h, or 162 in decimal. This corresponds to about 65C (using [value - 62.6]/1.52). 
+If the cranking bit is set, we load map 40 or 41 depending on the coolant temperature. The constant 1F points to location 117F, which contains A2h, or 162 in decimal. This corresponds to about 65C (using [value - 62.6]/1.52). 
 
 If 13h >= this value, c will be set and we'll switch to map 41. Otherwise we stick with Map 40. 
 
@@ -163,17 +172,15 @@ And Map 41:
 | 65.39 | 39 |
 | 75.26 | 39 |
 
-Note that Map 40 uses 13h (NTC II, i.e. coolant temperature) while 41 uses 12h (NTC I, i.e. intake air temperature). 
+Note that Map 40 uses __13h__ (NTC II, i.e. coolant temperature) while 41 uses __12h__ (NTC I, i.e. intake air temperature). 
 
-The switch over happens at 65C *coolant temperature*, but from the air temp values we can see that Map 41 only makes corrections at very high intake air temps. This is therefore probably for heat-soak enrichment. 
+The switch over happens at 65C *coolant temperature*, but from the air temp values in the map we can see that Map 41 only makes corrections at very high intake air temps. This is therefore probably for heat-soak enrichment. So we can interpret this logic to mean that above 65C, no compensation is needed for the engine block's temperature, but heat soak is a possibility, to be determined by air temperature. When the block is below 65C presumably there's no risk of running lean from heat soak. 
 
-Also note that these maps are additive, so 1DE7 will be called when 3C is added to the main adjustment a little later. 
+Also note that these maps are additive, so 1DE7 will be called when 3C is added to the main adjustment a little later. That's all there is to the post-start enrichment, except for the logic that decrements 3C, which happens elsewhere. 
 
 Next we have the cranking adjustment, which is by far the most complicated part of this entire routine. 
 
-First we load Map 83.
-
-Map 83 looks like this:
+First we load Map 83, which looks like this:
 
 | Engine Temperature (0x13) | Value |
 |---|---|
@@ -184,7 +191,7 @@ Map 83 looks like this:
 
 These values are fractions with a denominator of 8 as we'll see soon. The value from this map is the base cranking enrichment - but it can be modified. 
 
-There are really two paths through this code, a simple one and a complicated one. We'll cover the simplest one first: this is where the we have had 12 or fewer rotations, and have not hit 600rpm yet. 
+There are really two paths through this part of the routine, a simple one and a complicated one. We'll cover the simplest one first: this is where the we have had 12 or fewer rotations, and have not hit 600rpm yet. 
 
 ```
 	mov	r2,#53h
@@ -213,21 +220,23 @@ X1d73:
 	mov	4dh,#0
 	
 ```
-Initially, 21h.4 will be clear so we won't jump to 1D78. The next section can be read as
+Initially, 21h.4 will be clear so we won't jump to 1D78. The section immediately after that flag check can be read as
 
 ```
 a = read_map(84) # input engine temp, output rpm/40
 if rpm > a OR 4D > 12:
-	set 24h.4
+	set 21h.4
 	4D = 0
 	start reducing cranking enrichment...
 else: 
 	apply the full cranking enrichment from Map 83/8
 ```
+
+Thus 21h.4 just keeps track of whether the phasing out of this enrichment has been triggered or not. This is necessary because we might exceed the rpm threshold, but then dip back below it again. This flag ensures that the phase out will continue anyway. 
+
 The counter 4D gets incremeted in the real time part of the code, when the fuel injectors are fired. 
 
-Map 84 contains 15 (i.e. 600rpm) for all entries. Thus if either
-we have fewer than 12 rotations and we still haven't hit 600rpm, we will keep the full enrichment from Map 83/8. But if either of those conditions has been met, that triggers a phasing out of cranking enrichment, which is the only really complicated part of the fuel adjustment routine. 
+Map 84 contains 15 (i.e. 600rpm) for all entries. You might think that if the rpm is this high, then the cranking flag 23h.2 wouldn't be set, so we couldn't even be in this section of the code at all (due to the 23h.2 check back at 1D44). But while 23h.2 is initially set when the rpm is measured at 160rpm, it's not cleared until the rpm exceeds a much higher temperature dependent threshold, which is at least 720rpm (determined by Map 3).
 
 So we'll dig into that phase-out part next. It's based on the combination of two maps, 85 and 86, both of which are straight lines that slope downwards with increasing temperature. 
 
@@ -240,7 +249,7 @@ X1d78:
 	mul	ab
 ```
 
-Don't forget that the map read routine 051D always leaves r2 incremented from it's previous input, so the second map read call here read map 86. 
+Don't forget that the map read routine 051D always leaves r2 incremented from its previous input, so the second map read here read map 86. 
 
 The __mul ab__ instruction leaves the high byte in b and the low byte in a. 
 
@@ -262,9 +271,9 @@ This is a hard loop to read, but what's happening is that the base value is bein
 
 ```Map 83 * 2^r3```
 
-will come out the same as before, and r1 will represent the new denominator, used for making sure that the adjustment is at least 1. 
+will come out the same as before, and r1 will represent the new denominator, used for making sure that the adjustment doesn't ever fall below 1. 
 
-The purpose of this is to get greater precision in the multiplication and division that come next. 
+The purpose of all this is to get greater precision in the multiplication and division that come next. 
 
 Then
 
@@ -298,14 +307,14 @@ X1da6:
 	ljmp	X1ddd
 ```
 
-The 04D9 routine is the 8x16 multiply routine. This applies our final cranking adjustment to the main adjustment value r7:r6. 
+The 04D9 routine is the generic 8x16 multiply routine. This applies our final cranking adjustment to the main adjustment value r7:r6. 
 
-Next, 0509 is the left-shit routine that doubles our value by the number indicated by a, if there is room on the left, and stores the number of pending shifts back in a if there isn't room. The explations of 1DF0 and 1DE7 in the Appendices explain this in more details; the gist of it is, we need to double our value a certain number of times to make the final value have the right denominator. 
+Next, 0509 is the left-shit routine that doubles our value by the number indicated by a, if there is room on the left, and stores the number of pending shifts back in a if there isn't room. The explanations of 1DF0 and 1DE7 in the Appendices cover this in more detail.
 
-That's it for the really complicated part! Everything since the test of 23h.2 up to this point applies only during cranking. In steady-state operation, the code will jump from there to 1DA9, skipping all the cranking enrichment stuff, and now we're at 1DA9. This is the warm-up enrichment section, and it's also where the post-start enrichment we calcualted earlier (3C) is incoroporated. 
+That's it for the really complicated part! Everything since the test of 23h.2 up to this point applies only during cranking. In steady-state operation, the code will jump from that flag check to 1DA9, skipping all the cranking enrichment stuff, and now we're at 1DA9. This is the warm-up enrichment section, and it's also where the post-start enrichment we calcualted earlier (3C) is incoroporated. 
 
 ## Warmup enrichment
-The warm-up enrichment is a 2-map process. First the basic temperature adjustment is looked up from one map based on engine temperature. But then this adjustment value is scaled by the value from another map based on rpm and load. Here are the details:
+The warm-up enrichment is a 2-map process. First the basic temperature adjustment is looked up from one map (43 or 45) based on engine temperature. But then this adjustment value is scaled by the value from another map based on rpm and load (47 or 48). Here are the details:
 
 ```
 X1da9:	
@@ -372,7 +381,7 @@ Map 48 (idle, location 1486h):
 
 These two follow a slightly different rule from the fuel adjustment maps we've seen so far: with these, the denominator is 255. So a value of 255 indicates no effect, and 128 will reduce the warm-up enrichment value from map 43 by half. 
 
-At this point we add the startup enrichment value 3C; this was calculated in the part we skipped over, but it follows the same pattern as the warmup enrichment so it needs 1DE7 to be called:
+At this point we add the startup enrichment value 3C; this was calculated earlier, but it follows the same pattern as the warmup enrichment so it needs 1DE7 to be called:
 
 ```
 	mov	a,3ch
@@ -393,7 +402,7 @@ X1dd6:
 	acall	X1df0
 ```
 
-This is now pretty straightforward. We initialize r2 (the map number variable) with map 49 (31h) which is the idle fuel map. Then we check if we're at idle and if not, we replace it with 75 (4Bh) which is the WOT map. Then we check if we have the WOT condition (23h.1=1) and if not, we finally set r2 to 79 (4Fh) which is the part throttle fuel map. 
+This is pretty straightforward. We initialize r2 (the map number variable) with map 49 (31h) which is the idle fuel map. Then we check if we're at idle and if not, we replace it with 75 (4Bh) which is the WOT map. Then we check if we have the WOT condition (23h.1=1) and if not, we finally set r2 to 79 (4Fh) which is the part throttle fuel map. 
 
 Next we call the region-based map selection routine 1FF2 (discussed earlier), then the map lookup routine, and finally our accumulation routine 1DF0 which we discussed earlier. 
 
@@ -546,6 +555,7 @@ Variables
 |----------|---------|---------|---------|
 12h | intake air temp | yes | no |
 13h | coolant temp | yes | no |
+17h | FQS | yes | no |
 49h | load | yes | no |
 50h | count left shifts | yes | yes |
 3Ch | post-start enrichment | yes | yes |

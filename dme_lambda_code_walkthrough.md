@@ -1,8 +1,10 @@
+
 ```
-mov	r2,#3eh		;Map 62
+	mov	r2,#3eh		;Map 62
 	jnb	t0,X0a65
 	mov	r2,#41h		;Use Map 65 if code plug set
-X0a65:	lcall	X051d
+X0a65:	
+	lcall	X051d
 	mov	18h,a		;18h, for unchanged
 	lcall	X051d		;Map 63 or 66
 	mov	19h,a		;19h, for changed/lean
@@ -10,6 +12,9 @@ X0a65:	lcall	X051d
 	mov	1ah,a		;1A, for changed/not-lean
 	ret	
 ;
+```
+
+```
 X0a75:	
 	jnb	23h.4,X0a7b
 	mov	1bh,#80h
@@ -42,8 +47,126 @@ X0aa1:
 	mov	1bh,r1		;1Bh
 	mov	c,20h.2
 	mov	24h.6,c		;store new 20h.2 value for next time
-	ljmp	X105c 		;jumps to 1CB7, so the after this is an unreachable version
+	ljmp	X105c 		;jumps to 1CB7, so the code immediately after this is an unreachable version
 ;
+```
+Pseudo code for 0A75:
+```
+if cranking:
+	1B = 1
+r1:r0 = 1B:1C
+if currently lean:
+	if previously lean:
+		r1:r0 = call 0BCD
+	else if not previously lean:
+		r1:r0 = call 0BD4 (with a=0)
+else if currently not-lean:
+	if previously lean:
+		r1:r0 = call 0BD4 (with a=1A, the value from Map 64)
+	else if not previously lean:
+		r1:r0 = call 0BCD
+1B:1C = r1:r0
+previously lean = currently lean
+```
+
+```
+; Called when lambda is unchanged
+X0bcd:	
+	mov	a,18h		; 18h, from Map 62, lambda adjustment for unchanged state
+	mov	b,#1
+	sjmp	X0bdd
+;
+; Called when lambda has changed from/to lean.
+; This is called with either a=0 or a=1Ah (from Map 64)
+; if transition was LEAN->NOT-LEAN, then a=1Ah
+; if transition was NOT LEAN->LEAN, then a=0
+X0bd4:	
+	cpl	a
+	inc	a
+	add	a,19h		; 19h; this subtracts a from 19h
+	mov	b,#10h		; we'll be multiplying by 16, vs by 1 in the unchanged case
+	clr	24h.4
+;
+; Arguments: A, B, R1:R0
+; Returns: R1:R0
+;
+; common path, called either way
+X0bdd:	
+	mul	ab
+	jnb	b.7,X0be4
+	mov	b,#7fh		; clamp b to max 127
+X0be4:	
+	jnb	20h.2,X0bec	; jump if lean - if not lean, we complement b:a and c below
+	cpl	c
+	cpl	a
+	xrl	b,#0ffh		; xor, effectively complements b in place (cpl only works on a)
+X0bec:	
+	addc	a,r0		; get here if lean or not lean, but b:a is complemented if not lean
+	mov	r0,a
+	mov	a,b
+	addc	a,r1
+	mov	r1,a
+	clr	a
+	jb	20h.2,X0bf8	; jump if not lean
+	cpl	c
+	cpl	a
+X0bf8:	
+	jc	X0bfc		; add overflowed
+	mov	r0,a		; a=0 if not lean, 255 if lean
+	mov	r1,a
+X0bfc:
+	ret
+```
+Pseudo code for 0BCD/0BD4 - note that b:a is a used 2's complement signed number. So before complementing, we must clamp to the middle value (high byte 127). After complementing if necessary, we add it to or subtract it from r1:r0, in which case we have to check for overflow and clamp to 0 or 65356 as appropriate.
+```
+if unchanged:
+	b:a = 18h (from Map 62)
+else if lean:
+	b:a = (19h - 1Ah) * 16 (19h from Map 63, 1Ah from Map 64)
+else if not-lean:
+	b:a = 19h * 16
+if b >= 127 then b=127 (clamp b:a to roughly 32767)
+
+if lean:
+	r1:r0 = r1:r0 + b:a
+	if r1:r0 > MAX:
+		r1:r0 = MAX
+else:
+	r1:r0 = r1:r0 - b:a
+	if r1:r0 < MIN:
+		r1:r0 = MIN
+```
+
+The next section handles threshold conditions for lambda control, including temperature. Flag 24h.5 (not to be confused with 25h.4!) is a local master switch for all threshold conditions. If zero, lambda control is disabled:
+```
+if cranking or WOT or coasting:
+	clear 24h.5
+if rpm >= 6640:
+	clear 24h.5
+if load > 102:
+	if 24h.1: # means we had previously entered this condition
+		if 3F = 0: # check the timer
+			clear 24h.5
+	else: # we just entered this condition, set the timer
+		set 24h.1
+		clear 24h.2 # appears to not be set anywhere reachable
+		3F = 6 # timer value loaded from 11AD
+else:
+	clear 24h.1 # load went below 102 without the timer expiring, so we don't be disabling lambda after all
+
+if 25h.4: # if this is set, it means NTCII was < ~15C during cranking
+	threshold = 50C # 11CE, contains 8Ch/140
+else:
+	threshold = ~17C
+if not 24h.5: # lambda is currently blocked by some threshold
+	threshold = threshold + 5C # hysterisis
+if 13h > threshold:
+	set 24h.5
+else:
+	clear 24h.5
+
+call clamping routine
+call debugging routine
 ```
 
 ```
@@ -107,6 +230,7 @@ X1d01:
 	sjmp	X1d0d
 ```
 
+The next section is where the correction logic is actually applied
 ```
 X0afb:	
 	lcall	X105f		; 0afb   12 10 5f   .._
@@ -211,50 +335,3 @@ X0b89:
 	ret
 ```
 
-```
-; Called when lambda is unchanged
-X0bcd:	
-	mov	a,18h		; 18h, lambda adjustment for unchanged state
-	mov	b,#1
-	sjmp	X0bdd
-;
-; Called when lambda has changed from/to lean.
-; This is called with either a=0 or a=1Ah (from map 64)
-; if transition was NOT LEAN->LEAN, then a=0
-X0bd4:	
-	cpl	a
-	inc	a
-	add	a,19h		; 19h; this subtracts a from 19h
-	mov	b,#10h		; we'll be multiplying by 16
-	clr	24h.4
-;
-; Arguments: A, B, R1:R0
-; Returns: R1:R0
-;
-; common path, called either way
-X0bdd:	
-	mul	ab
-	jnb	b.7,X0be4
-	mov	b,#7fh		; clamp b to max 127
-X0be4:	
-	jnb	20h.2,X0bec	; jump if lean - if not lean, we complement b:a and c below
-	cpl	c
-	cpl	a
-	xrl	b,#0ffh		; xor, effectively complements b in place (cpl only works on a)
-X0bec:	
-	addc	a,r0		; get here if lean or not lean, but b:a is complemented if not lean
-	mov	r0,a
-	mov	a,b
-	addc	a,r1
-	mov	r1,a
-	clr	a
-	jb	20h.2,X0bf8	; jump if not lean
-	cpl	c
-	cpl	a
-X0bf8:	
-	jc	X0bfc		; add overflowed
-	mov	r0,a		; a=0 if not lean, 255 if lean
-	mov	r1,a
-X0bfc:
-	ret
-```

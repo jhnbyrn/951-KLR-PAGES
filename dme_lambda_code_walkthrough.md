@@ -1,5 +1,80 @@
+# DME lambda correction code walkthrough
+
+This is a detailed look at the complete closed loop fuel control routine. 
+
+## Outline
+
+Before we get into the details, a brief outline of what this code does might be helpful. I'll assume you understand the general idea behind closed loop fueling, and just concentrate on how the code achieves that. 
+
+We can break this into stages:
+1. look up the correction step values (from rpm/load maps)
+2. update the current correction value using the step values from #1
+3. apply thresholds
+4. clamp the final correction value
+5. apply the final correction
+
+The correction step used varies based on whether the current condition is lean or not lean, whether it has just changed, and also by rpm and load. 
+
+In step #1, the rpm/load values are retrieved from three different maps. In step #2, these values are modified and combined according to the control strategy. The gist of it is like this: if the measured condition just changed to or from a lean condition, then we make a very big correction step in the opposite direction. But if the latest measured condition is the same as the previous one, then we only add a small correction step. The correction accumulates until the condition switches. 
+
+In step #3, various threshold conditions are allowed to temporarily block lambda correction. These are 
+
+* various engine modes (WOT, cranking, coasting)
+* rpm
+* load
+* temperature
+
+In step 4 the final correction is limited to between 0.7x and 1.14x. 
+
+Finally, step 5 applies the correction according to certain timer-based rules. In order for a correction to be applied, the condition it's correcting for has to exist for a certain minimum time, which is measured by the timer variable 3Eh. We can split the possible actions into two:
+
+1. make a rich/lean correction
+2. neutralize the correction
+
+* If the o2 sensor indicates that we're rich or lean, then we wait for the timer to expire, and make the correction.
+* If the sensor indicates neither rich nor lean, then we wait for the timer to expire and neutralize the correction value (i.e. set it to 1x)
+
+In all cases, the relevant AFR condition must hold *continuously* for the whole timer period. If the condition changes before the timer expires, then the timer gets reset. 
+
+And the timer periods are different for #1 and #2! For a rich/lean condition, the timer period is short, and for the "neither" i.e. neutral condition, it's long. That is, in order for the correction to be neutralized, the AFR must remain neither rich nor lean for a long time. But in order for a correction to take place, the AFR need only be rich or lean for a short time. (For definitions of "long" and "short", watch this space!)
+
+While the timer is counting down, whichever action was happening before simply continues. So if a correction was being applied, and now the condition has changed to not rich/not lean, and the long timer is counting down, the correction continues. This includes the continuous accumulation of small correction steps described earlier. 
+
+But note also that when the correction is being calculated, no distinction is made between a rich condition, and a neutral condition. It's simply *lean* or *not-lean*. Therefore a neutral condition will generally provoke a correction in the lean direction, and thus it's unlikely that the timer for neutralizing the correction will go for long without being reset. 
+
+Now we'll get into those stages one by one. 
+
+## The lookup
+The looking up of the lambda correction maps starts at the end of the fuel adjustment routine:
 
 ```
+X1de0:	mov	4eh,r6
+	mov	4fh,r7
+	ljmp	X1053
+```
+
+This 1053 jump just calls 1B39 where we check 20h.7, which is our master flag for closed loop fuel control, set only for appropriately equipped cars:
+
+```
+X1b39:	
+	jnb	20h.7,X1b3f
+	ljmp	X1d15
+```
+
+The code at 1D15 seems to be a replacment for the 0A5E (which is unreachable). It just expands on the conditions that select between Maps 62 and 65, although for out purposes this is irrelevant. Once the map is selected, we jump to 0A65 where the rest of the lookups/map selections happen:
+
+```
+X1d15:	
+	mov	r2,#3eh
+	jb	25h.6,X1d1f ; 25h.6=1 means RoW, so 20h.7 would not be set (see 1BEE)
+	jnb	t0,X1d1f
+	mov	r2,#41h
+X1d1f:	
+	ljmp	X0a65
+
+...
+
+X0a5e: ;UNREACHEABLE
 	mov	r2,#3eh		;Map 62
 	jnb	t0,X0a65
 	mov	r2,#41h		;Use Map 65 if code plug set
@@ -12,7 +87,22 @@ X0a65:
 	mov	1ah,a		;1A, for changed/not-lean
 	ret	
 ;
+
 ```
+
+The above code only looks up the maps based on rpm and load, and stores the values for later. 
+
+## Updating the correction
+The beginning of the actual adjustment routine is called a little later, from 0419 in the post-load calculation routine, via the acall to 1B30:
+
+```
+X1b30:	jnb	20h.7,X1b36
+	ljmp	X0a75
+```
+
+The first part of this routine is concerned with updating the current lambda correction value based on the values we just retrieved from the maps, and the current and previous states of the O2 sensor circuit. 
+
+The previous correction is loaded from 1B:1C into r1:r0. Then we update r1:r0 and store it back into 1B:1C. Later when we actually apply the correction, we use r1:r0. If we end up neutralizing the correction, we overwrite 1B:1C with the neturalized version. 
 
 ```
 X0a75:	
@@ -50,7 +140,9 @@ X0aa1:
 	ljmp	X105c 		;jumps to 1CB7, so the code immediately after this is an unreachable version
 ;
 ```
-Pseudo code for 0A75:
+
+Here's the logic of the above section, in pseudo-code:
+
 ```
 if cranking:
 	1B = 1
@@ -68,6 +160,8 @@ else if currently not-lean:
 1B:1C = r1:r0
 previously lean = currently lean
 ```
+
+The 0BCD/0BD4 routines are really one routine with two different entry points - here's the whole thing:
 
 ```
 ; Called when lambda is unchanged
@@ -117,7 +211,9 @@ X0bf8:
 X0bfc:
 	ret
 ```
-Pseudo code for 0BCD/0BD4 - note that b:a is a used 2's complement signed number. So before complementing, we must clamp to the middle value (high byte 127). After complementing if necessary, we add it to or subtract it from r1:r0, in which case we have to check for overflow and clamp to 0 or 65356 as appropriate.
+
+And here's a pseudo code summary of that same routine. Note that __b:a__ is used as a 2's complement signed number. So before complementing, we must clamp to the middle value (high byte 127). After complementing into a negative number if necessary, we add it r1:r0, in which case we have to check for overflow and clamp to 0 or 65356 as appropriate.
+
 ```
 if unchanged:
 	b:a = 18h (from Map 62)
@@ -137,37 +233,9 @@ else:
 		r1:r0 = MIN
 ```
 
-The next section handles threshold conditions for lambda control, including temperature. Flag 24h.5 (not to be confused with 25h.4!) is a local master switch for all threshold conditions. If zero, lambda control is disabled:
-```
-if cranking or WOT or coasting:
-	clear 24h.5
-if rpm >= 6640:
-	clear 24h.5
-if load > 102:
-	if 24h.1: # means we had previously entered this condition
-		if 3F = 0: # check the timer
-			clear 24h.5
-	else: # we just entered this condition, set the timer
-		set 24h.1
-		clear 24h.2 # appears to not be set anywhere reachable
-		3F = 6 # timer value loaded from 11AD
-else:
-	clear 24h.1 # load went below 102 without the timer expiring, so we don't be disabling lambda after all
+## Applying threshold conditions
 
-if 25h.4: # if this is set, it means NTCII was < ~15C during cranking
-	threshold = 50C # 11CE, contains 8Ch/140
-else:
-	threshold = ~17C
-if not 24h.5: # lambda is currently blocked by some threshold
-	threshold = threshold + 5C # hysterisis
-if 13h > threshold:
-	set 24h.5
-else:
-	clear 24h.5
-
-call clamping routine
-call debugging routine
-```
+The next section handles threshold conditions for lambda control, including temperature. Flag 24h.5 (not to be confused with 25h.4!) is a local master switch for all threshold conditions. If it's clear, lambda control is disabled:
 
 ```
 X1cb7:
@@ -227,13 +295,59 @@ X1d01:
 	subb	a,13h		; 13h = coolant temperature
 	mov	24h.5,c		; set 24h.5 if coolant temperature is above the threshold
 	lcall	X0b50		; clamping routine for r1:r0
-	sjmp	X1d0d
+	sjmp	X1d0d       ; jumps to 0AFB (see below)
 ```
 
-The next section is where the correction logic is actually applied
+In pseudo code:
+
+```
+if cranking or WOT or coasting:
+	clear 24h.5
+if rpm >= 6640:
+	clear 24h.5
+if load > 102:
+	if 24h.1: # means we had previously entered this condition
+		if 3F = 0: # check the timer
+			clear 24h.5
+	else: # we just entered this condition, set the timer
+		set 24h.1
+		clear 24h.2 # unused
+		3F = 6 # timer value loaded from 11AD
+else:
+	clear 24h.1 # load went below 102 without the timer expiring, so we don't be disabling lambda after all
+
+if 25h.4: # if this is set, it means NTCII was < ~15C during cranking
+	threshold = 50C # 11CE, contains 8Ch/140
+else:
+	threshold = ~17C
+if not 24h.5: # lambda is currently blocked by some threshold
+	threshold = threshold + 5C # hysterisis
+if 13h > threshold:
+	set 24h.5
+else:
+	clear 24h.5
+
+call clamping routine
+call main adjustment routine
+```
+
+A few notes about this:
+
+The flags 25h.4 and 25h.5 are both set during the cranking phase. Each one corresponds to an engine temperature threshold, and is set if the engine temperature was below that threshold during cranking. But both thresholds are set to the same value, around 15C. Only 25h.4 is used here. This means that there are two different temperature thresholds for enabling lambda control. If the temperature was below ~15C while cranking, then lambda control is only enabled above 55C. Otherwise it's enabled from around 22C. 
+
+Also note the hysterisis logic: once lambda control is activated based on the initial temp threshold, it won't get deactivated unless the temp falls to around 5C below that temperature - this prevents it from switching on and off constantly if the temperature happens to be hovering around the threshold. 
+
+The comments in the pseudo code above note that 24h.2 is unused; more on that later. 
+
+
+The next section is where the correction logic is actually applied.
+
+
+## Apply the correction
+
 ```
 X0afb:	
-	lcall	X105f		; 0afb   12 10 5f   .._
+	lcall	X105f		; 105F->1E36 (monitoring/debugging)
 	jnb	p1.6,X0b18	; Lambda: jump if rich
 	jb	p1.7,X0b18	; Lambda: jump if lean
 	jb	24h.3,X0b10
@@ -275,7 +389,7 @@ X0b2e:
 	mov	1bh,r1		; 1Bh, high byte of lambda correction
 	clr	24h.2
 X0b42:	
-	ljmp	X1062
+	ljmp	X1062   ; this just jumps to 0B45, below
 ;
 X0b45:	
 	lcall	X0455		; 16x16 bit multiply
@@ -283,7 +397,49 @@ X0b45:
 	lcall	X0509		; left-shift 24-bit value
 	ljmp	X1065
 ;
+```
 
+And here's the logic:
+
+```
+if rich or lean:
+	if not 24h.4: # 24h.4=1 means the rich/lean timer has already been started
+		set 24h.4
+		clear 24h.3 
+		clear 24h.2 # unused
+		set 24h.0
+		3E = 9 # lambda timer, loaded with 11A4, which contains 9
+	if timer = 0:
+		set 24h.7
+	if 24h.5 and 24h.7 and 24h.0:
+		apply the change in r1:r0
+	else:
+		r1:r0 = 1B:1C = 32767
+		clear 24h.2 (unused)
+else: # lambda ok (not rich or lean)
+	if not 24h.3: #24h.3=1 means the OK timer has already started
+		set 24h.3
+		clear 24h.4
+		3E = 66 # lambda timer, loaded with 11A3, containing 24h/66
+	if timer = 0:
+		clear 24h.7
+	if 24h.5 and 24h.7 and 24h.0: # this will now fail because 24h.7=0
+		apply the change in r1:r0
+	else:
+		r1:r0 = 1B:1C = 32767, i.e 1
+		clear 24h.2 (unused)	
+```
+
+So 24h.7 is the flag that indicates we're in the rich/lean timer phase. And 24h.3 indicates that we're in the lambda neutral timer phase. To see how these flags work, let's consider a a few hypothetical examples. 
+
+Let's say there was previously a correction for a rich or lean condition, and 24h.7 is set. Suppose that we have entered the above code with the lambda condition having just changed to neutral. Then 24h.3 will get set, and the timer 3F will get initialized with the value 66. But until the timer reaches zero, 24h.7 remains set, so the ```jc	X0b42``` instruction will run and the correction will still happen, with whatever update was calculated earlier. Now suppose the neutral condition persists long enough for the timer to reach zero. Then 24h.7 gets cleared, and the correction will get neutralized at 0B38. 
+
+But conversely, let's say the neutral condition *doesn't* last that long, and instead gets interrupted by a transition back to rich or lean. We don't care which at this point, since the direction of the correction was handled by the signed calculation earlier. But now we'll take the path at 0B18, which clears 24h.3. In this particular example, 24h.7 was still set, because the netural timer never expired, so the correction can start happening immediately. But in the case where the neutral timer *had* expired, and 24h.7 had been cleared, then it would only get set again after timer expires at 0B28. 
+
+Note that *three* flags all have to be set in order for the correction to proceed: 24h.5, 24h.7 and 24h.0. If any of these are clear, then the correction is neutralized at 0B38. We have already seen that 24h.5 is the thresholds flag from earlier. 24h.7 is the rich/lean vs neutral indicator. But so far 24h.0 is unexplained. In fact it's not used - it's related to 24h.2, and both are part of a watchdog routine that is deactivated in the final version of the code. We'll see the details a little later. For now, just trust that 24h.0 is always set. 
+
+
+## Clamping
 ; This routine short circuits if r1 is between 90 and 147.
 ; If outside that range, then it's clamped to that range.
 ; So this is the lambda clamping routine, and the limits are presumably

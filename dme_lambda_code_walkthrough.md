@@ -13,9 +13,9 @@ We can break this into stages:
 4. clamp the final correction value
 5. apply the final correction
 
-The correction step used varies based on whether the current condition is lean or not lean, whether it has just changed, and also by rpm and load. 
+The size of the correction step used varies based on whether the current condition is lean or not lean, whether it has just changed, and also by rpm and load. 
 
-In step #1, the rpm/load values are retrieved from three different maps. In step #2, these values are modified and combined according to the control strategy. The gist of it is like this: if the measured condition just changed to or from a lean condition, then we make a very big correction step in the opposite direction. But if the latest measured condition is the same as the previous one, then we only add a small correction step. The correction accumulates until the condition switches. 
+In step #1, the rpm/load dependent step values are retrieved from three different maps. In step #2, these values are modified and combined according to the control strategy. The gist of that strategy is like this: if the measured condition just changed to or from a lean condition, then we make a very big correction step in the opposite direction. But if the latest measured condition is the same as the previous one, then we only add a small correction step. The correction accumulates until the condition switches. 
 
 In step #3, various threshold conditions are allowed to temporarily block lambda correction. These are 
 
@@ -26,7 +26,7 @@ In step #3, various threshold conditions are allowed to temporarily block lambda
 
 In step 4 the final correction is limited to between 0.7x and 1.14x. 
 
-Finally, step 5 applies the correction according to certain timer-based rules. In order for a correction to be applied, the condition it's correcting for has to exist for a certain minimum time, which is measured by the timer variable 3Eh. We can split the possible actions into two:
+Finally, step 5 applies the correction according to certain timer-based rules. In order for a correction to be applied, the condition it's correcting for has to exist for a certain minimum time, which is measured by the timer variable 3Eh. There are 2 possible actions that can happen in this final application:
 
 1. make a rich/lean correction
 2. neutralize the correction
@@ -34,13 +34,15 @@ Finally, step 5 applies the correction according to certain timer-based rules. I
 * If the o2 sensor indicates that we're rich or lean, then we wait for the timer to expire, and make the correction.
 * If the sensor indicates neither rich nor lean, then we wait for the timer to expire and neutralize the correction value (i.e. set it to 1x)
 
+We'll call the latter situation the *neutral condition*. 
+
 In all cases, the relevant AFR condition must hold *continuously* for the whole timer period. If the condition changes before the timer expires, then the timer gets reset. 
 
-And the timer periods are different for #1 and #2! For a rich/lean condition, the timer period is short, and for the "neither" i.e. neutral condition, it's long. That is, in order for the correction to be neutralized, the AFR must remain neither rich nor lean for a long time. But in order for a correction to take place, the AFR need only be rich or lean for a short time. (For definitions of "long" and "short", watch this space!)
+And the timer periods are different for actions #1 and #2! For a rich/lean condition, the timer period is short, and for the neutral condition, it's long. That is, in order for the correction to be neutralized, the AFR must remain neither rich nor lean for a long time. But in order for a correction to take place, the AFR need only be rich or lean for a short time. (For definitions of "long" and "short", watch this space!)
 
-While the timer is counting down, whichever action was happening before simply continues. So if a correction was being applied, and now the condition has changed to not rich/not lean, and the long timer is counting down, the correction continues. This includes the continuous accumulation of small correction steps described earlier. 
+While the timer is counting down, whichever action was happening before simply continues, with any new addition or subtraction based on the control strategy. 
 
-But note also that when the correction is being calculated, no distinction is made between a rich condition, and a neutral condition. It's simply *lean* or *not-lean*. Therefore a neutral condition will generally provoke a correction in the lean direction, and thus it's unlikely that the timer for neutralizing the correction will go for long without being reset. 
+But note also that when the correction step is being calculated, no distinction is made between a *rich* condition, and a *neutral* condition. It's simply *lean* or *not-lean*. Therefore a neutral condition will generally provoke a correction in the lean direction, and so it's unlikely that the timer for neutralizing the correction will go for long without being reset. 
 
 Now we'll get into those stages one by one. 
 
@@ -314,7 +316,7 @@ if load > 102:
 		clear 24h.2 # unused
 		3F = 6 # timer value loaded from 11AD
 else:
-	clear 24h.1 # load went below 102 without the timer expiring, so we don't be disabling lambda after all
+	clear 24h.1 # load went below 102 without the timer expiring, so cancel the whole business
 
 if 25h.4: # if this is set, it means NTCII was < ~15C during cranking
 	threshold = 50C # 11CE, contains 8Ch/140
@@ -333,7 +335,7 @@ call main adjustment routine
 
 A few notes about this:
 
-The flags 25h.4 and 25h.5 are both set during the cranking phase. Each one corresponds to an engine temperature threshold, and is set if the engine temperature was below that threshold during cranking. But both thresholds are set to the same value, around 15C. Only 25h.4 is used here. This means that there are two different temperature thresholds for enabling lambda control. If the temperature was below ~15C while cranking, then lambda control is only enabled above 55C. Otherwise it's enabled from around 22C. 
+The flags 25h.4 and 25h.5 are both set during the cranking phase. Each one corresponds to an engine temperature threshold, and is set if the engine temperature was below that threshold during cranking. But both thresholds are set to the same value, around 15C. Only 25h.4 is used here. The way that 25h.4 is used here means that there are two different temperature thresholds for enabling lambda control. If the temperature was below ~15C while cranking, then lambda control is only enabled above 55C. Otherwise it's enabled from around 22C. 
 
 Also note the hysterisis logic: once lambda control is activated based on the initial temp threshold, it won't get deactivated unless the temp falls to around 5C below that temperature - this prevents it from switching on and off constantly if the temperature happens to be hovering around the threshold. 
 
@@ -428,9 +430,11 @@ else: # lambda ok (not rich or lean)
 	else:
 		r1:r0 = 1B:1C = 32767, i.e 1
 		clear 24h.2 (unused)	
+apply the correction to the r7:r6 fuel value # via 16x16 mul routine
+multiply by 2
 ```
 
-So 24h.7 is the flag that indicates we're in the rich/lean timer phase. And 24h.3 indicates that we're in the lambda neutral timer phase. To see how these flags work, let's consider a a few hypothetical examples. 
+So 24h.4 is the flag that indicates we're in the rich/lean timer phase. And 24h.3 indicates that we're in the lambda neutral timer phase. To see how these flags work, let's consider a a few hypothetical examples. 
 
 Let's say there was previously a correction for a rich or lean condition, and 24h.7 is set. Suppose that we have entered the above code with the lambda condition having just changed to neutral. Then 24h.3 will get set, and the timer 3F will get initialized with the value 66. But until the timer reaches zero, 24h.7 remains set, so the ```jc	X0b42``` instruction will run and the correction will still happen, with whatever update was calculated earlier. Now suppose the neutral condition persists long enough for the timer to reach zero. Then 24h.7 gets cleared, and the correction will get neutralized at 0B38. 
 
@@ -438,8 +442,15 @@ But conversely, let's say the neutral condition *doesn't* last that long, and in
 
 Note that *three* flags all have to be set in order for the correction to proceed: 24h.5, 24h.7 and 24h.0. If any of these are clear, then the correction is neutralized at 0B38. We have already seen that 24h.5 is the thresholds flag from earlier. 24h.7 is the rich/lean vs neutral indicator. But so far 24h.0 is unexplained. In fact it's not used - it's related to 24h.2, and both are part of a watchdog routine that is deactivated in the final version of the code. We'll see the details a little later. For now, just trust that 24h.0 is always set. 
 
+Finally we multiply r7:r6 (the existing fuel adjustment) by r1:r0, and then multiply by 2. Recall that our lambda adjustment value is a signed 2's complement number, so the max value is half the 16-bit range, with higher values representing negative numbers. Multiplying it by 2 restores the scale to match the existing 16-bit fuel correction r7:r6. 
 
 ## Clamping
+
+The clamping routine is called earlier, at the end of the threshold section. I mentioned earlier that there is an unused watchdog algorithm that involves 24h.2 and 24h.0. The implementation of that routine can be seen here, but it's not used because the ```cjne	a,#0ffh,X0b7f``` instruction uses the value 11A5, which is 255, so the jump to 0B7F will never happen. The code at 0B7F is the only place that 24h.2 ever gets set. 
+
+Since the upper limit here is high byte=147, that gives a maximum lambda adjustment of around 1.15x. The lower limit is 90, giving around 0.7x. 
+
+```
 ; This routine short circuits if r1 is between 90 and 147.
 ; If outside that range, then it's clamped to that range.
 ; So this is the lambda clamping routine, and the limits are presumably
@@ -491,3 +502,37 @@ X0b89:
 	ret
 ```
 
+Here's the logic that actually happens here - it could hardly be simpler:
+
+```
+if r1 < 147 and r1 > 90: 
+		return
+else if r1 >= 147:
+	1C = r0 = 0
+	1B = r1 = 147
+else if r1 <=90:
+	1C = r0 = 255
+	1B = r1 = 90
+return
+```
+
+For completeness here's a brief explantion of the unused watchdog logic too:
+
+```
+if 24h.1=1: # this indicates that timer 3F is busy with load threshold
+	return
+	
+if 11A5 != 255:
+	set 24h.2
+	3F = 11A5
+else:
+	clear 24h.2
+if 3F = 0:
+	clear 24h.0 # this neutralizes lambda correction (see above)
+```
+
+First note that the timer, 3F, is the same one used for the load threshold earlier. If its currently being used for that, we skip this watchdog logic entirely. 
+
+Next we check the constant 11A5, and if it's anything other than 255, then we use it as a timer value for 3F. We set 24h.2 so that indicates that we're in the watchdog countdown mode. 
+
+But recall that 24h.2 is cleared earlier when the lambda state transitions. So this logic, if active, would detect when the correction is pegged to the rails for a certain time, and neutralize the lambda correction in that case. 

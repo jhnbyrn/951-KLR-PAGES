@@ -31,7 +31,7 @@ Without getting into the weeds of the code, here's a list of things that tempora
 * __startup (23h.4)__ - this is a startup flag that gets cleared once the engine has stabilized. If set, it causes the lamda correction high byte 1B to be set to 128, effectively neutralizing correction
 * __cranking__, __WOT__, and __coasting fuel cutoff__ - these all short circuit lamnda control temporarily
 * __rpm > 6640__ - closed loop control is disabled any time the rpm is over this limit
-* __load > 102 for a certain duration__ - closed loop control is disabled in part throttle at high loads (more below)
+* __load > 102 for a few seconds__ - closed loop control is disabled in part throttle at high loads (more below)
 * __engine temp__ < 21C
 
 Additionally a clamping routine limits the closed loop correction to between __0.7x__ and __1.14x__. 
@@ -88,7 +88,7 @@ So to summarize:
 The raw maps are shown at the end. Let's consider what these raw map values actually mean. The fuel correction is a 16-bit number, and the smallest map value is 4. In the unchanged case, this value is added or subtracted from the 16-bit fuel correction, representing just 4/32768 or ~0.0001. So the lambda correction steps can be tiny! But values that small are only found at very low rpm (~600) and the lowest load values. A more typical value for part throttle driving might be 40, which is around 0.001. 
 
 But how big can they be? For the changing condition, the map value is multiplied by 16, and the lowest values from these maps are in the order of 40, giving us almost 2%. But these maps also max out at 100 at fairly low rpm/load combinations, so values of (16*100)/32768 = 4.8% should be pretty common as the first step when a transition happens, under part throttle driving. 
-
+If you have an AFR gauge, you might notice that the AFR dithers back and forth quite slowly at idle or low throttle. Under high load or high rpm, based on the maps below, the corrections get more agressive, and the transitions therefore happen faster, which is why you see the gauge suddenly speeding up. 
 
 
 ## Maps

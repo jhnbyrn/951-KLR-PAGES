@@ -26,7 +26,9 @@ In step #3, various threshold conditions are allowed to temporarily block lambda
 
 In step 4 the final correction is limited to between 0.7x and 1.14x. 
 
-Finally, step 5 applies the correction according to certain timer-based rules. In order for a correction to be applied, the condition it's correcting for has to exist for a certain minimum time, which is measured by the timer variable 3Eh. There are 2 possible actions that can happen in this final application:
+Finally, step 5 applies the correction according to certain timer-based rules. In order for a correction to be applied, the condition it's correcting for has to exist for a certain minimum time, which is measured by the timer variable 3Eh. See [DME software timers](dme_software_timers.md) for more details on how this timer works. 
+
+There are 2 possible actions that can happen in this final application:
 
 1. make a rich/lean correction
 2. neutralize the correction
@@ -38,7 +40,7 @@ We'll call the latter situation the *neutral condition*.
 
 In all cases, the relevant AFR condition must hold *continuously* for the whole timer period. If the condition changes before the timer expires, then the timer gets reset. 
 
-And the timer periods are different for actions #1 and #2! For a rich/lean condition, the timer period is short, and for the neutral condition, it's long. That is, in order for the correction to be neutralized, the AFR must remain neither rich nor lean for a long time. But in order for a correction to take place, the AFR need only be rich or lean for a short time. (For definitions of "long" and "short", watch this space!)
+And the timer periods are different for actions #1 and #2! For a rich/lean condition, the timer period is short around 103ms, and for the neutral condition, it's longer (around 760ms). That is, in order for the correction to be neutralized, the AFR must remain neither rich nor lean for a long time. But in order for a correction to take place, the AFR need only be rich or lean for a short time. 
 
 While the timer is counting down, whichever action was happening before simply continues, with any new addition or subtraction based on the control strategy. 
 

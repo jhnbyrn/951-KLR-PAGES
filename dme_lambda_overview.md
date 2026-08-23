@@ -32,7 +32,9 @@ Without getting into the weeds of the code, here's a list of things that tempora
 * __cranking__, __WOT__, and __coasting fuel cutoff__ - these all short circuit lamnda control temporarily
 * __rpm > 6640__ - closed loop control is disabled any time the rpm is over this limit
 * __load > 102 for a few seconds__ - closed loop control is disabled in part throttle at high loads (more below)
-* __engine temp__ < 21C
+* __engine temp__ < 55C or 21C (depending on starting conditions)
+
+The temperature threshold deserves some explantion. When the engine is started, a flag is set (25h.4) if the NTCII temperature was below ~15C. If this flag is set, then lambda control is only activated above 55C. If 25h.4 is clear, meaning the temperature was at least 15C while cranking, then lambda control can be active from ~22C and up. Comparing these thresholds to the cold start enrichments described [here](dme_fuel_enrichments_overview) is interesting. There, we see that below around 16C there's a signficant increase in enrichment. I can only guess as to the strategy here but maybe that extra fuel still hanging around will make lambda control impossible. 
 
 Additionally a clamping routine limits the closed loop correction to between __0.7x__ and __1.14x__. 
 

@@ -379,7 +379,7 @@ Map 48 (idle, location 1486h):
 | 520 | 255 |
 | 1520 | 255 |
 
-These two follow a slightly different rule from the fuel adjustment maps we've seen so far: with these, the denominator is 255. So a value of 255 indicates no effect, and 128 will reduce the warm-up enrichment value from map 43 by half. 
+These two follow a slightly different rule from the fuel adjustment maps we've seen so far: with these, the denominator is 256. So a value of 255 (close enough to 1) indicates no effect, and 128 will reduce the warm-up enrichment value from map 43 by half. 
 
 At this point we add the startup enrichment value 3C; this was calculated earlier, but it follows the same pattern as the warmup enrichment so it needs 1DE7 to be called:
 

@@ -1,6 +1,6 @@
 # DME crakshaft sensors
 
-Now we'll take a close look at the crankshaft sensors, the signals they produce, and what these signals are for. We'll discuss what the DME program does with them in simple terms but we won't look directly at any code just yet. There are plenty of concepts to get used to before the code can be understood clearly. 
+Now we'll take a close look at the crankshaft sensors, the signals they produce, and what these signals are for. We'll discuss what the DME program does with them in simple terms but we won't look directly at any code just yet. There are plenty of concepts to get used to before the code can be understood clearly. Once you understand this, the [code walkthrough](ignition_timing_code.md) will make much more sense. 
 
 ## Signal processing
 

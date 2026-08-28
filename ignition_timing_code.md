@@ -4,7 +4,7 @@
 
 In [another article](dme_crank_sensor_hardware.md) we explored how the DME measures angles for ignition and other timing-critical events. 
 
-In this article we'll take a detailed look at the real time part of the DME's ignition timing code. The real time part is concerned almost exclusively with genertating the ignition signal that controls the coil, so we won't get into how the dwell and timing values are calcualted here. I strongly recommend reading the crank sensor article linked above before tackling this - even if you're familiar with the basic idea of the crank sensor signals. There are subtle details explained there that have a profound effect on how the code is interpreted. 
+In this article we'll take a detailed look at the real time part of the DME's ignition timing code. The real time part is concerned almost exclusively with generating the ignition signal that controls the coil, so we won't get into how the dwell and timing values are calculated here. I strongly recommend reading the crank sensor article linked above before tackling this - even if you're familiar with the basic idea of the crank sensor signals. There are subtle details explained there that have a profound effect on how the code is interpreted. You can read about how the actual timing values are calculated [here](dme_ignition_timing_calculation_overview.md).
 
 Roughly speaking the ignition timing is achieved by:
 
@@ -108,7 +108,7 @@ p1.1 = 22h.3
 
 Later we'll see how 2C and 2E are calculated. As noted in the comments above, these are the counter values relative to the reference sensor's position BTDC. The locations that they overwrite here (2B and 2D) already contain suitable values, but they're relative to the next-TDC value previously calcualted. Thus if the ref sensor pulse doesn't happen for some reason, the engine will continue to run using those redundant counter values. 
 
-The tricky part is next - this is where we consolidate the to sources of half-tooth error. These errors are explained in detail in the crank sensor article, but as a quick recap: we might need to add one or two extra half-teeth to the counter values because:
+The tricky part is next - this is where we consolidate the two sources of half-tooth error. These errors are explained in detail in the crank sensor article, but as a quick recap: we might need to add one or two extra half-teeth to the counter values because:
 
 1. we might have lost a half-tooth count to a rounding error when the half-tooth values were converted into whole-tooth values via rrc
 2. we're assuming that the relationship between the ref sensor trigger screw and the flywheel gear might vary from one car to another

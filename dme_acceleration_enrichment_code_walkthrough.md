@@ -1,5 +1,7 @@
 # Acceleration enrichment
 
+The acceleration enrichment code is pretty simple - simple enough that understanding the context and what it's mean to achieve is the hardest part. So I'm including the code walkthrough and the high level explanation in one place for this one. 
+
 ## Why acceleration enrichment?
 Before getting into the 944's acceleration enrichment, it's worth discussing what acceleration enrichment even is, and why its needed. This is a well documented topic, so I won't go into too much detail. And I should probably add that unlike most of what you read in these articles, I don't know this first hand. I'm basically summarizing what you can read elsewhere. But this is fairly well establshed, uncontroversial science. So here goes:
 
@@ -57,7 +59,7 @@ You might wonder why use the raw AFM signal, since this is the logarithm of the 
 
 Both of our enrichment types use this proportional change in airflow as a scaling factor, which gets combined with a temperature map value. But that's more or less where the similarity ends. 
 
-There are some minor differences but the really big one is what the final calculation represents. In the all-rpm enrichment (ultimately stored in 3Dh), it's unsurpisingly a fractional multiplier, just like the warmup and other enrichments discussed [here](dme_fuel_enrichments_overview.md). But the low-rpm enrichment (4Ch) is just added to the fuel pulse in the real time code, just before the injector is turned on. It's scaled by a constant (64), but the value of the current main fuel pulse plays no role. In this regard it's a lot like a carburettor "pump shot" - it represents a bigger proportional increase at low load/rpm conditions. 
+There are some minor differences but the really big one is what the final calculation represents. In the all-rpm enrichment (ultimately stored in 3Dh), it's unsurpisingly a fractional multiplier, just like the warmup and other enrichments discussed [here](dme_fuel_enrichments_overview.md). But the low-rpm enrichment (4Ch) is just *added* to the fuel pulse in the real time code, just before the injector is turned on. It's scaled by a constant (64), but the value of the current main fuel pulse plays no role. In this regard it's a lot like a carburettor "pump shot" - it represents a bigger proportional increase at low load/rpm conditions. 
 
 Some other differneces in the two enrichment strategies:
 
@@ -68,26 +70,36 @@ Some other differneces in the two enrichment strategies:
 * the 4Ch version is only active above a vane-delta value of 16, that is ~35% increase in airflow within the last 35ms. 
 * while both use temperature based maps that phase out the enrichment with increasing temperature, the all-rpm 3Dh version remains active for non O2/cat equipped cars at all temperatures. 
 
+Let's take a look at some graphs of the key maps before we dive into the code. Firstly, here's the temperature based map for the low-rpm correction:
+
+![](images/acceleration_enrichment/map_29_microseconds scale_1.png)
+
+This is based on the raw map values, scaled by 128, since 4C gets multiplied by 64 before being added to the raw fuel timer count, and the timer ticksare 2us. These might look like insanely big adjustments, considering that at warm idle, the typical fuel pulse width is in the order of 2000s. But the really big values are only for very low temperatures, and even more importantly, this correction is tempered agressively by the vane-delta map which we'll see presently. 
+
+Now here's the all-rpm (3Dh) temperature based enrichment, for US and RoW cars:
+
+![](images/acceleration_enrichment/maps_34_and_35_overlay_1.png)
+
+These values are proportional increases, so 0.30 means *add 30%*. Note that this value is phased out completely by around 55C for US (meaning O2 sensor equipped cars), but levels off around 35C for RoW cars. 
+
+As I mentioned, each of these temperature based maps are reduced by the scaling factors in the vane-delta maps. Here are the 4Ch and 3Dh vane-delta maps overlayed:
+
+![](images/acceleration_enrichment/maps_28_and_33_overlay_1.png)
+
+Recall from earlier that each unit of the input value here represents around a 1.9% increase in airflow, so the maximum scale of 1 for these maps only happens at around a 2.5x increase in airflow, and this needs to happen within 35ms. 
+
 ## The code
-The acceleration enrichment routine is located at 1F8E. There are two kinds of enrichment implemented here, both based on the speed of the AFM vane, among other variables:
-
-* low rpm only (<=2480)
-* all rpm
-
-This code is called from the timer interrupt routine that controls the idle stabilizer (during the low period of the ISV signal), so it's called at ~87Hz, or roughly every 11.5ms. The vane-delta measurement is made from the 3rd value in a queue (locations 51, 52 and 53), so from that we can see that the value r3 ends up getting is roughly "change in airflow per ~35ms". 
-
-Also, base on the curve fitting at the end of [this artcle on load calculation](dme_load_calculation.md), we know that an increase of one unit (as read by the software from the ADC) corresponds to a roughly 1.9% increase in airflow. We can use this to put some meaning on these vane-delta values. 
-
+The routine is located at 1F8E. The first part applies to both types of enrichment:
 
 ```
 X1f8e:	
 	jb	23h.2,X1fe1
 	jb	23h.0,X1fe1
 	clr	c
-	mov	a,rb2r0		; rb2r0 = 10h = AFM voltage
+	mov	a,10h
 	subb	a,53h
 	jc	X1fe1
-	mov	rb0r3,a		; rb0r3 = 3
+	mov	r3,a
 	mov	a,#37h		; 37h = engine speed (teeth per 1/87.6th sec)
 	movc	a,@a+dptr	; look up some map value for engine speed?
 	clr	c
@@ -96,30 +108,50 @@ X1f8e:
 	mov	b,#0
 	ajmp	X1fb7
 ```
-If cranking or idle, jump away to 1FE1. 
 
-The locations 51, 52, 53 form a queue of previous raw AFM wiper values. 
+If the engine is cranking or at idle, we jump away to 1FE1 which just pushes the AFM vane measurement through the queue, applies the existing 3Dh value to the fuel calculation, and returns.
 
-If 10h (AFM raw value) < 53h (#3), i.e. airflow is DECREASING:
-	jump to 1FE1 (same location as idle/cranking jump)
+The locations 51, 52, 53 form the queue of previous raw AFM wiper values. 
+
+Next we have the following logic:
+
+```
+If 10h (AFM raw value) < 53h (#3 in the queue), i.e. airflow is DECREASING:
+	jump to 1FE1 (same bailout location as idle/cranking condition)
 	
 r3 = airflow delta
 Look up 1160+37=1197=3E (62)
-if rpm <= 62*40 (2480):
+if rpm <= 62*40 (i.e. 2480rpm):
 	jump to 1FAA
 else:
 	b = 0
 	jump to 1FB7
 	
 ```
+
+Let's follow the branch for the low rpm (4Ch) part first:
+
+```
+X1faa:	
+	mov	r2,#1ch ; Map 28, input is airflow delta based on r3
+	lcall	X051d
+	mov	b,a
+	acall	X1ff2 ; select alternate
+	lcall	X051d ; Map 29, 13h based, zero above 41C for US and RoW
+	mul	ab
 X1fb7:	
-	jb	21h.7,X1fbd ; don't overwrite 4C with a new value (including zero) if there's a pending value
+	jb	21h.7,X1fbd
 	mov	4ch,b
 ```
 
-Since we jumped here with b=0, now we have 4C = 0.
+This is about as simple as it gets: look up Map 28 (or alternate based on region coding), look up Map 29, multiply them and put the high byte in 4Ch *if* there wasn't already a pending enrichment in 4Ch (that's what 21h.7 signifies). 
+
+In order for 4Ch to get used later, 21h.7 must be set, and that happens in the next section. The strange thing here is that we only set this latch flag 21h.7 after looking up Map 33, which is the vane-delta map for the all-rpm correction, 3Dh. But the minimum vane-delta value that returns a non-zero value from Map 28 is 16, so in the low-rpm path, Map 33 cannot return zero, so the Map 33 value gets stored in b, and 4Ch gets checked for zero, and if it's not zero, then finally 21h.7 gets set:
 
 ```
+X1fb7:	
+	jb	21h.7,X1fbd
+	mov	4ch,b
 X1fbd:	
 	mov	r2,#21h ; Map 33, rpm delta based on r3
 	lcall	X051d
@@ -127,11 +159,25 @@ X1fbd:
 	mov	b,a
 	mov	a,4ch
 	jz	X1fcc
-	setb	21h.7 ; set if 4Ch !=0, which only happens if rpm <= 2480, prevents 4C from being overwritten before being used
+	setb	21h.7
+```
+
+Now the above code overlaps a little with the all-rpm path, where we would have jumped from the first section to 1FB7 with b=0. So let's run through that logic again, this time assuming rpm>2480, and so b=0. Clearly we can't overwrite a pending 4Ch correction. (Bear in mind, it might be pending because we might be running this whole routine multiple times between injection events, and 21h.7 only gets cleared when the injectors fire). 
+
+But suppose 21h.7 is clear, then there's still a value in 4Ch but it has been used once. Now we're above 2480 rpm, so the 1FB7 section will zero out 4Ch. 
+
+As a result we'll skip setting 21h.7 this time, and move on to 1FCC, where we apply the other two maps in the 3Dh correction:
+
+* Map 34 (temperature)
+* Map 38 (rpm/load)
+
+If anything about how these maps work is unclear, just read [the stuff on fractional values](dme_fuel_encrichments_code_walkthrough) in the fuel enrichments article. 
+
+```
 X1fcc:	
 	acall	X1ff2 ; alternate map selection
 	lcall	X051d ; Map 34 (13h, zero above 55C for US map, for RoW 55C->19)
-	mul	ab ; b contains Map 33 value, based on airflow delta in r3
+	mul	ab ; b contains Map 33 value from earler, based on airflow delta in r3
 	mov	r2,#26h ; Map 38, rpm/load, fractions /256
 	lcall	X051d
 	mul	ab
@@ -140,6 +186,12 @@ X1fcc:
 X1fdd:	
 	jc	X1fe1
 	mov	3dh,a ; 3Dh = max(a, 3Dh)
+```
+
+This last line ensures that 3Dh can only be overwritten with higher values. The only way 3Dh gets reduced is by the [counter](dme_software_timers.md).
+
+The final section pushes the AFM value through the queue, integrates 3Dh into the current fuel correction (via 1DE7, explained in the __fractional values__ section I linked above), and then continues on with the rest of the fuel stuff, covered elsewhere:
+```
 X1fe1:	
 	mov	53h,52h
 	mov	52h,51h
@@ -149,55 +201,62 @@ X1fe1:
 	ljmp	X040d		; post-load routine
 ```
 
-So the value in 3D is the combined map values for airflow delta, temperature, and load/rpm. 
+## Maps
 
+### Map 28 - low rpm vane-delta - 4Ch
+Address: 15DB
 
-If we had rpm <= 2480, then we jumped to 1FAA:
+| 0x03 | Value |
+|---|---|
+| 3 | 0 |
+| 16 | 0 |
+| 32 | 64 |
+| 48 | 255 |
 
-```
-X1faa:	
-	mov	r2,#1ch ; Map 28, airflow delta based on r3
-	lcall	X051d
-	mov	b,a
-	acall	X1ff2 ; select alternate
-	lcall	X051d ; Map 29, 13h based, zero above 41C for US and RoW
-	mul	ab
-X1fb7:	
-	jb	21h.7,X1fbd
-	mov	4ch,b
-X1fbd:	
-	mov	r2,#21h
-	...
-```
-	
-So Maps 28 and 29 give the 4C value (airflow delta and temp). This value is applied in the real time routine just before the injectors fire. Then 21h.7 is cleared. This way, 21h.7 prevents 4C from being overwritten in a subsequent call to this routine before it's used. Assuming this routine is called at 87Hz (post-ISV routine), we calculate 4C at least twice per rpm up to 2640rpm. Above that, 4C would get used before the next call to here, so 21h.7 wouldn't be needed. 
+### Map 29 - low rpm temperature - 4Ch
+Address: 15D3
 
-The 3Dh value is phased out by the prescaled counter routines and the max clamping at 1FDD prevents it from being reduced faster than that. 
+| Engine Temperature (0x13) | Value |
+|---|---|
+| -14.87 | 59 |
+| 11.45 | 44 |
+| 41.05 | 0 |
 
-What's the significance of the queue of 3 previous AFM values? If this code runs every ~11.5ms, that means we're comparing the current measurment to the one from 35ms ago, regardless or rpm or load. 
+### Map 33 - all rpm vane-delta - 3Dh
+Address: 15AC
 
-Also, why do we use the raw (log) signal for this and not the linearized load signal? Suppose we used a linear scale. Then an increase of say 35 units (in r3) from 40 to 80 would be a 100% increase in raw airflow. But the same 40 unit increase from 100 to 140 would only be a 40%A increase. With the logarithmic scale, an increase in 40 units would always mean that the airflow has doubled. So a given value of r3 always represents the same proportional increase, regardless of the baseline airflow. From the transfer curve function, it looks like each 8-bit ADC unit is worth a ~1.92% increase, so we can visualize the r3 deltas as 1.092^r3:
+| 0x03 | Value |
+|---|---|
+| 2 | 0 |
+| 51 | 255 |
 
-Map 28:
-1	1.9% | 0
-3	5.9% | 0
-16	35.7% | 0
-32	84.0% | 64
-48	149.7% | 255
+### Map 34 - all rpm temperature - 3Dh
 
-So it takes more than a 35% increase in raw airflow to wake up Map 28 for the low rpm (4C) enrichment. 
+* US (cat/o2 equipped cars):
+Address: 15B2
 
-Map 33:
-2   3.8% | 0
-51	164.4% | 255
+| Engine Temperature (0x13) | Value |
+|---|---|
+| -3.03 | 38 |
+| 16.71 | 38 |
+| 35.79 | 19 |
+| 55.53 | 0 |
 
+* RoW cars:
+Address: 18D0
 
-If rpm > 2480, then it's at least 2520, which is 42 revs/second, so each rev takes 23.8ms. At 2480, it's 24.1ms. That means there's enough time to calculate 4Ch twice before the injector fires, overwriting the previous value. The lowest rpm where this not the case is 2640, which is 66 in /40 units. This explains why 4C needs to be applied in the real time routine instead of being integrated into the main fuel adjustment, and why 21h.7 is necessary. 
+| Engine Temperature (0x13) | Value |
+|---|---|
+| -3.03 | 38 |
+| 16.71 | 38 |
+| 35.79 | 19 |
+| 55.53 | 19 |
 
-It seems that at lower engine temps (<= 40C) the mechanical overshoot of the vane is not enough at least partly because at or below 2480rpm there is a high chance that the enrichment will be overwritten before being applied. 
+### Map 38 - all rpm rpm/load - 3Dh
+Address: 15BC
 
-But then why isn't the all-rpm value in 3D enough? The value in 3D gets decremented every 58ms
-
-### Scale of 4C vs 3D
-
-4C is Map 28 * Map 29, then /256, so basically has the same scale as Map 29 at max vane delta. Say 44 for 11C for example. This gets multiplied by 64 later in the real time routine, then added to the 16-bit fuel pulse. 
+| Engine RPM (0x37) \ Load (0x49) | 40 | 70 | 100 | 130 |
+|---|---|---|---|---|
+| 1000 | 255 | 255 | 255 | 205 |
+| 2000 | 255 | 255 | 255 | 205 |
+| 3000 | 255 | 255 | 205 | 179 |

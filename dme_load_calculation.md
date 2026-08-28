@@ -102,12 +102,10 @@ Believe it or not, that results in an exponential curve! And here is that curve 
 
 It might be interesting to know exactly *which* exponential function the AFM transfer funciton encodes. I won't bore you with the details, but working backwards from the stepped values we started with, it's easy to figure out that a close approximation is
 
-```0.68 * 1.83^x```
 
-or, more conventionally
+```0.68 * e^(0.019 * x)```
 
-```0.68 * e^(0.61x)```
-
+Now, e^0.019 is about 1.0192 - which means that each raw unit in our 8-bit ADC value corresponds to about a 1.9% increase in raw airflow. It's tempting to say 2%, and that's an ok approximation at lower increases, but it does diverge noticeably at higher values. 
 
 ![](images/dme_fuel_calculation/afm_tables_1_2_3_combined_with_exp_curve.png)
 

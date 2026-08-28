@@ -3,7 +3,7 @@
 In the [ignition timing signal](ignition_timing_code.md) discussion we examine how the dwell/spark signal is actually generated in the real time part of the DME code. But there, we assumed that the values used had been calculated somewhere. In this article, we'll take a look at that somewhere! Specifically it starts at __1C24__, which is called from the main loop. It's mostly just a series of map lookups, and doesn't contain anything very complicated. 
 
 ## Overview
-The timing maps contain values that represent quarter-teeth, that is about 0.618 degrees. The actual timing signal itself has only half-tooth resolution, that is 1.363 degrees. Keeping the map values in querter teeth is probably to increase precision before the inevitable rounding up happens. 
+The timing maps contain values that represent quarter-teeth, that is about 0.618 degrees. The actual timing signal itself has only half-tooth resolution, that is 1.363 degrees. Keeping the map values in querter teeth is probably to increase precision before the inevitable rounding happens. 
 
 The map values are also offset by +20, so that a value of 20 in any timing map really means zero. Values below 20 represent negative values. Since there's a presumption that timing angles are *before* TDC, a final timing value that's negative will fire the spark after TDC. 
 
@@ -22,13 +22,13 @@ The steps here are roughly like this:
 * look up the main idle/part throttle/WOT map as appropriate
 * clamp the final final value to between +50 and -4 degrees BTDC
 
-Timing maps contain absolute values, unlike fuel maps, so the way we combine them is additive. Because of the odd offset of 20 that the maps use, a helper routine (1CAE) is used throughout this code to accumulate the final value into __r5__. It just looks up the curret map, adds the value to r5, subtracts 20, and returns. Note that timing values in these maps are interpreted as 2's complement signed numbers, so 128=-128, 129=-127 etc. 
+Timing maps contain absolute values, unlike fuel maps, so the way we combine them is additive. Because of the peculiar offset of 20 that the maps use, a helper routine (1CAE) is used throughout this code to accumulate the final value into __r5__. It just looks up the curret map (pointed to by r2 as usual), adds the value to r5, subtracts 20, and returns. Note that timing values in these maps are interpreted as 2's complement signed numbers (after subtracting 20), so 128=-128, 129=-127 etc. 
 
-There are some noteworthy things about the specific corrections made in this routine. 
+There are some noteworthy things about the corrections made in this routine. 
 
 * the FQS part only uses bit 2. In other words, only FQS positions from 4-7 are relevant for timing, and they all result in the same change of -4 quarter teeth, that is -2.72 degrees. Also this is only applied above 1600rpm, and for part throttle, its only done if load > 80, which is approximately half of the maximum load. 
 * there's an air temperature correction map, which is Map 13, but on the Turbo image, all values are set to 20 (zero). The 944NA image actually does pull a few quarter teeth starting around 31C - it's worth noting that this version of the car doesn't have knock control. 
-* in temperature correction maps, the cat/o2 equipped cars have a peculiar dip in timing around 16C that the RoW cars don't have. This appears to be a cat warm-up strategy. 
+* in temperature correction maps, the cat/o2 equipped cars have a peculiar dip in timing that bottoms out around 16C that the RoW cars don't have. This appears to be a cat warm-up strategy. 
 
 Some map visualizations are always useful for context. Here are the O2/cat vs other maps for temperature based timing correction. 
 

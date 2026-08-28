@@ -13,28 +13,54 @@
 31h base timing advance counter
 33h counter to next TDC
 35h cylinder firing index
+3Dh acceleration enrichment (all rpm)
 4Ah low byte of fuel pulse (timer ticks)
 4Bh high byte of fuel pulse
+4Ch acceleration enrichment (<=2480 rpm)
 4Eh low byte of fuel adjustments
 4Fh high byte of fuel adjustments
 57h timing acceleration adjustment
 
 ## Flags
 20h.0-6 local logic flags for ISV closed loop control
+20h.2 re-used to indicate current lambda is lean (0=lean, 1=not lean)
+20h.7 master switch for lambda control, 1=do lambda
+20h.2 lambda condition 1=lean
+24h.6 previous lambda condition
+21h.4 loop flag for phasing out cranking enrichment
+21h.7 latching flag for 4Ch (accleration enrichment, 1=pending)
 23h.0 idle (1=TPS at idle, 0=TPS not at idle)
 23h.1 WOT (1=WOT, 0=not WOT, where WOT is controlled by the KLR so that > 65 deg. = WOT)
 23h.2 Cranking (1=rpm is < 160)
 23h.3 Idle control code path (normal vs. alternate, set via ADC Ch. 5/DME pin 28)
-23h.5 costing fuel cutoff
-
+23h.4 startup ??
+23h.5 1=costing fuel cutoff
+23h.6 ??
 22h.0 half-tooth correct for ignition events
 22h.1 the other half-tooth correction for ignition events
+24h.0 unused lambda watchdog flag
+24h.1 lambda timer flag for load threshold
+24h.2 unused lambda watchdog flag
+24h.3 lambda timer flag for neutral phase
+24h.4 lambda timer flag for rich/lean phase
+24h.5 lambda threshold flag, 1=all thresholds are met
+24h.7 flag for lambda timer expiration, 1=ok to make a correction
+24h.6 previous lambda measurement (i.e. 20h.2) - 0=previously lean, 1=previously not lean
+24h.7 indicates if current lambda state has persisted long enough; 0=lambda ok, stop correcting, 1=lambda rich or lean, start correcting
 
-25h.4 NTC II below ~14.7C (possibly used for timing?)
-25h.5 NTC II below ~14.7C (used to select between warmup maps 43 and 45)
+25h.4 1=NTC II was below ~14.7C while cranking (used for lambda, and possibly used for timing?)
+25h.5 1=NTC II below ~14.7C while cranking (used to select between warmup maps 43 and 45)
 25h.7 Altitude sensor (1=altitude above 1000M)
 26h.6 Region coding; 0=US, 1=RoW(1.8k) 0 20h.7 ON, 1 turns is off
 20h.7 Appears to gate lambda (0=no lambda loop). Controls whether 25h.4 and 25h.5 get set (1=they do based on logic below, 0=they get cleared)
+
+## Constants
+
+| Location | Offset from 1160 | Hex | Decimal | Notes |
+|----------|----------|----------|----------|----------|
+11A3 | 43 | 42h | 66 | lambda timer for OK
+11A4 | 44 | 9h | 9 | lamnda timer for rich/lean
+
 
 ## Maps
 3 1447 13h rpm threshold for clearing 23h.2 cranking flag
@@ -44,11 +70,6 @@
 ## Some flag setting logic
 
 ### Region coding stuff:
-* Map located at 1296
-Input: 14h
-2eh | 52h | 48h | 38h
-----|----|----|----|
-1 | 3 | | 2 | 0
 
 === 1-Axis Map ===
 Address: 1296
@@ -70,7 +91,7 @@ In volts:
          2.5 |        2
          4.0 |        0
 		 
-According to opendme, having the altitude sensor should select 0 (open) and the 1.8k resistor should select 2
+According to opendme, having the altitude sensor open should select 0 (open) and the 1.8k resistor should select 2. Altitude sensor shorted should give 1. 
 
 So,
 
@@ -82,7 +103,7 @@ So,
 	rrc	a
 	mov	25h.6,c
 ```
-25h.7 = 0 for US and RoW
+25h.7 = 0 for US and RoW if open (below 1000M on US cars), 1 if shorted (above 1000M)
 25h.6 = 0 for US, 1 for RoW 
 
 Thus 20h.7 only gets set when 25h.6 is clear, i.e US cars (o2 sensor)
@@ -158,7 +179,7 @@ else:
 		return
 	else:
 		clear 25h.4
-		cleat 25h.5
+		clear 25h.5
 		return
 ```
 

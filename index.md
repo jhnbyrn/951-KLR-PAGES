@@ -54,6 +54,16 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [An overview of the DME fuel maps](dme_fuel_overview.md) *An explanation of the role that fuel maps actually play, and the concept of the base pulse width*
 
+* [Main fuel enrichments (overview)](dme_fuel_enrichments_overview.md) *A slightly more detailed look at the main fuel enrichments such as driving mode(idle, part throttle, full throttle), start-up and warm-up enrichments etc.*
+
+* [Main fuel enrichments (detailed code walkthrough)](dme_fuel_enrichments_code_walkthrough.md) *A detailed walkthrough of the code*
+
+* [Acceleration enrichment](dme_acceleration_enrichment_code_walkthrough.md) *Overview and code walkthrough of all acceleration enrichment*
+
+* [Closed loop lambda control (overview)](dme_lambda_overview.md) *An overview of how the O2-sensor based closed loop fueling works*
+
+* [Closed loop lambda control (overview)](dme_lambda_code_walkthrough.md) *A detailed code walkthrough of closed loop fueling*
+
 * [How engine load is calculated](dme_load_calculation.md) *This explores the concept of load and explains how it's calculated from airflow and RPM*
 
 * [Engine load code walkthrough](dme_load_code_walkthrough.md) *Here we explore the actual code for load calculation, and work through an example to calculate the expected fuel pulse width*

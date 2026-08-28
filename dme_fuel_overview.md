@@ -4,13 +4,13 @@ The fueling section of the DME code is the most complicated part of the program.
 
 Here's a quick overview of the most important fuel adjustments the DME performs (in no particular order):
 
-* load/base pulse width calculation
-* driving mode (idle/PT/WOT)
-* warm-up (coolant temp) adjustment
-* startup enrichment
-* acceleration enrichment
-* FQS, altitude and air temp adjustment
-* lambda correction
+* [load/base pulse width calculation](dme_load_calculation.md)
+* [driving mode (idle/PT/WOT)](dme_fuel_enrichments_overview.md)
+* [warm-up (coolant temp) adjustment](dme_fuel_enrichments_overview.md)
+* [startup enrichment](dme_fuel_enrichments_overview.md)
+* [acceleration enrichment](dme_acceleration_enrichment_code_walkthrough.md)
+* [FQS, altitude and air temp adjustment](dme_fuel_enrichments_overview.md)
+* [lambda correction](dme_lambda_overview.md)
 
 That isn't even an exhaustive list. When you consider the fact that just a few years prior to the advent of the Motronic system, all fueling was done mechanically, it really puts the sheer sophistication of this system for its time into perspective. Imagine having to design a mechanical system that can do even half the things in that list!
 

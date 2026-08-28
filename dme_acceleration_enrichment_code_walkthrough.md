@@ -1,6 +1,6 @@
 # Acceleration enrichment
 
-The acceleration enrichment code is pretty simple - simple enough that understanding the context and what it's mean to achieve is the hardest part. So I'm including the code walkthrough and the high level explanation in one place for this one. 
+The acceleration enrichment code is pretty simple - simple enough that understanding the context and what it's meant to achieve is the hardest part. So I'm including the code walkthrough and the high level explanation in one place for this one. 
 
 ## Why acceleration enrichment?
 Before getting into the 944's acceleration enrichment, it's worth discussing what acceleration enrichment even is, and why its needed. This is a well documented topic, so I won't go into too much detail. And I should probably add that unlike most of what you read in these articles, I don't know this first hand. I'm basically summarizing what you can read elsewhere. But this is fairly well establshed, uncontroversial science. So here goes:
@@ -48,7 +48,7 @@ Zooming in to take some measurements, we can see a few interesting things:
 
 I've positioned the AFM voltage cursors to measure the approximiate size of the overshoot, and the horizontal cursors roughly where the base fuel pulse calculation is happening for the two overlapping injection events. What does all this tell us? Well it clears up one thing: the overshoot clearly does last long enough to get picked up and factored into at least one fuel pulse calculation, even at low rpm. It only gets better at higher rpm, since there are more injection events in a given time. 
 
-We can also get something from the magnititude of the overshoot. Here it's in the order of 190mv or so. That would be measured as ```255 * (0.19/5) ~= 10``` by the ADC. And we know that each such unit represents about a 1.9x increase in airflow (based on the curve fitting at the end of [this artcle on load calculation](dme_load_calculation.md)). Thus we can estimate the enrichment factor as ```1.019^10 ~= 1.2```. So this little bump could give us up to 20% enrichment for one injection, or a bit less than that for two successive injections. Of course one injection event provides only half the fuel for each cylinder due to the batch injection strategy, so we're probably looking at a ~10% enrichment here. This was light or moderate acceleration. If you give the throttle a good jab the overshoot can be quite a bit higher than this. 
+We can also get something from the magnititude of the overshoot. Here it's in the order of 190mv or so. That would be measured as ```255 * (0.19/5) ~= 10``` by the ADC. And we know that each such unit represents about a 1.9x increase in airflow (based on the curve fitting at the end of [this artcle on load calculation](dme_load_calculation.md)). Thus we can estimate the enrichment factor as ```1.019^10 ~= 1.2```. So this little bump could give us up to 20% enrichment for one injection, or a bit less than that for two successive injections, depening on how the timing of the overshoot fits. Of course one injection event provides only half the fuel for each cylinder due to the batch injection strategy, so we're probably looking at a ~10% enrichment here. This was light or moderate acceleration. If you give the throttle a good jab the overshoot can be quite a bit higher than this. 
 
 Now that we have a good understanding of the basic enrichment strategy, let's look at a high level outline of how the software enhancements work. 
 
@@ -74,7 +74,7 @@ Let's take a look at some graphs of the key maps before we dive into the code. F
 
 ![](images/acceleration_enrichment/map_29_microseconds scale_1.png)
 
-This is based on the raw map values, scaled by 128, since 4C gets multiplied by 64 before being added to the raw fuel timer count, and the timer ticksare 2us. These might look like insanely big adjustments, considering that at warm idle, the typical fuel pulse width is in the order of 2000s. But the really big values are only for very low temperatures, and even more importantly, this correction is tempered agressively by the vane-delta map which we'll see presently. 
+This is based on the raw map values, scaled by 128, since 4C gets multiplied by 64 before being added to the raw fuel timer count, and the timer ticks are 2us. These might look like insanely big adjustments, considering that at warm idle, the typical fuel pulse width is in the order of 2000us. But the really big values are only for very low temperatures, and even more importantly, this correction is tempered agressively by the vane-delta map which we'll see presently. 
 
 Now here's the all-rpm (3Dh) temperature based enrichment, for US and RoW cars:
 
@@ -171,7 +171,7 @@ As a result we'll skip setting 21h.7 this time, and move on to 1FCC, where we ap
 * Map 34 (temperature)
 * Map 38 (rpm/load)
 
-If anything about how these maps work is unclear, just read [the stuff on fractional values](dme_fuel_encrichments_code_walkthrough) in the fuel enrichments article. 
+If anything about how these maps work is unclear, just read [the stuff on fractional values](dme_fuel_encrichments_code_walkthrough.md) in the fuel enrichments article. 
 
 ```
 X1fcc:	

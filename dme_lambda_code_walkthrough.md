@@ -1,6 +1,6 @@
 # DME lambda correction code walkthrough
 
-This is a detailed look at the complete closed loop fuel control routine. 
+This is a detailed look at the complete closed loop fuel control routine. Read the [high level overview](dme_lambda_overview.md) first if you haven't already!
 
 ## Outline
 

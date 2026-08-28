@@ -1,6 +1,6 @@
 # DME closed loop AFR (lambda) control
 
-Here we'll take a look at the closed loop fuel control section of the DME. 
+Here we'll take a look at the closed loop fuel control section of the DME. There's also a [detailed code walkthrough](dme_lambda_code_walkthrough.md).
 
 The goal of this system is to keep the AFR as close as possible to 14.7, to protect the catlytic converter and keep it running optimally. What's written here applies to US cars and possibly one or two other countries, but generally not RoW cars, which mostly came without the cat/O2 sensor. 
 The basic idea is that the O2 sensor provides feedback on the current AFR, and the DME uses that feedback to adjust the fuel, adding or subtracting as necessary to keep the ratio optimized. 

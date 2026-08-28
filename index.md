@@ -62,7 +62,7 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [Closed loop lambda control (overview)](dme_lambda_overview.md) *An overview of how the O2-sensor based closed loop fueling works*
 
-* [Closed loop lambda control (overview)](dme_lambda_code_walkthrough.md) *A detailed code walkthrough of closed loop fueling*
+* [Closed loop lambda control (detailed code walkthrough)](dme_lambda_code_walkthrough.md) *A detailed code walkthrough of closed loop fueling*
 
 * [How engine load is calculated](dme_load_calculation.md) *This explores the concept of load and explains how it's calculated from airflow and RPM*
 
@@ -73,6 +73,8 @@ In the reference section I've provided a few notes on how to read 8048 series co
 * [DME crankshaft sensors](dme_crank_sensor_hardware.md) *We explore the basics of how the DME measures crankshaft angles, without getting into the weeds of the actual code*
 
 * [DME ignition timing routine](ignition_timing_code.md) *This is the code-walkthrough companion for the crank sensor article; here we __do__ get into the weeds of the actual code!* 
+
+* [Software counters and timers](dme_software_timers.md) *A short article explaining various counter and timer values and how they are controlled*
 
 ## KLR Hardware
 

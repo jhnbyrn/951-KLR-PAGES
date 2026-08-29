@@ -229,7 +229,7 @@ This routine simply does:
 r5 += map_lookup(r2) - 20
 
 ```
-
+After this, the code jumps to the overload protection and then the logic that checks the flags I mentioned at the beginning. That stuff has to happen before the value we just calculated (in __r5__) can be assigned to the timing variable. 
 
 ## Maps
 

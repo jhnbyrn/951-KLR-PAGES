@@ -20,6 +20,7 @@ The steps here are roughly like this:
 * for other conditions, look up temperature correction maps
 * if WOT, or part throttle above a certain load threshold, check air temp and FQS setting for corrections
 * look up the main idle/part throttle/WOT map as appropriate
+* apply the [rpm skew map](dme_timing_skew_maps.md) (fixes KLR latency and tweaks the overall timing a bit)
 * clamp the final final value to between +50 and -4 degrees BTDC
 
 Timing maps contain absolute values, unlike fuel maps, so the way we combine them is additive. Because of the peculiar offset of 20 that the maps use, a helper routine (1CAE) is used throughout this code to accumulate the final value into __r5__. It just looks up the curret map (pointed to by r2 as usual), adds the value to r5, subtracts 20, and returns. Note that timing values in these maps are interpreted as 2's complement signed numbers (after subtracting 20), so 128=-128, 129=-127 etc. 
@@ -191,14 +192,16 @@ X1ca0:
 X1ca6:	
 	mov	a,r5
 	mov	c,acc.7
-	rrc	a
+	rrc	a ; divide signed integer by 2, c preserves the sign
 	mov	r5,a
 	ljmp	X104d
 ;
 ```
-If the calculated r5 <= 127 (i.e positive), then it's clamped at 73. If negative, it's clamped at 249, that is -6. 
+We add Map 72 to the accumulated value - this is an [rpm based map that adjusts everything](dme_timing_skew_maps.md) a bit for rpm, and also cancels out the fixed latency that the KLR introduces to the timing signal. 
 
-We divide by 2, turning the final value into half-teeth. 
+If the calculated r5 <= 127 (i.e positive), then it's clamped at 73. If negative, it's clamped at 249, that is -6. These are quarter-tooth values - multiplying by 0.618... they come out to ~50 and -4 degrees. 
+
+Finally we divide by 2, turning the final value into half-teeth. 
 
 Map 72
 **1-Axis Map** (address `12c0`, input variable `Engine RPM (0x37)`)
@@ -210,6 +213,7 @@ Map 72
 | 3240 | 25 |
 | 6120 | 33 |
 
+```
 X1cae:	
 	lcall	X051d ; map lookup routine, input in r2, output in a
 	add	a,r5
@@ -229,7 +233,96 @@ r5 += map_lookup(r2) - 20
 
 ## Maps
 
-Map 4:
+### Main maps
+
+Map 8 (idle):
+
+**1-Axis Map** (address `13ac`, input variable `Engine RPM (0x37)`)
+
+| Engine RPM (0x37) | Value |
+|---|---|
+| 600 | 63 |
+| 760 | 27 |
+| 880 | 27 |
+| 1440 | 28 |
+| 1760 | 42 |
+| 2400 | 42 |
+| 3360 | 71 |
+
+Map 91 (part throttle, O2/cat):
+
+**2-Axis Map** (address `12ca`, inputs `Engine RPM (0x37)`, `Load (0x49)`)
+
+| Engine RPM (0x37) \ Load (0x49) | 21 | 26 | 37 | 42 | 48 | 53 | 63 | 79 | 90 | 100 | 122 | 142 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 800 | 35 | 38 | 44 | 47 | 49 | 49 | 49 | 49 | 49 | 49 | 49 | 49 |
+| 960 | 35 | 38 | 44 | 47 | 49 | 49 | 49 | 49 | 49 | 49 | 49 | 49 |
+| 1120 | 35 | 42 | 49 | 57 | 64 | 64 | 51 | 49 | 49 | 49 | 49 | 49 |
+| 1440 | 50 | 57 | 64 | 64 | 64 | 65 | 52 | 49 | 45 | 45 | 45 | 45 |
+| 1760 | 55 | 64 | 64 | 68 | 68 | 60 | 57 | 51 | 46 | 45 | 45 | 45 |
+| 2080 | 60 | 64 | 64 | 67 | 68 | 65 | 59 | 54 | 52 | 45 | 41 | 41 |
+| 2400 | 64 | 71 | 71 | 71 | 71 | 66 | 60 | 55 | 52 | 45 | 41 | 41 |
+| 3360 | 70 | 75 | 79 | 79 | 79 | 72 | 69 | 64 | 57 | 49 | 46 | 45 |
+| 4000 | 70 | 75 | 79 | 79 | 79 | 72 | 72 | 69 | 61 | 54 | 47 | 45 |
+| 4640 | 70 | 75 | 79 | 79 | 79 | 72 | 72 | 69 | 61 | 54 | 47 | 45 |
+| 5600 | 70 | 75 | 79 | 79 | 79 | 72 | 72 | 69 | 64 | 56 | 49 | 47 |
+| 6240 | 70 | 75 | 79 | 79 | 79 | 72 | 72 | 69 | 63 | 55 | 48 | 46 |
+
+Map 92 (part throttle, non O2/cat)
+**2-Axis Map** (address `16fa`, inputs `Engine RPM (0x37)`, `Load (0x49)`)
+
+| Engine RPM (0x37) \ Load (0x49) | 21 | 26 | 37 | 42 | 48 | 53 | 63 | 79 | 90 | 100 | 122 | 142 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 800 | 35 | 38 | 44 | 47 | 49 | 49 | 49 | 49 | 49 | 49 | 49 | 49 |
+| 960 | 35 | 38 | 44 | 47 | 49 | 49 | 49 | 49 | 49 | 49 | 49 | 49 |
+| 1120 | 35 | 42 | 49 | 57 | 64 | 64 | 55 | 49 | 49 | 49 | 49 | 49 |
+| 1440 | 50 | 57 | 68 | 69 | 72 | 66 | 55 | 49 | 49 | 49 | 49 | 49 |
+| 1760 | 55 | 64 | 74 | 79 | 79 | 69 | 60 | 55 | 49 | 49 | 49 | 49 |
+| 2080 | 60 | 67 | 74 | 79 | 79 | 72 | 66 | 59 | 53 | 49 | 45 | 45 |
+| 2400 | 64 | 73 | 79 | 79 | 79 | 72 | 66 | 60 | 52 | 45 | 41 | 41 |
+| 3360 | 71 | 75 | 79 | 79 | 79 | 72 | 69 | 66 | 57 | 50 | 46 | 45 |
+| 4000 | 71 | 75 | 79 | 79 | 79 | 72 | 72 | 69 | 63 | 54 | 49 | 46 |
+| 4640 | 71 | 75 | 79 | 79 | 79 | 72 | 72 | 70 | 67 | 59 | 51 | 47 |
+| 5600 | 71 | 75 | 79 | 79 | 79 | 72 | 72 | 70 | 67 | 61 | 55 | 50 |
+| 6240 | 71 | 75 | 79 | 79 | 79 | 72 | 72 | 69 | 66 | 60 | 54 | 50 |
+
+
+Map 14 (WOT):
+**1-Axis Map** (address `1376`, input variable `Engine RPM (0x37)`)
+
+| Engine RPM (0x37) | Value |
+|---|---|
+| 1000 | 50 |
+| 1480 | 50 |
+| 2000 | 45 |
+| 2120 | 39 |
+| 2240 | 39 |
+| 2520 | 39 |
+| 3000 | 39 |
+| 3280 | 42 |
+| 3520 | 44 |
+| 4000 | 44 |
+| 4520 | 44 |
+| 5000 | 45 |
+| 5520 | 47 |
+| 5800 | 46 |
+| 6000 | 45 |
+| 6240 | 45 |
+
+Map 73 (cranking):
+
+**1-Axis Map** (address `13cc`, input variable `Engine RPM (0x37)`)
+
+| Engine RPM (0x37) | Value |
+|---|---|
+| 120 | 28 |
+| 400 | 50 |
+| 920 | 50 |
+
+
+### Temperature correction maps
+
+Map 4 (idle, O2/Cat equipped cars):
 
 **1-Axis Map** (address `13bc`, input variable `Engine Temperature (0x13)`)
 
@@ -239,9 +332,44 @@ Map 4:
 | 16.71 | 13 |
 | 75.26 | 20 |
 
-Map 6 (identical to Map 4)
+Map 6 (idle, non O2/Cat)
+**1-Axis Map** (address `17d8`, input variable `Engine Temperature (0x13)`)
 
-Map 13:
+| Engine Temperature (0x13) | Value |
+|---|---|
+| -34.61 | 38 |
+| 16.71 | 20 |
+| 75.26 | 20 |
+
+Map 18 (part throttle, O2/Cat)
+**1-Axis Map** (address `13c4`, input variable `Engine Temperature (0x13)`)
+
+| Engine Temperature (0x13) | Value |
+|---|---|
+| 7.50 | 20 |
+| 16.71 | 6 |
+| 65.39 | 20 |
+
+Map 19 (part throttle, non O2/Cat)
+**1-Axis Map** (address `17e0`, input variable `Engine Temperature (0x13)`)
+
+| Engine Temperature (0x13) | Value |
+|---|---|
+| -34.61 | 20 |
+| 41.05 | 20 |
+| 65.39 | 20 |
+
+Map 12 (WOT, all versions)
+**1-Axis Map** (address `13a2`, input variable `Engine Temperature (0x13)`)
+
+| Engine Temperature (0x13) | Value |
+|---|---|
+| -3.03 | 20 |
+| 11.45 | 20 |
+| 21.32 | 20 |
+| 75.26 | 20 |
+
+Map 13 (air temperature, PT and WOT):
 
 **1-Axis Map** (address `1398`, input variable `0x12`)
 
@@ -263,17 +391,8 @@ Map 13 from the 944NA:
 | 31.18 | 19 |
 | 41.05 | 16 |
 
-Map 73:
 
-**1-Axis Map** (address `13cc`, input variable `Engine RPM (0x37)`)
-
-| Engine RPM (0x37) | Value |
-|---|---|
-| 120 | 28 |
-| 400 | 50 |
-| 920 | 50 |
-
-Map 74:
+Map 74 (cranking):
 **1-Axis Map** (address `13d4`, input variable `Engine Temperature (0x13)`)
 
 | Engine Temperature (0x13) | Value |

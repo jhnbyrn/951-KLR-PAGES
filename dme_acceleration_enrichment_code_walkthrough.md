@@ -69,6 +69,9 @@ Some other differneces in the two enrichment strategies:
   * the 4Ch (low-rpm) version is never integrated into the main fuel pulse. Instead a latch flag is used (21h.7) to ensure that 4C gets added to the final fuel pulse just before the injectors fire, but only once. Once this is done the flag is cleared and 4C gets calulated again from scratch. 
 * the 4Ch version is only active above a vane-delta value of 16, that is ~35% increase in airflow within the last 35ms. 
 * while both use temperature based maps that phase out the enrichment with increasing temperature, the all-rpm 3Dh version remains active for non O2/cat equipped cars at all temperatures. 
+* the 4Ch enrichment will trigger an extra injection event if possible
+
+This last point is worth explaining a bit: normally the fuel injectors are fired once per revolution, after the second spark is fired. But there are a few cases where an extra injection will happen. One is during cranking and the other is if there's a pending 4C enrichment waiting to be applied (indicated by 21h.7). In that case the injectors will be activated just for the 4C shot itself, or, if they're already on, the pulse duration will be extended. 
 
 Let's take a look at some graphs of the key maps before we dive into the code. Firstly, here's the temperature based map for the low-rpm correction:
 
@@ -144,7 +147,7 @@ X1fb7:
 	mov	4ch,b
 ```
 
-This is about as simple as it gets: look up Map 28 (or alternate based on region coding), look up Map 29, multiply them and put the high byte in 4Ch *if* there wasn't already a pending enrichment in 4Ch (that's what 21h.7 signifies). 
+This is about as simple as it gets: look up Map 28, look up Map 29 (or alternate based on region coding), multiply them and put the high byte in 4Ch *if* there wasn't already a pending enrichment in 4Ch (that's what 21h.7 signifies). 
 
 In order for 4Ch to get used later, 21h.7 must be set, and that happens in the next section. The strange thing here is that we only set this latch flag 21h.7 after looking up Map 33, which is the vane-delta map for the all-rpm correction, 3Dh. But the minimum vane-delta value that returns a non-zero value from Map 28 is 16, so in the low-rpm path, Map 33 cannot return zero, so the Map 33 value gets stored in b, and 4Ch gets checked for zero, and if it's not zero, then finally 21h.7 gets set:
 

@@ -76,6 +76,8 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [Software counters and timers](dme_software_timers.md) *A short article explaining various counter and timer values and how they are controlled*
 
+*[Ignition timing damping for acceleration](dme_acceleration_timing_damping.md) *Another short one that explores an elegant routine for damping ignition timing changes based on the rate of change of rpm*
+
 ## KLR Hardware
 
 * [Overview](hardware_overview.md) *A high-level overview of the KLR hardware.*

@@ -121,7 +121,7 @@ X012c:
 ;
 ```
 
-We increment the cylinder index 35h, and if it's equal to 2 then we kow we have just fired the spark for the second cylinder in this rev, so it's time to reset the reference sensor latch. That's what the sunsequent dptr instructions do. Then we jump 0166 to handle the fuel injection - but first let's look at some things we do if this wasn't the second spark event in the rev:
+We increment the cylinder index 35h, and if it's equal to 2 then we kow we have just fired the spark for the second cylinder in this rev, so we reset it to zero, and it's time to reset the reference sensor latch. That's what the sunsequent dptr instructions do. Then we jump 0166 to handle the fuel injection - but first let's look at some things we do if this *wasn't* the second spark event in the rev:
 
 ```
 X0143:	
@@ -133,7 +133,7 @@ X0143:
 If cranking (23h.2), then we jump to the same fuel injection section that we use for the normal injection event (see above). 
 
 ### Acceleration enrichment (4C) - extra injection event
-If not cranking, then we check (and clear) 21h.7 which is the latch flag for the [low-rpm cold acceleration enrichmement](dme_acceleration_enrichment_code_walkthrough.md) - this flag indicates that there's a pending one-time "pump-shot" stored in 4C. 
+If not cranking, then we check (and clear) 21h.7 which is the latch flag for the [low-rpm cold acceleration enrichmement](dme_acceleration_enrichment_code_walkthrough.md) - this flag indicates that there's a pending one-time "pump-shot" stored in 4C. In this case, we perform a one-time extra fuel injection event even between the ignition events for the current rev. The idea is to get the acceleration enrichment as soon as possible after the extra air has been detected. 
 
 ```
 X014b:	
@@ -161,11 +161,11 @@ In that branch, we are delivering *just* the 4C pump shot.
 
 But if injection is already on, then instead of jumping to that routine, we just pause the timer briefly to add our 4C value. Of course, that really means subtract, because we want to *increase* the time before the timer overflows. 
 
-The section at __01D0__ is just a late entry point to __01BB__ - it turns the injectors back on and starts the timer, but skips adding the injector latency value, since we're adding to an already finialized injection pulse without actually turning the injectors off. 
+The section at __01D0__ is just a late entry point to __01BB__ - it turns the injectors on (they'll already be on in this case) and starts the timer, but skips adding the injector latency value, since we're adding to an already running injection pulse without actually turning the injectors off. 
 
 It's quite possible that injection would already be happening from the previous normal injection cycle - the 4C enrichment is limited to 2480rpm or less, where there's ~12ms between ignition events, and the fuel injector pulse is capped at around 11.5ms by the load routine. Still, that's close - the final pulse can be much longer than the base pulse, especially during warmup which is when this kind of acceleration enrichment would apply. Additionally, that rpm limit might have been subject to change, so having this logic in place seems prudent. 
 
-Then 01D0 returns from the interrupt, so we don't do any of what follows. 
+Then 01D0 returns from the interrupt, so in this path, we don't do any of what follows. Instead the following stuff will happen after the next ignition event, that is, the normal injection event. 
 
 ### The normal injection cycle
 So the following section is only reached during the normal injection cycle, i.e. just after the second cylinder spark is fired for this revolution, or while cranking (via __0143__ from earlier):
@@ -181,7 +181,7 @@ X0166:
 	
 ```
 
-Above is where the rev limit and other fuel cuts are implemented. The flag 23h.5 is set if fuel needs to be cut for either coasting or overload protection. Note that hitting the rev limit doesn't set 23h.5 - but if it is hit, or 23h.5 is already set, we bail out to the end of the interrupt routine without doing anything else really. 
+This __0166__ section is where the rev limit and other fuel cuts are implemented. The flag 23h.5 is set elsewhere if fuel needs to be cut for either coasting or overload protection. Note that hitting the rev limit doesn't set 23h.5 - but if it is hit, or 23h.5 is already set, we bail out to the end of the interrupt routine without doing anything else really. 
 
 ```
 	mov	r6,4ah
@@ -193,7 +193,7 @@ X0177:
 
 ```
 
-Now we load the previously calculated fuel pulse 4B:4A into r7:r6. This is the base pulse modified by all relevant enrichments (except 4C). 
+Now we load the previously calculated fuel pulse 4B:4A into r7:r6. This is the base pulse previously modified by all relevant enrichments (except 4C). 
 
 Next, if cranking, then we proceed to __01BB__ which you might recall from a little earlier is the section that adds injector latency, fires the injectors, starts the timer etc. That means we do an extra injection event while cranking, using the full fuel value from 4B:4A. 
 
@@ -202,6 +202,7 @@ Next we apply a brief fuel correction if fuel was just reactivated after a shut 
 
 In either case the fuel pulse is modulated for a few injection events, tracked by the injection counter variable 4D. 
 
+For return-to-idle, we apply Map 1140, which pulls the mixture rich, then lean, then a little less rich, and then settles down to neutral. For the other case, we use Map 1150 which just pulls the mixture a little lean and gradually walks it back to 100% over the course of 10 cycles or so. 
 
 ```
 	jnb	21h.5,X01aa
@@ -253,12 +254,12 @@ r7:r6:r5 << 2
 ```
 As usual, the division by 256 comes from the fact that we simply don't use r5, but rather treat r7:r6 as our final result. Thus a value of 64 in Maps 1140/1150 means 1. 
 
-In the above section, if 4D gets to 16 or higher, then we consider the correction to have run it's course and we clear some flags and bail out. The flag 22h.6 is the highest priority timing slew regulator, and it set when 21h.5 and 21h.6 are set (these are the flags that control this condition). All that happens in a different routine where the fuel cut off logic is implemented. 
+In the above section, if 4D gets to 16 or higher, then we consider the correction to have run it's course and we clear some flags and bail out of this fuel correction section. The flag 22h.6 is the highest priority timing slew regulator, and it's set when 21h.5 and 21h.6 are set (these are the flags that control this fuel correction condition). All that happens in a different routine where the fuel cut off logic is implemented. 
 
-So in summary, we modulate the fuel pulse by the map cell indicated by 4D until 4D reaches 16. Then we clear the ignition slew limiter 22h.6. We also clear that limiter if the map value is 64 (i.e. 1). In these cases we also reset 34h to 1 which will enable the timing slew change to take effect immediately. 
+So in summary, we modulate the fuel pulse by the map cell indicated by 4D until 4D reaches 16. Then we clear the ignition slew limiter 22h.6. We also clear that limiter if the map value is 64 (i.e. 1). In these cases we also reset 34h to 1 which will enable the timing slew change to take effect immediately. In plain terms: ignition timing rate of change is temporarily limited while we're making this fuel correction. 
 
 ### Acceleration enrichment (4C) - normal injection event
-Next we apply the 4Ch acceleration enrichment if the 21h.7 latch flag indicates we should - this is very similar to the 4C logic from earlier, but there we were doing it outside the normal ignition cycle. Now we're in the normal cycle and we need to check the flag again. 
+Next we apply the 4Ch acceleration enrichment if the 21h.7 latch flag indicates we should - this is very similar to the 4C logic from earlier, but there we were doing it outside the normal ignition cycle. Now we're in the normal cycle and we need to check the flag again. Last time, we cleared this latch flag, so it will only be set again if the acceleration enrichment routine has commanded another pump shot based on the AFM signal. 
 
 ```
 X01aa:	
@@ -273,7 +274,7 @@ X01aa:
 	addc	a,r7
 	mov	r7,a
 ```
-Nothing surprising there; it's multiplied by 64 as before, and added to the fuel pulse. We subtracted it last time, because the timer was already loaded with the main pulse value. 
+Nothing surprising there; it's multiplied by 64 as before, and added to the fuel pulse. We subtracted it last time, because the timer was already loaded with the main pulse value. But for now we're still working with positive values. Soon we'll complement r7:r6 before loading it into the timer. 
 
 ### Injector latency and activating the injectors
 ```
@@ -322,7 +323,7 @@ X01de:
 	inc	4dh
 ```
 
-This is where 4D is incremented. It's capped at 128, which is probably just a convenient way of making sure it does't over flow and cause problems when it gets back to zero. It most places where it matters, 4D is initialized to zero when needed. 
+This is where 4D is incremented. It's capped at 128, which is probably just a convenient way of making sure it does't overflow and cause problems when it gets back to zero. It most places where it matters, 4D is initialized to zero when needed. 
 
 ```
 X01e5:	

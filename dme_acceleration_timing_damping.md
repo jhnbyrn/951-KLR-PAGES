@@ -1,9 +1,9 @@
 # DME ignition timing damping
 
 ## Overview
-In the [ignition timing real time](ignition_timing_code.md) code walkthrough, we saw that an acceleration adustment value (57h) is added to the mai timing value 31h when calculating the final counter value. Here we'll see where 57h comes from. 
+In the [ignition timing real time](ignition_timing_code.md) code walkthrough, we saw that an acceleration adustment value (57h) is added to the main timing value 31h when calculating the final counter value. Here we'll see where 57h comes from. 
 
-The idea is to detect if rpm is increasing or decreasing, and measure how quickly, and then make a small timing adjustment to create negative feedback - that is, if accelerating, we retard timing, if decellerating, we advance it. The likely reason for this is to reduce jitter at low rpm/light load. 
+The idea is to detect if rpm is increasing or decreasing, and how quickly, and then make a small timing adjustment to create negative feedback - that is, if accelerating, we retard timing, if decellerating, we advance it. The likely reason for this is to reduce jitter at low rpm/light load. 
 
 The possible outcomes of this routine are:
 
@@ -15,7 +15,7 @@ Of course since 57h gets added to the main timing value in half-teeth form, a va
 
 This routine runs during the __timer1__ interrupt routine which controls the [idle stabilizer](isv_routine.md), during the low period of the PWM signal - so every 11.5ms. 
 
-Just detecting whether rpm is increasing or decreasing is very simple. But this routine does more than that. It measures the *speed* of the change in rpm, and uses that to determine the *duration* of the adjustment. The code can be a little tricky to decipher, but it's a very elegant routine and a good way to think of it is there's a previous rpm value (55h) that *chases* the current rpm (37h). While it's lagging, the timing adjustment is applied, and when it catches up, the adjustment is removed. But the speed at which 55h chases 37h is proportional to the size of the gap between them. The result is that the correction lasts for a duration that's roughly logarithmic with respect to the size of the gap - and since the code runs at regular intervals, the size of the gap is a measure of the speed of rpm increase. 
+Just detecting whether rpm is increasing or decreasing is very simple. But this routine does more than that. It measures the *speed* of the change in rpm, and uses that to determine the *duration* of the adjustment. The code can be a little tricky to decipher, but it's a very elegant routine and a good way to think of it is that there's a previous rpm value (55h) that *chases* the current rpm (37h). While it's lagging, the timing adjustment is applied, and when it catches up, the adjustment is removed. But the speed at which 55h chases 37h is proportional to the size of the gap between them. The result is that the correction lasts for a duration that's roughly logarithmic with respect to the size of the gap - and since the code runs at regular intervals, the size of the gap is a measure of the speed of rpm increase. 
 
 The correction is only applied at or below 2560rpm, and with load at or below 90, which is somewhere in the region of half the maximum load. For perspective, the maximum load value used in the part throttle timing maps is generally 142. 
 

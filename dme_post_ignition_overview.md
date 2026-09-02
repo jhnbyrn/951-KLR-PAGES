@@ -2,6 +2,8 @@
 
 In the [real-time ignition timing code](ignition_timing_code.md) discussion, we looked at how the speed sensor interrupt routine starts the dwell period and fires the spark. We left things there because that was the end of the story for generating the actual spark signal - but that wasn't the end of that routine, and many other important things happen just after that point. These are things that, like the spark signal, need to be handled in real time, and are best just done after the spark fires. 
 
+As we would expect for real time code, this routine is mostly a consumer of things calculated elsewhere. Generally we won't see how all these variables are calculated in this article, but I'll add links to those when they're documented. 
+
 Here, we'll just discuss these things at a high level, and as usual there's a [code walkthrough](dme_post_ignition_code_walkthrough.md) if you want the gory details. 
 
 ## Outline
@@ -26,7 +28,7 @@ Next we'll discuss these things in a bit more detail (but still not to the level
 ## Timing adjustment
 The main timing variable is 31h - this contains the angle BTDC at which the spark should fire (represented in half-tooth units of ~1.36 degrees). In the DME's main loop, a new timing value is calculated using [various maps](dme_ignition_timing_calculation_overview.md). But this new value doesn't simply overwrite 31h. Instead, the new value represents a *target* (stored in 32h), and a fairly involved set of rules determine how the current value is allowed to progress towards the target. This way, we never have sudden abrupt timing changes, which would be bad for smoothness and driveability. 
 
-The rules are implemented by a cascading set of flags. The flags are set and cleared by various driving conditions, and in the routine we're looking at now, they're checked in the order shown below.
+The rules are implemented by a cascading set of flags. The flags are set and cleared elsewhere by various driving conditions, and in the routine we're looking at now, they're checked in the order shown below.
 
 flag  | update frequency (34h) | update step size (r5)
 ------|----|---
@@ -37,7 +39,7 @@ None  | 08 | 01
 
 Each flag sets a particular update frequency and step size. The update frequency is the number of spark events to count before allowing the timing to change (counted via 34h). The step size is just how much the timing can change at once (measured as usual in flywheel half-teeth of 1.36 degrees). 
 
-For example, if 22h.6 is set, then timing is updated after every spark, by up to 1 half tooth. If 22h.6 is clear but 22h.5 is set, then the update frequency is still every time, but the change can be up to 2 teeth. This step size is an upper limit - the actual target value might be only one tooth away from the current value. So the adjustment made will be the step size or the difference, whichever is smaller. 
+For example, if 22h.6 is set, then timing is updated after every spark, by up to 1 half tooth. If 22h.6 is clear but 22h.5 is set, then the update frequency is still every time, but the change can be up to 2 teeth. This step size is an upper limit - the actual target value might be only one tooth away from the current value. So the actual adjustment made will be the step size or the difference, whichever is smaller. 
 
 Clearly, 22h.4 is by far the fastest regime, with with a maximum step size of 8 teeth (~10 degrees) after every spark (twice per rev). This can only happen if 22h.4 is set but 22h.5 and 22h.6 are both clear. 
 
@@ -60,9 +62,9 @@ There are two conditions that break that general rule:
 
 For the cranking situation, we fire the injectors after every spark event. The cranking flag 23h.2 gets cleared when rpm exceeds the temperature-dependent threshold in Map 3, which is 800rpm for most cases. 
 
-The second case is one of two kinds of acceleration enrichment (discussed in detail in the link above - the other kind discussed tere doesn't trigger this extra injection event). You can think of this low-rpm acceleration enrichment as being somewhat analagous to a carburettor pump-shot - it's delivered just once but it should come as soon as possible when the airflow increase that triggers it is detected. 
+The second case is one of two kinds of acceleration enrichment (discussed in detail in the link above - the other kind discussed there doesn't trigger this extra injection event). You can think of this low-rpm acceleration enrichment as being somewhat analogous to a carburettor pump-shot - it's delivered just once but it should come as soon as possible when the airflow that triggers it is detected. 
 
-The need for this fuel shot is indicated by 21h.7. That flag gets set under certain acceleration conditions and if we find that it's set just after the first spark, then we do a special injection event just for this. Normally when this happens, the entire injector pulse is just whatever value the pump shot calls for. But it's possible that the injectors might still be turned on from the previous injection event, and in that case we just add our pump shot value to the timer without stopping inejection. 
+The need for this fuel shot is indicated by 21h.7. That flag gets set under certain acceleration conditions, and if we find now that it's set just after the first spark, then we do a special injection event just for this. Normally when this happens, the entire injector pulse will be just whatever value the pump shot calls for. But it's possible that the injectors might still be turned on from the previous injection event, and in that case we just add our pump shot value to the timer without stopping inejection. 
 
 ## Fuel cuts
 There are various conditions that require fuel to be completely cut:
@@ -96,6 +98,22 @@ As for the other correction, Map 1150, well we know for certain that there's a b
 
 Those are my best guesses, but I'm open to correction on the reasons for these corrections. 
 
+It's worth taking a look at the behavior of the airflow meter during this gear change situation - this was done at wide open throttle:
+
+![](images/hard_gear_change_1.png)
+
+The blue trace is the fuel injector pulse, red is the AFM. You can ignore green here. 
+
+This shows the airflow ramping up during acceleration, then a severe oscillation as the throttle is closed. When the throttle is reapplied, we have another oscillation, overshooting quite a bit. 
+
+Zooming in and overlaying the 1150 map, we get some sense of what it does:
+
+![](images/hard_gear_change_map_1150_overlayed_1.png)
+
+(You can ignore the cursors here, they're not intended to measure anything meaningful in this image).
+
+It seems like a very small correction, so this doesn't shed much light on why its necessary, but it might help with making educated guesses. 
+
 ## Firing the injectors
 The end of the routine in question is where the injectors are actually activated. The procedure here can be summarized as:
 
@@ -110,7 +128,7 @@ The injector latency value is loaded from Map 26 into 54h in __040D__, which is 
 
 The input to the map is the system voltage and the map looks like this:
 
-| 0x11 Battery voltage | Value |
+| 0x11 Battery voltage (V) | Value |
 |---|---|
 | 8 | 93 |
 | 16 | 29 |

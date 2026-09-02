@@ -1,6 +1,8 @@
-# The post ignition routine (timing changes and real-time fueling)
+# The post ignition routine
 
-The interesting post-ignition things start at 00F3. 
+This is a code walkthrough of the things that happen after the [spark fires](ignition_timing_code.md). The interesting post-ignition things start at 00F3. 
+
+There's also [an overview](dme_post_ignition_overview.md) of this without the details of the code.
 
 ## Ignition timing update
 This section updates the ignition advance according to certain rules. 

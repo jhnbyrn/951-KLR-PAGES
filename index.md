@@ -74,6 +74,10 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [DME ignition timing routine](ignition_timing_code.md) *This is the code-walkthrough companion for the crank sensor article; here we __do__ get into the weeds of the actual code!* 
 
+* [Post-ignition routine overview](dme_post_ignition_overview.md) *Many interesting things happen in the real time routine just after the spark fires - this is a high level discussion of those things*
+
+* [Post-ignition routine code walkthrough](dme_post_ignition_code_walkthrough.md) *A code walkthrough corresponding to the overview above.*
+
 * [Ignition timing calculation](dme_ignition_timing_calculation_overview.md) *This covers how the timing values used in the real time part of the code are calculated*
 
 * [Ignition timing skew map](dme_timing_skew_maps.md) *Here we take a close look at a map that skews the main timng maps, partly to compensate for the KLR latency*

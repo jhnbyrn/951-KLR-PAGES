@@ -100,7 +100,7 @@ Those are my best guesses, but I'm open to correction on the reasons for these c
 
 It's worth taking a look at the behavior of the airflow meter during this gear change situation - this was done at wide open throttle:
 
-![](images/hard_gear_change_1.png)
+![](images/map_1140_1150/hard_gear_change_1.png)
 
 The blue trace is the fuel injector pulse, red is the AFM. You can ignore green here. 
 
@@ -108,7 +108,7 @@ This shows the airflow ramping up during acceleration, then a severe oscillation
 
 Zooming in and overlaying the 1150 map, we get some sense of what it does:
 
-![](images/hard_gear_change_map_1150_overlayed_1.png)
+![](images/map_1140_1150/hard_gear_change_map_1150_overlayed_1.png)
 
 (You can ignore the cursors here, they're not intended to measure anything meaningful in this image).
 

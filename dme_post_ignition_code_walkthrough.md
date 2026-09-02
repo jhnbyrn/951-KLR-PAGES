@@ -53,10 +53,10 @@ This results in the following pairing of 34h and r5:
 
 flag  | 34 | r5
 ------|----|---
-None  | 08 | 01
-22h.4 | 01 | 08
-22h.5 | 01 | 02
 22h.6 | 01 | 01
+22h.5 | 01 | 02
+22h.4 | 01 | 08
+None  | 08 | 01
 
 These flags are set by the logic that controls fuel cut off and reactivation (coasting, gear changes, overload protection). 
 
@@ -314,6 +314,15 @@ Then we:
 * enable timer0 interrupt (this is where the injector will get turned off)
 * clear the external interrupt ext0 flag
 * enable interrupts
+
+The timer0 interrupt routine located at __000B__ will turn the injectors off by setting p1.0 and also clears 21h.2:
+
+```
+X000b:
+	setb	p1.0
+	clr	21h.2
+	reti	
+```
 
 ### Wrapping up - incrementing injection event counter 4D
 ```

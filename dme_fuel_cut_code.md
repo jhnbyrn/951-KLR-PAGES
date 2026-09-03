@@ -1,4 +1,8 @@
+# DME fuel cut (coasting and overload) code walkthrough
 
+This is a brief code walkthrough for the fuel cut off situations. The [overview is here](dme_fuel_cut_overview.md) and I highly recommend reading that first. 
+
+## Overload
 This is where we jump to after calculating the new timing value in __r5__. 
 
 ```
@@ -116,6 +120,7 @@ X0c6c:
 	ljmp	X1056
 ```
 
+## Coasting aka DFCO
 After the overload routine, we jump to 1059 which just jumps to 0708, which is the routine that handles coasting fuel cut off, fuel reactivation (for both coasting and overload) and various ignition timing rules. 
 
 This is a tricky routine and I don't think it makes a lot of sense to break it down, so I'll leave the whole thing as once snippet, but then we'll see a very simple pseudo code version:

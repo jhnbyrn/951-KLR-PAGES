@@ -1,15 +1,15 @@
-# DME fuel cut (coasting and overboost)
+# DME fuel cut (coasting and overload)
 
-There are three situations where the fuel needs to be cut off completely. One of them is when we hit the rev limit (6480 rpm), and that one is handled by the post ignition routine, just before fuel injection is activated. The other two cases are
+There are three situations where the fuel needs to be cut off completely. One of them is when we hit the rev limit (6480 rpm), and that one is handled by the [post ignition routine](dme_post_ignition_overview.md), just before fuel injection is activated. The other two cases are
 
 * coasting, aka decelleration fuel cut off or DFCO
 * overload protection
 
-The routine we'll look at here is responsible for triggering the fuel cutoff and reactivating it, but also for controlling how ignition timng is allowed to change from its current value. 
+The routine we'll look at here is responsible for triggering the fuel cutoff and reactivating it, but also for controlling how ignition timng is allowed to change from its current value. The code walkthrough is [here](dme_fuel_cut_code.md). 
 
 To elaborate on the timing issue a little: just before this routine, we do the [main timing calculation based on map lookups](dme_ignition_timing_calculation_overview). From that routine, we jump here without actually assigning the newly calculated timing value. That's because the conditions around fuel cut and reactivation affect how timing can change. 
 
-Very briefly, when a new timing value is calculated, it represents a target value. The current value is never allowed to simply jump to the new target value. In fact progress towards the new value is throttled by a series of flags so that we have __1x_, __8x__, __16x__ and __64x__ speeds. 
+Very briefly, when a new timing value is calculated, it represents a *target* value. The current value is never allowed to simply jump to the new target value. Instead, it's only allowed to make steps of a limited size at a limtied speed towards the target. Progress towards the new value is throttled by a series of flags so that we have __1x__, __8x__, __16x__ and __64x__ speeds. 
 
 The [post ignition routine code](dme_post_ignition_code_walkthrough.md) article shows the implementation of this timing speed control, but doesn't show the rules that control the relevant speeds. We'll see those rules here. But they are sometimes complicated rules. The code walkthrough for this section will show the details; here we'll just point out the highlights. 
 
@@ -51,9 +51,11 @@ And here's the equivalent for the '89+ model, and Turbo S:
 
 ![](images/fuel_cutoff/map_68_overload_89TS_1.png)
 
+The big difference is that for the Turbo S, the load limit keeps climing after 4000rpm, because peak boost (~10.8 PSI) is maintained throughout the rev range, whereas it tapers off in the early version. 
+
 To trigger overload protection, the actual calculated load must be above this curve for at least 3 seconds. 
 
-Once triggered, fuel is cut immediately, and stays off until the load falls below this curve minus 50 units. It's hard to give a meaningful explanation of what unit of load correspond to, but this should correspond to about 75% of the peak of the safety curve. 
+Once triggered, fuel is cut immediately, and stays off until the load falls below this curve minus 50 units. It's hard to give a meaningful explanation of what these units of load correspond to, but this should correspond to about 75% of the peak of the safety curve. 
 
 Once this "overboost jail" is entered, the car remains stuck in it for 60 seconds. Any time load goes above this new, lower limit, fuel is immediately cut again. After that the overboost flag is cleared and the minus 50 rule is removed. 
 

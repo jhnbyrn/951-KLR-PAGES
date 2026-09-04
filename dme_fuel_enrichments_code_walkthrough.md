@@ -238,7 +238,7 @@ The counter 4D gets incremeted in the real time part of the code, when the fuel 
 
 Map 84 contains 15 (i.e. 600rpm) for all entries. You might think that if the rpm is this high, then the cranking flag 23h.2 wouldn't be set, so we couldn't even be in this section of the code at all (due to the 23h.2 check back at 1D44). But while 23h.2 is initially set when the rpm is measured at 160rpm, it's not cleared until the rpm exceeds a much higher temperature dependent threshold, which is at least 720rpm (determined by Map 3).
 
-So we'll dig into that phase-out part next. It's based on the combination of two maps, 85 and 86, both of which are straight lines that slope downwards with increasing temperature. 
+So we'll dig into that phase-out part next. It's based on the combination of two maps, 85 and 86, both of which are straight lines that slope downwards with increasing inputs (injection count and rpm respectively). 
 
 ```
 X1d78:	

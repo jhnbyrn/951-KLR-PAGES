@@ -1,6 +1,6 @@
 # DME fuel enrichments
 
-This article covers various fuel enrichments performed in the 944 DME. This is a high level overview - for more detail on the code, see the [detailed code walkthrough](dme_fuel_enrichments_code_walkthrough.md) 
+This article covers various fuel enrichments performed in the 944 DME. This is a high level overview - for more detail on the code, see the [detailed code walkthrough](dme_fuel_enrichments_code_walkthrough.md).
 
 This doesn't include everything - acceleration enrichment will be covered elsewhere. But those included here are handled together in one place, so it's natural to cover them together. 
 

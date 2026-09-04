@@ -202,5 +202,42 @@ Returning briefly to the min/max values we saw earlier, we can easily figure out
 
 Now you should have a pretty good understanding of the role that the airflow meter plays in the whole system, and how fuel is metered out. 
 
+## Appendix: variables, flags, maps and constants
+
+Everything the load routine (0381) touches. See the [memory map](dme_memory_map.md) for the master list.
+
+### Byte variables
+
+| Location | Purpose |
+|----------|---------|
+| 10h | raw AFM wiper value from the ADC |
+| 37h | engine speed (rpm/40) |
+| 46h | high byte of the 24-bit smoothed load value |
+| 47h | middle byte of the 24-bit smoothed load value |
+| 48h | low byte of the 24-bit smoothed load value |
+| 49h | load, i.e. the high byte of the scaled base fuel pulse |
+
+### Bit flags
+
+| Flag | Purpose |
+|------|---------|
+| 23h.2 | cranking — selects the fixed cranking load path at the top of the routine |
+
+### Maps and constants
+
+| Reference | Address | Purpose |
+|-----------|---------|---------|
+| Table 1 | 10F4h | AFM transfer table, indexed by the raw value divided by 32 |
+| Table 2 | 10FCh | AFM transfer table, exponent for the left shift (2^n) |
+| Table 3 | 1104h | AFM transfer table, indexed by the remainder of the division by 32 |
+| 1160+1 | 1161h | base value for the cranking load path |
+| 1160+12h | 1172h | fixed load value used while cranking |
+| 1160+13h | 1173h | minimum clamp for the transformed load (x25 = 425) |
+| 1160+14h | 1174h | maximum clamp for the transformed load (x25 = 5500) |
+| Map 27 (1Bh) | 159Eh | low-pass filter coefficient by rpm (read as x/256) |
+| immediate | — | 19h (25), the clamp scaling factor applied in 043D |
+| immediate | — | A4h (164), the final scaling factor, combined with a shift of 4 to give x2624 |
+
+
 There remains the fuel maps to explore, along with closed loop correction and a few fuel related parts. For now I just want to point out that even though some of the fuel maps only use a single axis (rpm), you can see from this that air flow always plays the same basic role in fuel calculations. The reson we have fuel maps that use load and rpm *at all* is because we want the fueling to have some non-linear relationship to each of those quantities - that is, we want to adjust the air-fuel ratio, not just the basic fuel quantity. But the details of that will have to wait!
 

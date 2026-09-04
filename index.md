@@ -86,6 +86,10 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [Software counters and timers](dme_software_timers.md) *A short article explaining various counter and timer values and how they are controlled*
 
+* [Fuel cutoff overview](dme_fuel_cut_overview.md) *How fuel cutoff for overload protection and coasting works*
+
+* [Fuel cutoff code](dme_fuel_cut_code.md) *A code walkthrough for fuel cutoffs*
+
 * [DME Memory map](dme_memory_map.md) *A master list of all known variables, constants, flags and maps used in the DME (ongoing)*
 
 

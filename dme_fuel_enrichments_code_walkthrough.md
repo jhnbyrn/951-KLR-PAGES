@@ -587,21 +587,21 @@ Everything the fuel adjustment routine (1D23) touches, along with the post-load 
 |-----------|---------|---------|
 | FQS map | 112Eh | maps the ADC value in 17h to a switch position of 0-7 |
 | 1160+1Bh+FQS | 117Bh-117Eh | fuel offset per FQS position (128, 132, 124, 136) |
-| Map 42 (2Ah) | — | intake air temperature correction |
+| Map 42 (2Ah) | 145Bh | intake air temperature correction |
 | 1160+6Bh | 11CBh | altitude correction applied when 25h.7 is set (78h, i.e. 120) |
 | 1160+1Fh | 117Fh | coolant threshold selecting Map 40 vs 41 (A2h, i.e. ~65C) |
-| Map 40 (28h) | — | post-start enrichment below 65C, by coolant temperature |
-| Map 41 (29h) | — | heat soak enrichment above 65C, by intake air temperature |
-| Map 83 (53h) | — | base cranking enrichment, by coolant temperature |
-| Map 84 (54h) | — | rpm threshold that starts the cranking phase-out (600rpm) |
-| Map 85 (55h) | — | cranking phase-out scaling, first term |
-| Map 86 (56h) | — | cranking phase-out scaling, second term |
+| Map 40 (28h) | 1566h | post-start enrichment below 65C, by coolant temperature |
+| Map 41 (29h) | 1570h | heat soak enrichment above 65C, by intake air temperature |
+| Map 83 (53h) | 157Ah | base cranking enrichment, by coolant temperature |
+| Map 84 (54h) | 1584h | rpm threshold that starts the cranking phase-out (600rpm) |
+| Map 85 (55h) | 158Ah | cranking phase-out scaling, first term |
+| Map 86 (56h) | 1590h | cranking phase-out scaling, second term |
 | 1160+1Ah | 117Ah | injection count threshold for the cranking phase-out (12) |
-| Maps 43-46 | — | warmup enrichment by coolant temperature; 43/44 by region, 45/46 for cold cranking |
+| Maps 43-46 | 1465h, 17E8h, 1B14h, 1A00h | warmup enrichment by coolant temperature; 43/44 by region, 45/46 for cold cranking |
 | Map 47 (2Fh) | 1473h | warmup enrichment scaling, part throttle and WOT (by rpm and load) |
 | Map 48 (30h) | 1486h | warmup enrichment scaling, idle (by rpm) |
-| Map 49 (31h) | — | idle fuel map |
-| Map 75 (4Bh) | — | WOT fuel map |
-| Map 79 (4Fh) | — | part throttle fuel map |
-| Map 26 (1Ah) | — | injector dead-time by system voltage, stored in 54h |
+| Map 49 (31h) | 1538h | idle fuel map |
+| Map 75 (4Bh) | 1544h | WOT fuel map |
+| Map 79 (4Fh) | 148Ch | part throttle fuel map |
+| Map 26 (1Ah) | 1598h | injector dead-time by system voltage, stored in 54h |
 

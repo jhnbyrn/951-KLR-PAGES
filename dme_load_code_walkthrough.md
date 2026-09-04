@@ -234,7 +234,7 @@ Everything the load routine (0381) touches. See the [memory map](dme_memory_map.
 | 1160+12h | 1172h | fixed load value used while cranking |
 | 1160+13h | 1173h | minimum clamp for the transformed load (x25 = 425) |
 | 1160+14h | 1174h | maximum clamp for the transformed load (x25 = 5500) |
-| Map 27 (1Bh) | — | low-pass filter coefficient by rpm (read as x/256) |
+| Map 27 (1Bh) | 159Eh | low-pass filter coefficient by rpm (read as x/256) |
 | immediate | — | 19h (25), the clamp scaling factor applied in 043D |
 | immediate | — | A4h (164), the final scaling factor, combined with a shift of 4 to give x2624 |
 

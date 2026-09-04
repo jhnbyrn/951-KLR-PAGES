@@ -236,9 +236,9 @@ These are reached through the two-stage lookup described in [the Motronic map lo
 | Map | r2 | Address | Axes | Purpose | Covered in |
 |-----|----|---------|------|---------|------------|
 | 3 | 03h | 1447h | 13h | rpm threshold for clearing the cranking flag 23h.2 | see the flag setting logic below |
-| 25 | 19h | | 13h | coasting fuel cut rpm threshold | [fuel cut](dme_fuel_cut_code.md) |
-| 26 | 1Ah | | 11h | injector dead-time by system voltage | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
-| 27 | 1Bh | | 37h | load low-pass filter coefficient by rpm | [load](dme_load_code_walkthrough.md) |
+| 25 | 19h | 144Fh | 13h | coasting fuel cut rpm threshold | [fuel cut](dme_fuel_cut_code.md) |
+| 26 | 1Ah | 1598h | 11h | injector dead-time by system voltage | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
+| 27 | 1Bh | 159Eh | 37h | load low-pass filter coefficient by rpm | [load](dme_load_code_walkthrough.md) |
 | 28 | 1Ch | 15DBh | vane delta | low-rpm acceleration enrichment scaling (4Ch) | [acceleration enrichment](dme_acceleration_enrichment_code_walkthrough.md) |
 | 29 | 1Dh | 15D3h | 13h | low-rpm acceleration enrichment temperature map (4Ch) | [acceleration enrichment](dme_acceleration_enrichment_code_walkthrough.md) |
 | 33 | 21h | 15ACh | vane delta | all-rpm acceleration enrichment scaling (3Dh) | [acceleration enrichment](dme_acceleration_enrichment_code_walkthrough.md) |
@@ -246,30 +246,30 @@ These are reached through the two-stage lookup described in [the Motronic map lo
 | 38 | 26h | 15BCh | 37h, 49h | all-rpm acceleration enrichment rpm/load scaling (3Dh) | [acceleration enrichment](dme_acceleration_enrichment_code_walkthrough.md) |
 | 40 | 28h | 1566h | 13h | post-start enrichment below 65C | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
 | 41 | 29h | 1570h | 12h | heat soak enrichment above 65C | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
-| 42 | 2Ah | | 12h | intake air temperature fuel correction | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
-| 43-46 | 2Bh-2Eh | 1465h (Map 43) | 13h | warmup enrichment; 43/44 by region, 45/46 for cold cranking | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
+| 42 | 2Ah | 145Bh | 12h | intake air temperature fuel correction | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
+| 43-46 | 2Bh-2Eh | 1465h, 17E8h, 1B14h, 1A00h | 13h | warmup enrichment; 43/44 by region, 45/46 for cold cranking | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
 | 47 | 2Fh | 1473h | 37h, 49h | warmup enrichment scaling, part throttle and WOT | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
 | 48 | 30h | 1486h | 37h | warmup enrichment scaling, idle | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
-| 49 | 31h | | | idle fuel map | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
-| 53 | 35h | | 13h | ISV cranking target rpm | [ISV routine](isv_routine.md) |
-| 54 | 36h | | 13h | ISV alternate path target rpm (800rpm throughout) | [ISV routine](isv_routine.md) |
-| 55 | 37h | | 13h | ISV normal target rpm | [ISV routine](isv_routine.md) |
-| 56 | 38h | | rpm error | idle correction I gain, rpm below target | [ISV routine](isv_routine.md) |
-| 57 | 39h | | rpm error | idle correction I gain, rpm above target | [ISV routine](isv_routine.md) |
-| 58 | 3Ah | | rpm error | idle correction P gain | [ISV routine](isv_routine.md) |
-| 59 | 3Bh | | 37h | ISV PWM adjustment during coasting fuel cutoff | [ISV routine](isv_routine.md) |
-| 60 | 3Ch | | 37h, 13h | base (feed-forward) ISV PWM | [ISV routine](isv_routine.md) |
-| 62 / 65 | 3Eh / 41h | | 37h, 49h | lambda correction step, condition unchanged | [lambda](dme_lambda_code_walkthrough.md) |
-| 63 / 66 | 3Fh / 42h | | 37h, 49h | lambda correction step, changed to lean | [lambda](dme_lambda_code_walkthrough.md) |
-| 64 / 67 | 40h / 43h | | 37h, 49h | lambda correction step, changed to not-lean | [lambda](dme_lambda_code_walkthrough.md) |
-| 68 | 44h | | 37h | overload load threshold by rpm | [fuel cut](dme_fuel_cut_code.md) |
-| 75 | 4Bh | | | WOT fuel map | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
-| 79 | 4Fh | | 37h, 49h | part throttle fuel map | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
-| 83 | 53h | | 13h | base cranking enrichment | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
-| 84 | 54h | | 13h | rpm threshold starting the cranking phase-out (600rpm) | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
-| 85 | 55h | | 13h | cranking enrichment phase-out scaling, first term | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
-| 86 | 56h | | 13h | cranking enrichment phase-out scaling, second term | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
-| 87-90 | 57h-5Ah | | 13h | ISV target load by temperature, selected by code plug | [ISV routine](isv_routine.md) |
+| 49 | 31h | 1538h | | idle fuel map | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
+| 53 | 35h | 15E5h | 13h | ISV cranking target rpm | [ISV routine](isv_routine.md) |
+| 54 | 36h | 15EFh | 13h | ISV alternate path target rpm (800rpm throughout) | [ISV routine](isv_routine.md) |
+| 55 | 37h | 15F9h | 13h | ISV normal target rpm | [ISV routine](isv_routine.md) |
+| 56 | 38h | 1601h | rpm error | idle correction I gain, rpm below target | [ISV routine](isv_routine.md) |
+| 57 | 39h | 160Bh | rpm error | idle correction I gain, rpm above target | [ISV routine](isv_routine.md) |
+| 58 | 3Ah | 1615h | rpm error | idle correction P gain | [ISV routine](isv_routine.md) |
+| 59 | 3Bh | 161Fh | 37h | ISV PWM adjustment during coasting fuel cutoff | [ISV routine](isv_routine.md) |
+| 60 | 3Ch | 1629h | 37h, 13h | base (feed-forward) ISV PWM | [ISV routine](isv_routine.md) |
+| 62 / 65 | 3Eh / 41h | 1659h / 1659h | 37h, 49h | lambda correction step, condition unchanged | [lambda](dme_lambda_code_walkthrough.md) |
+| 63 / 66 | 3Fh / 42h | 1694h / 1694h | 37h, 49h | lambda correction step, changed to lean | [lambda](dme_lambda_code_walkthrough.md) |
+| 64 / 67 | 40h / 43h | 16BAh / 18ECh | 37h, 49h | lambda correction step, changed to not-lean | [lambda](dme_lambda_code_walkthrough.md) |
+| 68 | 44h | 16E0h | 37h | overload load threshold by rpm | [fuel cut](dme_fuel_cut_code.md) |
+| 75 | 4Bh | 1544h | | WOT fuel map | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
+| 79 | 4Fh | 148Ch | 37h, 49h | part throttle fuel map | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
+| 83 | 53h | 157Ah | 13h | base cranking enrichment | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
+| 84 | 54h | 1584h | 13h | rpm threshold starting the cranking phase-out (600rpm) | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
+| 85 | 55h | 158Ah | 13h | cranking enrichment phase-out scaling, first term | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
+| 86 | 56h | 1590h | 13h | cranking enrichment phase-out scaling, second term | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
+| 87-90 | 57h-5Ah | 164Fh, 18E2h, 164Fh, 1AFAh | 13h | ISV target load by temperature, selected by code plug | [ISV routine](isv_routine.md) |
 
 ### Directly addressed tables
 

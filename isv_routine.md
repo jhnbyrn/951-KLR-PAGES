@@ -496,27 +496,27 @@ Relative Location | Absolute Location | Hex | Decimal | Meaning
 
 ### Maps:
 
-53 - target rpm for flare (by NTC)
+53 (15E5h) - target rpm for flare (by NTC)
 
 | NTC  | -33  | -23  | 50   | 65   |
 |------|------|------|------|------|
 | RPM  | 1600 | 1000 | 920  | 800  |
 
-54 - target rpm for alternate path (pin 28 not grounded)
+54 (15EFh) - target rpm for alternate path (pin 28 not grounded)
 
 | NTC  | -28  | 21   | 40   | 76   |
 |------|------|------|------|------|
 | RPM  | 800  | 800  | 800  | 800  |
 
 
-55 - normal target rpm
+55 (15F9h) - normal target rpm
 
 | NTC  | -21  | 50   | 76   |
 |------|------|------|------|
 | RPM  | 1000 | 920  | 840  |
 
 
-87-90 - depending on code plug; max load for engine temp (clamps ISV correction but is ultimately overridden by the idle routine)
+87-90 (164Fh, 18E2h, 164Fh, 1AFAh) - depending on code plug; max load for engine temp (clamps ISV correction but is ultimately overridden by the idle routine)
 
 | NTC   | -33  | 18   | 37   | 65   |
 |-------|------|------|------|------|
@@ -524,28 +524,28 @@ Relative Location | Absolute Location | Hex | Decimal | Meaning
 
 
 
-56 - idle rpm correction I gain (rpm > target)
+56 (1601h) - idle rpm correction I gain (rpm > target)
 
 | ΔRPM | 40 | 80 | 520 | 640 |
 |------|---|----|-----|-----|
 | Gain | 2 | 10 | 16  | 1   |
 
 
-57 - idle rpm correction I gain (rpm < target)
+57 (160Bh) - idle rpm correction I gain (rpm < target)
 
 | ΔRPM | 40 | 80 | 320 | 520 |
 |------|---|----|-----|-----|
 | Gain | 2 | 10 | 10  | 16  |
 
 
-58 - idle rpm correction P gain (rpm < target)
+58 (1615h) - idle rpm correction P gain (rpm < target)
 
 | ΔRPM | 40 | 80 | 400 | 640 |
 |------|---|----|-----|-----|
 | Gain | 0 | 30 | 80  | 80  |
 
 
-60 - base (feed-forward) ISV values by RPM and NTC (in C as usual)
+60 (1629h) - base (feed-forward) ISV values by RPM and NTC (in C as usual)
 
 |  | -35 | 0 | 36 | 76 |
 |--|--|--|--|--|

@@ -587,9 +587,9 @@ Everything the lambda routines touch — the map lookups (0A65), the correction 
 
 | Reference | Address | Purpose |
 |-----------|---------|---------|
-| Map 62 (3Eh) / 65 (41h) | — | correction step, condition unchanged (by rpm and load) |
-| Map 63 (3Fh) / 66 (42h) | — | correction step, changed to lean |
-| Map 64 (40h) / 67 (43h) | — | correction step, changed to not-lean |
+| Map 62 (3Eh) / 65 (41h) | 1659h / 1659h | correction step, condition unchanged (by rpm and load) |
+| Map 63 (3Fh) / 66 (42h) | 1694h / 1694h | correction step, changed to lean |
+| Map 64 (40h) / 67 (43h) | 16BAh / 18ECh | correction step, changed to not-lean |
 | 1160+43h | 11A3h | 3Eh reload for the neutral phase (66, i.e. ~760ms) |
 | 1160+44h | 11A4h | 3Eh reload for the rich/lean phase (9, i.e. ~103ms) |
 | 1160+45h | 11A5h | watchdog timer value (255, which disables the watchdog) |

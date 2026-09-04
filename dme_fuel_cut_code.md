@@ -399,8 +399,8 @@ Everything the overload routine (0BFD), the timer decrement routine (0C57) and t
 
 | Reference | Address | Purpose |
 |-----------|---------|---------|
-| Map 25 (19h) | — | coasting fuel cut rpm threshold, by engine temperature |
-| Map 68 (44h) | — | overload load threshold, by rpm |
+| Map 25 (19h) | 144Fh | coasting fuel cut rpm threshold, by engine temperature |
+| Map 68 (44h) | 16E0h | overload load threshold, by rpm |
 | 1160+25h | 1185h | load threshold for the fastest timing change rate (3Ch, i.e. 60) |
 | 1160+26h | 1186h | rpm threshold for the fastest timing change rate (14h, i.e. 800rpm) |
 | 1160+2Dh | 118Dh | value written to 34h (1) |

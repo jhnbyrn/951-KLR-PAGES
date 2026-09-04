@@ -346,3 +346,52 @@ X01e5:
 	ret
 ```
 Finally we restore all the things we pushed at the beginning and return to wherever the interrupt was triggered from. We're using ret and not reti here because earlier in the interrupt routine, we use call/reti to get out of the interrupt context. 
+
+## Appendix: variables, flags, maps and constants
+
+Everything this routine touches, from 00F3 to the end of the interrupt. See the [memory map](dme_memory_map.md) for the master list.
+
+### Byte variables
+
+| Location | Purpose |
+|----------|---------|
+| 31h | current ignition advance, stepped towards 32h |
+| 32h | target ignition advance |
+| 34h | countdown to the next permitted timing step |
+| 35h | cylinder firing index (0 or 1) |
+| 37h | engine speed (rpm/40), checked against the rev limit |
+| 4Ah | low byte of the calculated fuel pulse |
+| 4Bh | high byte of the calculated fuel pulse |
+| 4Ch | low-rpm acceleration enrichment ("pump shot"), scaled by 64 |
+| 4Dh | injection event counter, capped at 128 |
+| 54h | injector dead-time, multiplied by 5 before being added to the pulse |
+
+### Bit flags
+
+| Flag | Purpose |
+|------|---------|
+| 21h.2 | injectors are currently on |
+| 21h.5 | transient fuel correction after reactivation is active |
+| 21h.6 | selects return-to-idle (Map 1140) vs return-to-throttle (Map 1150) |
+| 21h.7 | latch indicating a pending 4Ch pump shot (cleared when applied) |
+| 22h.4 | timing change rate select (lowest priority of the three) |
+| 22h.5 | timing change rate select |
+| 22h.6 | timing change rate select (highest priority); also cleared here |
+| 23h.2 | cranking |
+| 23h.5 | fuel cut for coasting or overload |
+| p1.0 | fuel injector output (low = injectors on) |
+| tr0 / et0 / tl0 / th0 | timer0 run bit, interrupt enable, and reload bytes |
+
+### Maps and constants
+
+| Reference | Address | Purpose |
+|-----------|---------|---------|
+| 1160+1 | 1161h | ignition events per revolution (2) |
+| 1160+11h | 1171h | rev limit in rpm/40 (162, i.e. 6480rpm) |
+| 1160+27h/28h | 1187h/1188h | 34h reload (8) and step limit (1) — normal case |
+| 1160+29h/2Ah | 1189h/118Ah | 34h reload (1) and step limit (8) — 22h.4 set |
+| 1160+2Bh/2Ch | 118Bh/118Ch | 34h reload (1) and step limit (2) — 22h.5 set |
+| 1160+2Dh/2Eh | 118Dh/118Eh | 34h reload (1) and step limit (1) — 22h.6 set |
+| Map 1140 | 1140h | return-to-idle transient fuel correction, indexed by 4Dh |
+| Map 1150 | 1150h | return-to-throttle transient fuel correction, indexed by 4Dh |
+

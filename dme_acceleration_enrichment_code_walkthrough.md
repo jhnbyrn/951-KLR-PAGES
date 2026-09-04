@@ -263,3 +263,42 @@ Address: 15BC
 | 1000 | 255 | 255 | 255 | 205 |
 | 2000 | 255 | 255 | 255 | 205 |
 | 3000 | 255 | 255 | 205 | 179 |
+
+## Appendix: variables, flags, maps and constants
+
+Everything the acceleration enrichment routine (1F8E) touches. See the [memory map](dme_memory_map.md) for the master list.
+
+### Byte variables
+
+| Location | Purpose |
+|----------|---------|
+| 10h | raw AFM wiper value from the ADC |
+| 13h | coolant temperature (NTC II), input to Maps 29 and 34 |
+| 37h | engine speed (rpm/40), checked against the 2480rpm split |
+| 49h | load, one of the two axes of Map 38 |
+| 3Dh | all-rpm acceleration enrichment, a fractional multiplier |
+| 4Ch | low-rpm acceleration enrichment, added directly to the fuel pulse |
+| 51h | AFM queue, most recent previous reading |
+| 52h | AFM queue, second previous reading |
+| 53h | AFM queue, third previous reading (the one compared against 10h) |
+
+### Bit flags
+
+| Flag | Purpose |
+|------|---------|
+| 21h.7 | latch indicating a pending 4Ch pump shot |
+| 23h.0 | TPS at idle — bails out to 1FE1 |
+| 23h.2 | cranking — bails out to 1FE1 |
+| 25h.6 | region coding, consulted indirectly through the 1FF2 map selection routine |
+
+### Maps and constants
+
+| Reference | Address | Purpose |
+|-----------|---------|---------|
+| Map 28 (1Ch) | 15DBh | low-rpm vane-delta scaling for 4Ch |
+| Map 29 (1Dh) | 15D3h | low-rpm temperature map for 4Ch |
+| Map 33 (21h) | 15ACh | all-rpm vane-delta scaling for 3Dh |
+| Map 34 (22h) | 15B2h (US), 18D0h (RoW) | all-rpm temperature map for 3Dh |
+| Map 38 (26h) | 15BCh | all-rpm rpm/load scaling for 3Dh (fractions of 256) |
+| 1160+37h | 1197h | rpm split between the two enrichment paths (62, i.e. 2480rpm) |
+

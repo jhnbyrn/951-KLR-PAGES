@@ -277,7 +277,7 @@ The purpose of all this is to get greater precision in the multiplication and di
 
 Then
 
-````
+```
 X1d8e:	
 	mul	ab
 	mov	r4,b
@@ -547,25 +547,61 @@ An example might make it clearer. Let's say the intput is 166, the highest value
 
 Now because we incremented 50h, we will eventually double our final value, which restores us to 294. 
 
-## Appendix C: inputs and outputs
+## Appendix C: variables, flags, maps and constants
 
-Variables
+Everything the fuel adjustment routine (1D23) touches, along with the post-load section at 040D. See the [memory map](dme_memory_map.md) for the master list.
 
-| Location | Purpose | Input | Output 
-|----------|---------|---------|---------|
-12h | intake air temp | yes | no |
-13h | coolant temp | yes | no |
-17h | FQS | yes | no |
-49h | load | yes | no |
-50h | count left shifts | yes | yes |
-3Ch | post-start enrichment | yes | yes |
-37h | rpm | yes | no |
-4Dh | count injection events | yes | yes |
-4Eh | next fuel value low byte | no | yes |
-4Fh | next fuel value high byte | no | yes |
-25h.7 | altitude > 1000M | yes | no |
-23h.0 | TPS at idle | yes | no |
-23h.1 | WOT | yes | no |
-23h.2 | cranking | yes | no
-25h.5 | engine temp < 15C | yes | no |
+### Byte variables
+
+| Location | Purpose |
+|----------|---------|
+| 11h | system voltage, the axis for the injector dead-time map |
+| 12h | intake air temperature (NTC I) |
+| 13h | coolant temperature (NTC II) |
+| 17h | FQS switch position, as read by the ADC |
+| 37h | engine speed (rpm/40) |
+| 49h | load |
+| 3Ch | post-start enrichment, phased out by the software counter |
+| 4Dh | injection event counter, used to phase out cranking enrichment |
+| 4Ah | low byte of the final fuel pulse, in timer ticks |
+| 4Bh | high byte of the final fuel pulse |
+| 4Eh | low byte of the accumulated fuel adjustment |
+| 4Fh | high byte of the accumulated fuel adjustment |
+| 50h | count of outstanding left shifts (pending multiplications by 2) |
+| 54h | injector dead-time |
+
+### Bit flags
+
+| Flag | Purpose |
+|------|---------|
+| 21h.4 | latch marking that the cranking enrichment phase-out has been triggered |
+| 23h.0 | TPS at idle |
+| 23h.1 | WOT |
+| 23h.2 | cranking |
+| 25h.5 | coolant temperature was below ~15C during cranking |
+| 25h.7 | altitude above 1000M |
+
+### Maps and constants
+
+| Reference | Address | Purpose |
+|-----------|---------|---------|
+| FQS map | 112Eh | maps the ADC value in 17h to a switch position of 0-7 |
+| 1160+1Bh+FQS | 117Bh-117Eh | fuel offset per FQS position (128, 132, 124, 136) |
+| Map 42 (2Ah) | — | intake air temperature correction |
+| 1160+6Bh | 11CBh | altitude correction applied when 25h.7 is set (78h, i.e. 120) |
+| 1160+1Fh | 117Fh | coolant threshold selecting Map 40 vs 41 (A2h, i.e. ~65C) |
+| Map 40 (28h) | — | post-start enrichment below 65C, by coolant temperature |
+| Map 41 (29h) | — | heat soak enrichment above 65C, by intake air temperature |
+| Map 83 (53h) | — | base cranking enrichment, by coolant temperature |
+| Map 84 (54h) | — | rpm threshold that starts the cranking phase-out (600rpm) |
+| Map 85 (55h) | — | cranking phase-out scaling, first term |
+| Map 86 (56h) | — | cranking phase-out scaling, second term |
+| 1160+1Ah | 117Ah | injection count threshold for the cranking phase-out (12) |
+| Maps 43-46 | — | warmup enrichment by coolant temperature; 43/44 by region, 45/46 for cold cranking |
+| Map 47 (2Fh) | 1473h | warmup enrichment scaling, part throttle and WOT (by rpm and load) |
+| Map 48 (30h) | 1486h | warmup enrichment scaling, idle (by rpm) |
+| Map 49 (31h) | — | idle fuel map |
+| Map 75 (4Bh) | — | WOT fuel map |
+| Map 79 (4Fh) | — | part throttle fuel map |
+| Map 26 (1Ah) | — | injector dead-time by system voltage, stored in 54h |
 

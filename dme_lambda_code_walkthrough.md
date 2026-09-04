@@ -538,3 +538,68 @@ First note that the timer, 3F, is the same one used for the load threshold earli
 Next we check the constant 11A5, and if it's anything other than 255, then we use it as a timer value for 3F. We set 24h.2 so that indicates that we're in the watchdog countdown mode. 
 
 But recall that 24h.2 is cleared earlier when the lambda state transitions. So this logic, if active, would detect when the correction is pegged to the rails for a certain time, and neutralize the lambda correction in that case. 
+
+## Appendix: variables, flags, maps and constants
+
+Everything the lambda routines touch — the map lookups (0A65), the correction update (0A75/0BCD/0BD4), the threshold section (1CB7), the application logic (0AFB) and the clamping routine (0B50). See the [memory map](dme_memory_map.md) for the master list.
+
+### Byte variables
+
+| Location | Purpose |
+|----------|---------|
+| 13h | coolant temperature (NTC II), compared against the enable threshold |
+| 18h | correction step for an unchanged condition, from Map 62 or 65 |
+| 19h | correction step for a changed-to-lean condition, from Map 63 or 66 |
+| 1Ah | correction step for a changed-to-not-lean condition, from Map 64 or 67 |
+| 1Bh | high byte of the lambda correction factor |
+| 1Ch | low byte of the lambda correction factor |
+| 37h | engine speed (rpm/40), checked against the upper rpm threshold |
+| 49h | load, checked against the load threshold |
+| 3Eh | lambda timer (rich/lean and neutral phases) |
+| 3Fh | load threshold timer, shared with the disabled watchdog logic |
+
+### Bit flags
+
+| Flag | Purpose |
+|------|---------|
+| 20h.2 | current lambda condition (0 = lean, 1 = not lean) |
+| 20h.7 | master enable for closed loop fuel control |
+| 23h.0 | TPS at idle — selects which temperature threshold constant is used |
+| 23h.1 | WOT — blocks correction |
+| 23h.2 | cranking — blocks correction, and resets 1Bh via 23h.4 |
+| 23h.4 | startup — resets the correction to 80h |
+| 23h.5 | coasting fuel cutoff — blocks correction |
+| 24h.0 | watchdog enable; always set in the production code |
+| 24h.1 | load threshold timer is running |
+| 24h.2 | watchdog countdown active; never set by reachable code |
+| 24h.3 | the lambda-neutral timer phase is running |
+| 24h.4 | the rich/lean timer phase is running |
+| 24h.5 | all threshold conditions are met (1 = correction permitted) |
+| 24h.6 | previous value of 20h.2 |
+| 24h.7 | the current condition has persisted long enough to act on |
+| 25h.4 | NTC II was below ~15C during cranking — selects the higher temp threshold |
+| 25h.6 | region coding (1 = RoW) |
+| p1.6 | O2 sensor comparator, rich |
+| p1.7 | O2 sensor comparator, lean |
+| t0 | code plug input, selects Maps 62-64 vs 65-67 |
+
+### Maps and constants
+
+| Reference | Address | Purpose |
+|-----------|---------|---------|
+| Map 62 (3Eh) / 65 (41h) | — | correction step, condition unchanged (by rpm and load) |
+| Map 63 (3Fh) / 66 (42h) | — | correction step, changed to lean |
+| Map 64 (40h) / 67 (43h) | — | correction step, changed to not-lean |
+| 1160+43h | 11A3h | 3Eh reload for the neutral phase (66, i.e. ~760ms) |
+| 1160+44h | 11A4h | 3Eh reload for the rich/lean phase (9, i.e. ~103ms) |
+| 1160+45h | 11A5h | watchdog timer value (255, which disables the watchdog) |
+| 1160+46h | 11A6h | upper clamp on the correction high byte (147, ~1.15x) |
+| 1160+47h | 11A7h | lower clamp on the correction high byte (90, ~0.7x) |
+| 1160+48h | 11A8h | temperature threshold, not at idle (88, ~16.7C) |
+| 1160+49h | 11A9h | temperature threshold, at idle (88, ~16.7C) |
+| 1160+4Ah | 11AAh | hysteresis added to the temperature threshold (7, ~4.6C) |
+| 1160+4Bh | 11ABh | upper rpm threshold (166, i.e. 6640rpm) |
+| 1160+4Ch | 11ACh | load threshold (102) |
+| 1160+4Dh | 11ADh | 3Fh reload for the load threshold timer (6, i.e. ~2s) |
+| 1160+6Eh | 11CEh | alternate temperature threshold used when 25h.4 is set (140, ~50C) |
+

@@ -36,7 +36,7 @@ X0c21:
 	mov	58h,a ;11B3, contains 29
 	mov	a,#55h
 	movc	a,@a+dptr
-	mov	59h,a ;11B6, contains 180 (29*180*0.0115=~60s)
+	mov	59h,a ;11B5, contains 180 (29*180*0.0115=~60s)
 	setb	23h.5 ;cut fuel
 	mov	32h,r5 ;new timing target=latest calculation
 	mov	31h,r5 ;current timing = latest calculation
@@ -212,16 +212,16 @@ X0782:
 	cpl	22h.4
 ```
 
-Working out the effect on 24h.2, we get this
+Working out the effect on 22h.4, we get this
 
 ```
 	if (49h > 60 or 37h < 800rpm) XOR 22h.4
 		cpl 22h.4
 ```
 
-But that's still kind of unclear, since it doesn't explicitly set 24h.2. But if you work through it, you'll see that this is actually equivalent to
+But that's still kind of unclear, since it doesn't explicitly set 22h.4. But if you work through it, you'll see that this is actually equivalent to
 
-```24h.2 = bool(load>60 or rpm<800)```
+```22h.4 = bool(load>60 or rpm<800)```
 
 The rest of the routine is much easier to understand:
 
@@ -360,6 +360,61 @@ else (not at idle):
 			clear 22h.6
 			34h = 1
 	32h = r5
-```	
+```
+
+## Appendix: variables, flags, maps and constants
+
+Everything the overload routine (0BFD), the timer decrement routine (0C57) and the coasting routine (0708) touch. See the [memory map](dme_memory_map.md) for the master list.
+
+### Byte variables
+
+| Location | Purpose |
+|----------|---------|
+| 31h | current ignition advance, reduced directly on fuel reactivation |
+| 32h | target ignition advance |
+| 34h | countdown to the next permitted timing step; forced to 1 to act immediately |
+| 37h | engine speed (rpm/40) |
+| 49h | load, compared against the Map 68 overload threshold |
+| 4Dh | injection event counter, reset to zero when fuel is reactivated |
+| 58h | overload timer, counted down by the 0C57 routine |
+| 59h | prescale counter for 58h |
+
+### Bit flags
+
+| Flag | Purpose |
+|------|---------|
+| 21h.0 | the ~3 second overload pre-timer is running |
+| 21h.1 | overload has been confirmed; the ~60 second lockout is running |
+| 21h.5 | triggers the transient fuel correction after reactivation |
+| 21h.6 | selects the return-to-idle correction rather than return-to-throttle |
+| 22h.4 | fastest timing change rate |
+| 22h.5 | medium timing change rate |
+| 22h.6 | top priority timing change rate |
+| 23h.0 | TPS at idle |
+| 23h.2 | cranking — the overload routine returns immediately |
+| 23h.4 | startup — applies the new timing calculation immediately |
+| 23h.5 | fuel is cut (for coasting or overload) |
+
+### Maps and constants
+
+| Reference | Address | Purpose |
+|-----------|---------|---------|
+| Map 25 (19h) | — | coasting fuel cut rpm threshold, by engine temperature |
+| Map 68 (44h) | — | overload load threshold, by rpm |
+| 1160+25h | 1185h | load threshold for the fastest timing change rate (3Ch, i.e. 60) |
+| 1160+26h | 1186h | rpm threshold for the fastest timing change rate (14h, i.e. 800rpm) |
+| 1160+2Dh | 118Dh | value written to 34h (1) |
+| 1160+2Fh | 118Fh | timing step on return-to-throttle reactivation (249, i.e. -6) |
+| 1160+30h | 1190h | timing step on return-to-idle reactivation (FFh, i.e. -1) |
+| 1160+31h | 1191h | coasting rpm offset, 21h.6 clear (9) |
+| 1160+32h | 1192h | coasting rpm offset, 21h.6 set (9) |
+| 1160+51h | 11B1h | hysteresis below the Map 68 threshold for staying in overload (50) |
+| 1160+52h | 11B2h | 58h reload for the ~3 second pre-timer (1Ah, i.e. 26) |
+| 1160+53h | 11B3h | 58h reload for the ~60 second lockout (29) |
+| 1160+54h | 11B4h | 59h prescale, 21h.1 clear (10) |
+| 1160+55h | 11B5h | 59h prescale, 21h.1 set (180) |
+| Map 1140 | 1140h | return-to-idle transient fuel correction |
+| Map 1150 | 1150h | return-to-throttle transient fuel correction |
+	
 
 

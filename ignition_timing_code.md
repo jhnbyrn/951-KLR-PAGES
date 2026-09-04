@@ -525,6 +525,47 @@ Also recall from the crank sensor article that the ref sensor interrupt pulse fi
 
 So although it's very confusing, it does all work out in the end. 
 
+## Appendix: variables, flags, maps and constants
+
+Everything the ref sensor routine (01F0), the speed sensor routine (005C) and the 021D routine touch. See the [memory map](dme_memory_map.md) for the master list.
+
+### Byte variables
+
+| Location | Purpose |
+|----------|---------|
+| 2Bh | ignition event counter to the next dwell or spark, in whole teeth |
+| 2Ch | pre-calculated replacement for 2Bh, relative to the ref sensor position |
+| 2Dh | KLR trigger counter, in whole teeth |
+| 2Eh | pre-calculated replacement for 2Dh, relative to the ref sensor position |
+| 2Fh | dwell angle in half-teeth (calculated elsewhere) |
+| 30h | dwell duration in half-teeth, as used by the speed sensor routine |
+| 31h | base ignition advance in half-teeth |
+| 33h | half-tooth count to the next TDC |
+| 35h | cylinder firing index (0 or 1) |
+| 36h | speed sensor pulse counter, used for rpm measurement |
+| 57h | acceleration/deceleration timing adjustment |
+
+### Bit flags
+
+| Flag | Purpose |
+|------|---------|
+| 22h.0 | final half-tooth correction applied to the next ignition event |
+| 22h.1 | half-tooth rounding error left over from the 021D calculation |
+| 22h.3 | coil state to apply in the ref sensor routine (set = dwell off) |
+| p1.1 | ignition signal output (low = coil on) |
+| int1 / ie1 | speed sensor pin state and edge flag |
+| ie0 / ex0 / ex1 | ref sensor edge flag, and the two external interrupt enables |
+
+### Maps and constants
+
+| Reference | Address | Purpose |
+|-----------|---------|---------|
+| 1160+0 | 1160h | ref sensor position in half-teeth (44, i.e. 60 deg. BTDC on the 951) |
+| 1160+2 | 1162h | initial value for the KLR trigger counter 2Eh (252) |
+| 1160+3+35h | 1163h/1164h | half-teeth added to the KLR counter for the next cylinder (66) |
+| 1160+7+35h | 1167h/1168h | 180 degrees in half-teeth (132 on the 951) |
+
+
 
 
 

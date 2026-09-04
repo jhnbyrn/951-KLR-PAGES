@@ -170,3 +170,34 @@ If current RPM is below that reference:
 Move the reference toward current RPM at a rate proportional
 to the RPM difference (i.e. an exponentially slowing rate)
 ```
+
+## Appendix: variables, flags, maps and constants
+
+Everything the damping routine (030C) touches. See the [memory map](dme_memory_map.md) for the master list.
+
+### Byte variables
+
+| Location | Purpose |
+|----------|---------|
+| 37h | engine speed (rpm/40) |
+| 49h | load, checked against the ceiling of 90 |
+| 55h | the lagging rpm reference that chases 37h |
+| 56h | fractional accumulator controlling how fast 55h chases 37h |
+| 57h | the resulting timing adjustment (+1, -1 or 0 half-teeth) |
+
+### Bit flags
+
+| Flag | Purpose |
+|------|---------|
+| 23h.4 | startup — resets 55h, 56h and 57h and skips the routine |
+
+### Maps and constants
+
+| Reference | Address | Purpose |
+|-----------|---------|---------|
+| 1160+15h | 1175h | gain applied to the rpm delta (8) |
+| 1160+16h | 1176h | retard step written to 57h when rpm is rising (1) |
+| 1160+17h | 1177h | advance step written to 57h when rpm is falling (FFh, i.e. -1) |
+| 1160+18h | 1178h | rpm ceiling above which the routine is skipped (64, i.e. 2560rpm) |
+| 1160+19h | 1179h | load ceiling above which 57h is forced to zero (5Ah, i.e. 90) |
+

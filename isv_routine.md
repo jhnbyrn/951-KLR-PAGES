@@ -434,7 +434,26 @@ if map value >= current load:
 	set flag 20h.4 
 ```
 
-## Appendix: ISV routine maps, constants and flags
+## Appendix: variables, flags, maps and constants
+
+Everything the ISV routine touches, from the 0895 entry point through to the timer1 reload calculation at 1B40. See the [memory map](dme_memory_map.md) for the master list.
+
+### Byte variables
+
+Location | Meaning
+---------|--------
+13h | coolant temperature (NTC II), the axis for the target rpm and base PWM maps
+37h | engine speed (rpm/40)
+49h | load, compared against the target load map in the clamp routine
+41h | timer1 on-time, high byte
+42h | timer1 on-time, low byte
+44h | timer1 off-time, low byte
+45h | timer1 off-time, high byte
+7Bh | high byte of the doubled correction, stored during the timer1 calculation
+7Ch | flare hold counter — how long the raised target rpm is held before decrementing
+7Dh | integral term, low byte
+7Eh | integral term, high byte
+7Fh | target idle rpm
 
 ### Flags
 

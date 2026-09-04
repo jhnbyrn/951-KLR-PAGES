@@ -1,10 +1,10 @@
 # DME memory map
 
-This is the master list of the DME's variables, flags, constants and maps. It's compiled from the code walkthroughs, and each entry links back to the article where the code that uses it is explained.
+This is a master list of the DME's variables, flags, constants and maps, compiled from the existing code walkthroughs. 
 
-**This page covers the DME only.** The KLR is a separate computer with its own 8048 and its own memory, so none of these locations mean anything over there. Don't mix them up.
 
-A note on completeness: this is built from the code that has actually been walked through so far, so it's a record of what's been worked out rather than a complete map of the DME's RAM. Entries marked *unidentified* are locations that show up in code we've looked at without their purpose being established.
+
+A note on completeness: this is built from the code that has actually been walked through so far, so it's a record of what's been worked out rather than a complete map of the DME's RAM. 
 
 ## Byte variables
 
@@ -99,16 +99,16 @@ Bits 20h.0 to 20h.6 are local logic flags for ISV closed loop control, and some 
 | 21h.6 | selects return-to-idle (Map 1140) vs return-to-throttle (Map 1150) | [fuel cut](dme_fuel_cut_code.md), [post-ignition](dme_post_ignition_code_walkthrough.md) |
 | 21h.7 | latch for a pending 4Ch acceleration enrichment pump shot | [acceleration enrichment](dme_acceleration_enrichment_code_walkthrough.md), [post-ignition](dme_post_ignition_code_walkthrough.md) |
 
-### 22h - half-tooth corrections and timing slew rate
+### 22h - half-tooth corrections and timing change rate
 
 | Flag | Meaning | Covered in |
 |------|---------|------------|
 | 22h.0 | half-tooth correction applied to the next ignition event | [ignition timing](ignition_timing_code.md) |
 | 22h.1 | half-tooth rounding error left over from the 021D calculation | [ignition timing](ignition_timing_code.md) |
 | 22h.3 | coil state to apply in the ref sensor routine (set = dwell off) | [ignition timing](ignition_timing_code.md) |
-| 22h.4 | timing slew rate select, lowest priority of the three | [post-ignition](dme_post_ignition_code_walkthrough.md), [fuel cut](dme_fuel_cut_code.md) |
-| 22h.5 | timing slew rate select, medium priority | [post-ignition](dme_post_ignition_code_walkthrough.md), [fuel cut](dme_fuel_cut_code.md) |
-| 22h.6 | timing slew rate select, highest priority | [post-ignition](dme_post_ignition_code_walkthrough.md), [fuel cut](dme_fuel_cut_code.md) |
+| 22h.4 | timing change rate select, lowest priority of the three | [post-ignition](dme_post_ignition_code_walkthrough.md), [fuel cut](dme_fuel_cut_code.md) |
+| 22h.5 | timing change rate select, medium priority | [post-ignition](dme_post_ignition_code_walkthrough.md), [fuel cut](dme_fuel_cut_code.md) |
+| 22h.6 | timing change rate select, highest priority | [post-ignition](dme_post_ignition_code_walkthrough.md), [fuel cut](dme_fuel_cut_code.md) |
 
 ### 23h - engine operating mode
 
@@ -183,8 +183,8 @@ Almost all of the DME's scalar constants live in a block starting at 1160h, and 
 | 1Ah | 117Ah | 12 | injection count threshold for the cranking enrichment phase-out | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
 | 1Bh-1Eh | 117Bh-117Eh | 128, 132, 124, 136 | fuel offset per FQS position | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
 | 1Fh | 117Fh | A2h | coolant threshold selecting Map 40 vs Map 41 (~65C) | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
-| 25h | 1185h | 3Ch | load threshold for the fastest timing slew rate (60) | [fuel cut](dme_fuel_cut_code.md) |
-| 26h | 1186h | 14h | rpm threshold for the fastest timing slew rate (800rpm) | [fuel cut](dme_fuel_cut_code.md) |
+| 25h | 1185h | 3Ch | load threshold for the fastest timing change rate (60) | [fuel cut](dme_fuel_cut_code.md) |
+| 26h | 1186h | 14h | rpm threshold for the fastest timing change rate (800rpm) | [fuel cut](dme_fuel_cut_code.md) |
 | 27h-28h | 1187h-1188h | 8, 1 | 34h reload and timing step limit, normal case | [post-ignition](dme_post_ignition_code_walkthrough.md) |
 | 29h-2Ah | 1189h-118Ah | 1, 8 | 34h reload and timing step limit, 22h.4 set | [post-ignition](dme_post_ignition_code_walkthrough.md) |
 | 2Bh-2Ch | 118Bh-118Ch | 1, 2 | 34h reload and timing step limit, 22h.5 set | [post-ignition](dme_post_ignition_code_walkthrough.md) |
@@ -396,7 +396,7 @@ if rpm > 160:
 		clear 23h.2
 		return
 else:
-	set 23h.3
+	set 23h.2
 	if 20h.7:
 		a = dptr(1160+6F=11CF) # contains 55h, i.e. 85, or ~14.7C
 		if ntc_ii < a:

@@ -189,6 +189,10 @@ X0761:
 	clr	23h.5
 	ret	
 ;
+
+The following section has some tricky boolean logic:
+
+```
 X0770:	
 	clr	c
 	mov	a,#25h		;1185, contains 3Ch/60
@@ -205,6 +209,22 @@ X077e:
 X0782:	
 	jnc	X078f
 	cpl	22h.4
+```
+
+Working out the effect on 24h.2, we get this
+
+```
+	if (49h > 60 or 37h < 800rpm) XOR 22h.4
+		cpl 22h.4
+```
+
+But that's still kind of unclear, since it doesn't explicitly set 24h.2. But if you work through it, you'll see that this is actually equivalent to
+
+```24h.2 = bool(load>60 or rpm<800)```
+
+The rest of the routine is much easier to understand:
+
+```
 	jb	22h.6,X078f
 	jb	22h.5,X078f
 	mov	34h,#1

@@ -28,14 +28,14 @@ Next we'll discuss these things in a bit more detail (but still not to the level
 ## Timing adjustment
 The main timing variable is 31h - this contains the angle BTDC at which the spark should fire (represented in half-tooth units of ~1.36 degrees). In the DME's main loop, a new timing value is calculated using [various maps](dme_ignition_timing_calculation_overview.md). But this new value doesn't simply overwrite 31h. Instead, the new value represents a *target* (stored in 32h), and a fairly involved set of rules determine how the current value is allowed to progress towards the target. This way, we never have sudden abrupt timing changes, which would be bad for smoothness and driveability. 
 
-The rules are implemented by a cascading set of flags. The flags are set and cleared elsewhere by various driving conditions, and in the routine we're looking at now, they're checked in the order shown below.
+The rules are implemented by a cascading set of flags. The flags are [set and cleared elsewhere](dme_fuel_cut_overview.md) by various driving conditions, and in the routine we're looking at now, they're checked in the order shown below.
 
-flag  | update frequency (34h) | update step size (r5)
-------|----|---
-22h.6 | 01 | 01
-22h.5 | 01 | 02
-22h.4 | 01 | 08
-None  | 08 | 01
+flag  | update frequency (34h) | update step size (r5) | effective rate (compared to no flags)
+------|----|---|---
+22h.6 | 01 | 01 | 8x
+22h.5 | 01 | 02 | 16x
+22h.4 | 01 | 08 | 64x
+None  | 08 | 01 | 1x
 
 Each flag sets a particular update frequency and step size. The update frequency is the number of spark events to count before allowing the timing to change (counted via 34h). The step size is just how much the timing can change at once (measured as usual in flywheel half-teeth of 1.36 degrees). 
 

@@ -86,6 +86,8 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [Software counters and timers](dme_software_timers.md) *A short article explaining various counter and timer values and how they are controlled*
 
+* [DME Memory map](dme_memory_map.md) *A master list of all known variables, constants, flags and maps used in the DME (ongoing)*
+
 
 ## KLR Hardware
 

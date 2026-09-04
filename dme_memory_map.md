@@ -3,7 +3,6 @@
 This is a master list of the DME's variables, flags, constants and maps, compiled from the existing code walkthroughs. 
 
 
-
 A note on completeness: this is built from the code that has actually been walked through so far, so it's a record of what's been worked out rather than a complete map of the DME's RAM. 
 
 ## Byte variables

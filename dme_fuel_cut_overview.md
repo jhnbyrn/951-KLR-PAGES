@@ -30,7 +30,7 @@ So on a fully warmed up car, fuel will be cut off if you close the throttle abov
 
 However, fuel is never just cut *immediately* when these conditions are reached. Instead the DME waits for the timing to stabilize. The part throttle timing will usually be higher (more advance) than the idle map for the same rpm, so typically timing is reduced during this stabilization period. This might be intended to keep the transition smooth (for example see [1] below). 
 
-During this time, timing changes are allowed to change at up to 16x normal speed (via flag 22h.5)
+During this time, timing changes are allowed to change at up to 16x normal speed (via flag 22h.5). Once the current timing value (31h) is equal to the target, then assuming the fuel cut conditions still hold, fuel is cut off by setting 23h.5 (the post-ignition routine will check this flag and skip turning on the injectors if its set). It typically takes something in the order of 10 revolutions or so for this to happen. 
 
 Similarly, timing controls are exercised when fuel is reactivated,whether by the rpm returning below the threshold, or the throttle being reopened. 
 

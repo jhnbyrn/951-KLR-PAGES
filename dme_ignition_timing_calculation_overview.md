@@ -29,9 +29,9 @@ There are some noteworthy things about the corrections made in this routine.
 
 * the FQS part only uses bit 2. In other words, only FQS positions from 4-7 are relevant for timing, and they all result in the same change of -4 quarter teeth, that is -2.72 degrees. Also this is only applied above 1600rpm, and for part throttle, its only done if load > 80, which is approximately half of the maximum load. 
 * there's an air temperature correction map, which is Map 13, but on the Turbo image, all values are set to 20 (zero). The 944NA image actually does pull a few quarter teeth starting around 31C - it's worth noting that this version of the car doesn't have knock control. 
-* in temperature correction maps, the cat/o2 equipped cars have a peculiar dip in timing that bottoms out around 16C that the RoW cars don't have. This appears to be a cat warm-up strategy. 
+* in temperature correction maps, the cat/o2 equipped cars have a peculiar dip in timing that bottoms out around 16C that the RoW cars don't have. This appears to be a cat warm-up strategy. Later ignition means more heat is retained in the exhaust. 
 
-Some map visualizations are always useful for context. Here are the O2/cat vs other maps for temperature based timing correction. 
+Some map visualizations are always useful for context. Here are the O2/cat vs RoW maps for temperature based timing correction. 
 
 Idle:
 

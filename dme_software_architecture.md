@@ -4,11 +4,21 @@ The main loop is 1F3A. The sequence of funciton calls, with repititions removed,
 
 * diagnostics
 * timer1 low stage (1F87)
+  * read the ADC
+  * linearize the temp sensor readings (02DD)
+  * update the software counters (02EF)
+  * calculate the timing accel/decel adjustment (030C)
+  * AFM transfer function/load calculation (0381)
+  * acceleration enrichment (1F8E)
+  * post fuel routine - injector latency/intialize fuel value 4B:4A (040D)
+  * diagnostics (0434)
+  * update overload timer (0C57)
+  * idle stabilizer routine (0895)
 * TPS processing
 * timing calculation (including fuel cuts)
 * dwell calculation
 * main fuel enrichments (temp, FQS etc.)
-
+  * lambda
 
 Routine 1F87 from the main loop just checks if the ISV PWM signal is in the low period, and if so, calls 02C6 (while clearing the flag).
 

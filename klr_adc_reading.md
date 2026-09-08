@@ -1,6 +1,5 @@
 # How the ADC is read
 
-##Overview
 The process of reading the ADC is more complicated in the KLR than in the DME. The reason for this is that it needs to be timed very carefully. Knock is most likely to happen within a window of around 10-70 degrees ATDC. The KLR's knock detection system integrates the sensor's output during a certain window within this range of angles, and that means that the system must begin the integration process at a fairly specific angle, and read the final value at some later specific angle. 
 
 For convenience we'll call these angles:
@@ -23,27 +22,53 @@ The sequence goes like this:
 
 In the time between steps 1 and 2, we check the knock self-test counter, and do the test if the counter indicates that it's time.
 
-So in summary, we need to (a) measure out the correct angle to start the process, and (b) carry out the sequence of steps that involve *possibly* performing the self test, and then the ADC read operations.
+So in summary, we need to:
 
-Neither of these steps are trivial. We'll look at them in detail separately. 
+* measure out the correct angle to start the process
+* carry out the sequence of steps that involve *possibly* performing the self test, and then the ADC read operations.
+
+Neither of these tasks are trivial. Next, we'll look at them in detail, separately. 
 
 ## How the anglular measurement works
-The timer and its interrupt routine, combined with the trigger signal, provide the basic measurement mechanism. 
+The timer and its interrupt routine, combined with the trigger signal, provide the basic measurement mechanism for angles. 
 
-Every time the timer interrupt routine runs, it decrements the counter __r4__, bank 0 (after doing its other tasks). Thus __r4__ counts timer ticks, and by loading r4 with an appropriate value (in the trigger routine, which we know is ~71 deg. BTDC) we can measure approximate angles, based on when r4 reaches zero. I say *approximate* because the engine speed is changing all the time - this doesn't give us anything like the precision that the DME has for measuring angles, but it's good enough.
+Every time the timer interrupt routine runs, it decrements the counter __r4__, bank 0 (at location __63__, after doing its other tasks). Thus r4 counts timer ticks, and by loading r4 with an appropriate value (in the trigger routine, which we know is ~71 deg. BTDC) we can measure approximate angles, based on when r4 reaches zero. I say *approximate* because the engine speed is changing all the time - this doesn't give us anything like the precision that the DME has for measuring angles, but it's good enough.
 
 Of course, since the timer ticks are fixed at 87us, the number of ticks that corresponds to a given angle varies with engine speed. So we need to constantly use the current engine speed measurement to convert our desrired angles into timer ticks. 
 
 The actual target angles for starting the sensor integration and then reading the value also vary a little by rpm, presumably because the characteristics of engine knock vary with rpm. For every trigger event, we load two the target angles for the current rpm into 2A and 2B. The angle in 2A is Angle #1 (where we start the integrator), and 2B is Angle #2 (relative to 2A) where we read the output. 
 
-Because engine speed (in 24h) is measured in terms of timer ticks, and we need our counter variables to also be in timer ticks, *and* we know that trigger events are 180 degrees apart, the values in 2A and 2B can be understood simlply as fractions of 180 degrees. So for instance 155 means ```180 * (155/256) degrees```. Subtracting 71 from this gives us the corresponding angle ATDC. 
+The target angles are stored in the rpm maps at _900_ - here are the relevant maps for 2A and 2B:
 
-2A and 2B are each multiplied by engine speed 24h and the results are divied by 256 and stored in 22h and 23h respectively. These are the timer tick counts. In the trigger routine, __r4__ is initialized with 22h. 
+Variable/RPM range | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 
+-------------------|---|---|---|---|---|---|---|---|
+2A |  155 | 155 | 149 | 146 | 145 | 138 | 131 | 127
+2B | 61 | 49 | 48 | 48 | 48 | 48 | 48 | 55
+ 
+Because engine our basic engine speed measurement (in 24h) is measured in terms of timer ticks, and we need our counter variables to also be in timer ticks, *and* we know that trigger events are 180 degrees apart, the values in 2A and 2B can be understood simlply as fractions of 180 degrees. So for instance 155 means ```180 * (155/256) degrees```. Subtracting 71 from this gives us the corresponding angle ATDC. 
+
+At __A9E__, 2A and 2B are each multiplied by engine speed 24h and the results are divied by 256 and stored in 22h and 23h respectively. These are the timer tick counts. In the trigger routine, __r4__ is initialized with 22h. 
+
+Here's a table of the angles we end up with, based on the rpm ranges above:
+
+RPM range/Angle | 2A (Angle #1) | 2B (Angle #2)
+----|----|----|
+0 | 38 | 43
+1 | 38 | 34
+2 | 34 | 34
+3 | 32 | 34
+4 | 31 | 34
+5 | 26 | 34
+6 | 21 | 34
+7 | 18 | 38
+
 
 ## How the sequencing works
-The way the ADC operation sequencing is achieved is by using a table of function pointers, located at 0x400. The timer routine calls __40B__ when our counter __r4__ reaches zero, and 40B cycles through the functions in the table - each time 40B is called, it jumps to the next function in the table. 
+The way the ADC operation sequencing is achieved is by using a table of function pointers, located at __400__. The index to this function table is __2C__. When our main counter r4 reaches zero in the timer routine, we increment 2C and call __40B__. 
 
-Recall that the first value loaded into __r4__ represents the Angle #1, the start of the knock window. By default the timer routine reloads the tick counter __r4__ with __2__ just before calling 40B. That means we'll call 40B again after another 2 timer ticks, unless something in 40B overrides this value in r4. Function #4 does exactly that - (the last one before the actual ADC read) - it overrides r4 with the tick count value for Angle #2 (calculated earlier and stored in 23h). 
+Thu 40B cycles through the functions in the table - each time it's called, it jumps to the next function in the table. 
+
+Recall that the first value loaded into r4 represents the Angle #1, the start of the knock window. By default the timer routine reloads the tick counter r4 with __2__ just before calling 40B. That means we'll call 40B again after another 2 timer ticks, unless something in 40B overrides this value in r4. Function #4 does exactly that - (the last one before the actual ADC read) - it overrides r4 with the tick count value for Angle #2 (calculated earlier and stored in 23h). 
 
 
 The functions in the table are:
@@ -93,6 +118,10 @@ But it's also possible to select the next channel address at the same time that 
 0x44d orl  p1,#$8		;00001000 ALE latch
 0x44f anl  p1,#$F4		;11110100 (toggle ALE off and select Ch. #4)
 ```
+
+Each of the individual ADC reading functions stores the value read from the ADC in its appropriate location in addition to handling the addressing and latching just described - but many of them do some extra processing before storing the value and returning. 
+
+## Channels
 
 
 

@@ -75,29 +75,31 @@ And here's the later Bosch one:
 
 ![](images/klr_map_sensor/late_1.jpg)
 
-As far as I can tell, the circuitry that relates to the ADC signal didn't change, so the two sensors should be interchangeable. There's presumably no datasheet for the early one, being a custom design, but there is a [datasheet](reference/0273 003 204.pdf) for the later Bosch one. It gives a formula for the output voltage:
+I'm not sure if they're interchangeable. But the presence of those resistors installed on the standoffs suggest that they might have been hand picked to match the individual MAP sensor. The relevant code seems to be identical though. 
+
+There's presumably no datasheet for the early one, being a custom design, but there is a [datasheet](reference/0273 003 204.pdf) for the later Bosch one. It gives a formula for the output voltage:
 
 ```((4.55 * P_abs)/180) - 0.256```
 
-(assuming a 5v reference; scale accordingly). 
+(assuming a 5v reference, which it has in the KLR). 
 
 So we should see ~2.271v for 100kpa. 
 
-The early one appears to be close. For instance, on an early version, at rest, I saw ```2.21 - 2.24``` from the map sensor, when the ambient pressure should have been in the neighborhood of 100kpa.
+The early one appears to be close to this. For instance, on an early version, at rest, I saw ```2.21 - 2.24``` from the map sensor, when the ambient pressure should have been in the neighborhood of 100kpa.
 
-With both versions, the signal is reduced by a voltage divider and  we see the value at Channel 4 (pin 2) at around ~0.945x the raw map sensor output. That would give us around ```2.145v``` at the ADC input, or around 109 units. 
+With both versions, the signal is reduced by a voltage divider and  we see the value at Channel 4 (pin 2) at around ~0.945x the raw map sensor output. That would give us around ```2.145v``` at the ADC input, or around __109__ units. 
 
-Next, the MAP function of the ADC read process adds 10 units before storing the value in 52h. This is a little strange - directionally it tends to offset the -0.256 offset that the Bosch sensor (and presumably the early one) have, but it's a couple of units short. An offset of -0.256 would require +12 (after the 0.95x scaling I mentioned). However, if we assume that they wanted to make the middle of the available range match atmospheric pressure (~101.3kpa) as opposed to 100kpa (the nominal halfway point of the sensor's range), then it's pretty close to the right number. 
+Next, the MAP function of the ADC read process adds __10__ units before storing the value in __52h__. This is a little strange - directionally it tends to offset the __-0.256__ offset that the Bosch sensor (and presumably the early one) have, but it's a couple of units short. An offset of -0.256 would require +12 (after the 0.95x scaling I mentioned). However, if we assume that they wanted to make the middle of the available range match atmospheric pressure (~101.3kpa) as opposed to 100kpa (the nominal halfway point of the sensor's range), then it's pretty close to the right number. 
 
-In any case, this +10 puts us at around 119 for 100kpa. Since we scaled everything at 0.95x, this is just under half of the available range. 
+In any case, this +10 puts us at around __119__ for __100kpa__. Since we scaled everything at 0.95x, this is just under half of the available range. 
 
-And ```119 * 1.75 = 208.25``` is almost exactly the max value found in the 1987 boost map (it peaks briefly at 209). Also the value it ends up with near the redline, 185, gives ```185/119 = 1.55``` and this is a nice match because the Technik document says "*as the engine speed rises the charging air pressure drops and reaches a value of __1.55__ bar (absolute) at the rated speed of 5800rpm*".
+And ```119 * 1.75 = 208.25``` is almost exactly the max value found in the 1987 boost map (it peaks briefly at 209). Also the value that the map ends up with near the redline, 185, gives ```185/119 = 1.55``` and this is a nice match because the [Technik document](references/TECHNIK491321.pdf) says "*as the engine speed rises the charging air pressure drops and reaches a value of __1.55__ bar (absolute) at the rated speed of 5800rpm*".
 
-Putting all this together gives us something very close to 1kpa = 1.2 units in the software. Here are some important numbers assuming that's true:
+Putting all this together gives us something very close to __1kpa = 1.2 units__ in the software. Here are some important numbers assuming that's true:
 
-* overboost threshold - 32 - 0.26 bar
-* underboost threshold - 64 - 0.53 bar
-* boost reduction for knock - 5 - 0.042 bar
+* overboost threshold: 32 = 0.26 bar
+* underboost threshold: 64 = 0.53 bar
+* boost reduction for knock: 5 = 0.042 bar
 
 (The Technik document doesn't specify over/underboost thresholds but does say that boost reduction for knock is "*taken back in steps of 30 to 50 mbar (0.030 to 0.050 bar)....*".
 

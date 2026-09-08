@@ -1,6 +1,7 @@
 # KLR master memory map
 
 ## Byte variables
+
 Location | Purpose
 ---------|--------
 24h | engine speed (complemented from r6; literally timer ticks per ignition event)
@@ -90,7 +91,7 @@ Next, the MAP function of the ADC read process adds 10 units before storing the 
 
 In any case, this +10 puts us at around 119 for 100kpa. Since we scaled everything at 0.95x, this is just under half of the available range. 
 
-And ```119 * 1.75 = 208.25``` is almost exactly the max value found in the 1987 boost map (it peaks briefly at 209). Also the value it ends up with near the redline, 185, gives ```185/119 = 1.55``` and this is a nice match because the Technik document says "*as the engine speed rises the charging air pressure drops and reaches a value of 1.55 bar (absolute) at the rated speed of 5800rpm*".
+And ```119 * 1.75 = 208.25``` is almost exactly the max value found in the 1987 boost map (it peaks briefly at 209). Also the value it ends up with near the redline, 185, gives ```185/119 = 1.55``` and this is a nice match because the Technik document says "*as the engine speed rises the charging air pressure drops and reaches a value of __1.55__ bar (absolute) at the rated speed of 5800rpm*".
 
 Putting all this together gives us something very close to 1kpa = 1.2 units in the software. Here are some important numbers assuming that's true:
 
@@ -115,7 +116,7 @@ Putting all this together gives us something very close to 1kpa = 1.2 units in t
 | 74.2 | 143 | 145 | 171 | 190 | 193 | 193 | 193 | 193 | 193 | 191 | 188 | 186 | 184 | 182 | 180 | 180 |
 | 78.5 | 145 | 152 | 180 | 206 | 208 | 209 | 208 | 207 | 207 | 206 | 202 | 198 | 193 | 188 | 185 | 185 |
 | 82.8 | 145 | 152 | 180 | 206 | 208 | 209 | 208 | 207 | 207 | 206 | 202 | 198 | 193 | 188 | 185 | 185 |
-| 87.1 | 145 | 152 | 180 | 206 | 208 | 209 | 208 | 207 | 207 | 206 | 202 | 198 | 193 | 188 | 185 | 185 
+| 87.1 | 145 | 152 | 180 | 206 | 208 | 209 | 208 | 207 | 207 | 206 | 202 | 198 | 193 | 188 | 185 | 185 |
 
 * '89:
 | Throttle% \ RPM | 0 | 1864 | 2041 | 2254 | 2446 | 2674 | 2948 | 3164 | 3415 | 3708 | 4057 | 4479 | 4724 | 4998 | 5653 | 6050 |
@@ -130,7 +131,9 @@ Putting all this together gives us something very close to 1kpa = 1.2 units in t
 | 87.1 | 145 | 152 | 180 | 206 | 206 | 206 | 206 | 206 | 206 | 208 | 206 | 206 | 206 | 206 | 206 | 194 |
 
 ### Cycling valve duty cycle:
+
 * all models:
+
 | Throttle% \ RPM | 0 | 1864 | 2041 | 2254 | 2446 | 2674 | 2948 | 3164 | 3415 | 3708 | 4057 | 4479 | 4724 | 4998 | 5653 | 6050 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 57.0 | 38 | 38 | 38 | 38 | 38 | 38 | 38 | 38 | 38 | 38 | 38 | 38 | 38 | 38 | 38 | 38 |
@@ -143,7 +146,9 @@ Putting all this together gives us something very close to 1kpa = 1.2 units in t
 | 87.1 | 191 | 191 | 191 | 191 | 191 | 182 | 173 | 169 | 165 | 161 | 157 | 150 | 146 | 142 | 146 | 150 |
 
 ### PID gain
+
 * all models:
+
 | Throttle% \ RPM | 1864 | 2254 | 2674 | 3164 | 3708 | 4479 | 4998 | 6050 |
 |---|---|---|---|---|---|---|---|---|
 | 57.0 | 227 | 227 | 231 | 234 | 230 | 230 | 233 | 233 |

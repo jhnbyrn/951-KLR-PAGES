@@ -4,7 +4,7 @@
 
 Location | Purpose
 ---------|--------
-24h | engine speed (complemented from r6; literally timer ticks per ignition event)
+24h | engine speed (complemented from r6; literally 87us timer ticks per 180 degrees)
 2Eh | battery voltage
 2Fh | knock sensor (diagnostics)
 39h | throttle position (power supply)
@@ -15,9 +15,9 @@ Location | Purpose
 46h | knock sensor (proper)
 24h | engine speed (in timer ticks)
 52h | MAP pressure
-33h | blink code
-22h | angle to begin ADC initialization routine
-23h | angle to read ADC (after 22h - approx 15 deg.)
+33h | current blink code
+22h | angle to begin ADC initialization routine (in timer ticks)
+23h | angle to read ADC (after 22h, in timer ticks)
 44h | rpm range (map axis)
 43h | throttle position (map axis)
 70h - 73h | per-cylinder timing delay
@@ -107,6 +107,7 @@ Putting all this together gives us something very close to 1kpa = 1.2 units in t
 ### Boost
 
 * '86:
+
 | Throttle% \ RPM | 0 | 1864 | 2041 | 2254 | 2446 | 2674 | 2948 | 3164 | 3415 | 3708 | 4057 | 4479 | 4724 | 4998 | 5653 | 6050 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 57.0 | 137 | 141 | 144 | 145 | 145 | 146 | 146 | 148 | 148 | 148 | 150 | 150 | 150 | 152 | 152 | 152 |
@@ -119,6 +120,7 @@ Putting all this together gives us something very close to 1kpa = 1.2 units in t
 | 87.1 | 145 | 152 | 180 | 206 | 208 | 209 | 208 | 207 | 207 | 206 | 202 | 198 | 193 | 188 | 185 | 185 |
 
 * '89:
+
 | Throttle% \ RPM | 0 | 1864 | 2041 | 2254 | 2446 | 2674 | 2948 | 3164 | 3415 | 3708 | 4057 | 4479 | 4724 | 4998 | 5653 | 6050 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 57.0 | 137 | 141 | 144 | 145 | 145 | 146 | 146 | 148 | 148 | 148 | 150 | 150 | 150 | 152 | 152 | 152 |

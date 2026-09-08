@@ -64,6 +64,16 @@ The cycling valve PWM signal is handled by the timer interrupt routine, which ru
 ### MAP
 There are two different MAP sensors used in the KLRs. The early version used a daughter board with a Motorola transducer (probably an [MPX200](reference/MPX201.PDF)) along with various other componenets. The later version used a __Bosch 0 273 003 204 200 (200kpa)__ sensor in a plastic case. 
 
+Here's the early one:
+
+![](images/klr_map_sensor/early_1.jpg)
+
+![](images/klr_map_sensor/early_closeup_1.jpg)
+
+And here's the later Bosch one:
+
+![](images/klr_map_sensor/late_1.jpg)
+
 As far as I can tell, the circuitry that relates to the ADC signal didn't change, so the two sensors should be interchangeable. There's presumably no datasheet for the early one, being a custom design, but there is a [datasheet](reference/0273 003 204.pdf) for the later Bosch one. It gives a formula for the output voltage:
 
 ```((4.55 * P_abs)/180) - 0.256```

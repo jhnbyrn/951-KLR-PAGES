@@ -49,9 +49,9 @@ Because engine our basic engine speed measurement (in 24h) is measured in terms 
 
 At __A9E__, 2A and 2B are each multiplied by engine speed 24h and the results are divied by 256 and stored in 22h and 23h respectively. These are the timer tick counts. In the trigger routine, __r4__ is initialized with 22h. 
 
-Here's a table of the angles we end up with, based on the rpm ranges above:
+Here's a table of the angles we end up with, based on the rpm ranges above (note that Angle #1 is ATDC but Angle #2 is relative to Angle #1):
 
-RPM range/Angle | 2A (Angle #1) | 2B (Angle #2)
+RPM range/Angle | 2A (Angle #1 ATDC) | 2B (Angle #2)
 ----|----|----|
 0 | 38 | 43
 1 | 38 | 34
@@ -66,7 +66,7 @@ RPM range/Angle | 2A (Angle #1) | 2B (Angle #2)
 ## How the sequencing works
 The way the ADC operation sequencing is achieved is by using a table of function pointers, located at __400__. The index to this function table is __2C__. When our main counter r4 reaches zero in the timer routine, we increment 2C and call __40B__. 
 
-Thu 40B cycles through the functions in the table - each time it's called, it jumps to the next function in the table. 
+Thus 40B cycles through the functions in the table - each time it's called, it jumps to the next function in the table. 
 
 Recall that the first value loaded into r4 represents the Angle #1, the start of the knock window. By default the timer routine reloads the tick counter r4 with __2__ just before calling 40B. That means we'll call 40B again after another 2 timer ticks, unless something in 40B overrides this value in r4. Function #4 does exactly that - (the last one before the actual ADC read) - it overrides r4 with the tick count value for Angle #2 (calculated earlier and stored in 23h). 
 
@@ -121,8 +121,180 @@ But it's also possible to select the next channel address at the same time that 
 
 Each of the individual ADC reading functions stores the value read from the ADC in its appropriate location in addition to handling the addressing and latching just described - but many of them do some extra processing before storing the value and returning. 
 
-## Channels
+## Functions
 
+The function table is looked up via
 
+```
+0x40b anl  a,#$7
+0x40d jmpp @a
+```
 
- 
+The anl instruction masks all but the lowest 3 bits. This means we're taking 2C *mod 8* - it can count freely forever and we'll always just cycle through 0-7 with this. The next instruction jumps to the location pointed to by __a__, *relative* to the start of the page, which means 400h plus the 2 byte value from the function table. 
+
+### Function 0 (40E) - start integrator and select first channel
+```
+0x40e anl  p1,#$F7		;11110111
+0x410 mov  a,@r0
+0x411 dec  a			;a=current function
+0x412 jz   $041C
+0x414 anl  p1,#$F3		;1111 0011 select ch. 3
+0x416 jb4  $041A
+0x418 anl  p1,#$F5		;1111 0101 clear p1.1 (selects ch. 1)
+0x41a jb3  $041E
+0x41c anl  p1,#$F6		;1111 0110 clear p1.0 (selects 0 or 2)
+0x41e orl  p2,#$20		;0010 0000 (p2.5 knock sensor integrator)
+0x420 orl  p1,#$8		;0000 1000 ADC ALE (latch the current addr)
+0x422 anl  p1,#$F5		;1111 0101
+0x424 orl  p1,#$5		;0000 0101
+0x426 ret
+```
+
+This can be quite tricky to read. It's not doing anything very complicated. Register r0 points to 2C at this point, which was incremented before we got here, so we just decrement it to get the value that corresponds to this iteration. 
+
+If it's zero then we select channel 6 which I don't think is used. But 2C is a free counter and usually isn't zero. So next we do a clever sequence of masking that tests bits 3 and 4 of 2C and selects channels 0, 1, 2 or 3 accordingly. It's hard to visualize but the effect of this is to select each one for 8 counts, then the next one. That means that if we start with channel 0, this code will switch to channel 1 after 8 iterations, which corresponds to the next ignition event (since there are 8 functions in the table and each one gets called for each ignition event, with 2C incremented each time). 
+
+So to summarize, every ignition event, we'll pick the next channel in the sequence 0-3. Thus these channels are the lowest piority, each one being read every 4 cycles, while the others are read every cycle. 
+
+After this we latch the address via ALE - this begins the ADC conversion process and the address bus is now free, so we put channel 5 on the bus (knock sensor). The next function after the self-test functions will read the channel 0-3 value and also latch the address on the bus (channel 5/knock sensor). 
+
+### Functions 1-3 (43C) - generate fake knock signal
+
+After the initial set up where the intergrator is turned on, this function is called three times in a row, at intervals of 2 timer ticks. 
+
+```
+0x43c add  a,#$7		;a points to the adc function number
+0x43e movp a,@a			;99 8f 00 (153, 143, 0)
+0x43f mov  r0,#$2F
+0x441 add  a,@r0
+0x442 jc   $044B		;jump if 2F > 103, 113, and itself
+0x444 mov  r0,#$31
+0x446 mov  a,@r0
+0x447 jnz  $044B
+0x449 anl  p1,#$7F		;01111111 - fake knock signal off
+0x44b ret
+```
+
+On each call, it checks the current knock sensor noise level against one of three thresholds, and toggles the fake knock output off if the noise is above the threshold (2F is inverted, so lower values mean more background noise). 
+
+The third threshold is simply the 2F value itself, meaning that the third pulse is always generated. Thus we have one, two or three pulses, depending on noise level, with the maximum number of pulses for the noisiest case. 
+
+The idea seems to be that the quiter the background noise is (as measured by the knock sensor) the more sensitive we expect the knock detection circuitry and logic to be. 
+
+### Function 4 (47) - finalize knock test
+```
+0x427 mov  r0,#$23		;ADC read angle counter
+0x429 mov  a,@r0
+0x42a mov  r4,a			;r4 controls when we call the ADC routine from the timer
+0x42b mov  r0,#$2F
+0x42d mov  a,@r0
+0x42e add  a,#$C0		;192
+0x430 mov  r0,#$31
+0x432 jc   $0446		;jump if 2F >= 64
+0x434 mov  a,@r0
+0x435 jb2  $0438
+0x437 ret
+0x438 anl  a,#$7		;00000111 ch. 7 TPS angle
+0x43a mov  @r0,a		;limit 31h to 7?
+0x43b ret
+```
+First we set our tick counter r4 to Angle #2 - that controls when we will call the next function, which is where the actual ADC reads begin. 
+
+Next, if the noise level 2F is > 64, we add one more fake knock pulse. This is odd because we're testing against an upper threshold here since 2F is inverted. 
+
+If we don't add that pulse, we check if the self-test countdown variable 31h has bit 2 set, and if so we mask it to 7 or les before returning. TODO - investigate why. 
+
+### Function 5 (4C) - read channels 0-3
+Here we read one of these low priority channels. 
+
+First we read the value, then determine which channel it was using the same logic we used in Function 0 to select the channel (i.e. via bits 3 and 4 of the function table index, 2C):
+
+```
+0x44c movx a,@r0
+0x44d orl  p1,#$8		;00001000 ALE latch
+0x44f anl  p1,#$F4		;11110100 (ALE toggle and select #4 MAP)
+0x451 xch  a,@r0
+0x452 jb4  $0480
+0x454 jb3  $047B
+```
+
+If both bits are clear, that means Function 0 would have selected channel 0, so we have just read the knock sensor noise level input. 
+
+Let's look at how that channel is processed first:
+
+```
+0x456 xch  a,@r0        ;this undoes the previous xch above
+0x457 mov  r1,a
+0x458 mov  a,@r0
+0x459 xrl  a,#$6
+0x45b mov  r0,#$2F		;knock sensor noise
+0x45d jz   $0476
+0x45f mov  a,#$C0
+0x461 add  a,r1
+0x462 jnc  $0478
+0x464 mov  a,r1
+0x465 mov  @r0,a
+0x466 mov  r1,#$34
+0x468 mov  a,@r1
+0x469 add  a,#$FA
+0x46b jz   $0475
+0x46d cpl  a
+0x46e jz   $0472
+0x470 mov  a,#$FC
+0x472 add  a,#$69
+0x474 mov  @r0,a
+0x475 ret
+0x476 mov  r0,#$2D
+0x478 mov  a,r1
+0x479 mov  @r0,a
+0x47a ret
+```
+
+### Function 6 (98) read MAP sensor
+
+```
+0x498 mov  r0,#$52
+0x49a movx a,@r0		;store ADC value into a (not 52h!)
+0x49b add  a,#$A		;add 10 to the value from 52h
+0x49d mov  r4,a			;r4 <- value from 52h + 10
+0x49e cpl  a
+0x49f add  a,@r0		;c=1 if a < 52h (previous reading)
+0x4a0 mov  r0,#$6C		;used in blink code checking - we only check boost trigger boost codes if this is 0 
+0x4a2 orl  p1,#$8		;00001000 
+0x4a4 anl  p1,#$F7		;11110111 toggle ALE
+0x4a6 jnc  $04B1		;c=0 if boost is increasing
+0x4a8 mov  @r0,#$0		;here 6Ch is set to 0 which enables boost error code checking
+0x4aa mov  r0,#$52
+0x4ac mov  a,r4
+0x4ad mov  @r0,a		;store the value from r4 into 52h
+0x4ae mov  r4,#$FF		;r4 <- 255
+0x4b0 ret
+0x4b1 inc  @r0			;inc the value in 6Ch
+0x4b2 mov  a,@r0
+0x4b3 jb2  $04A8		;looks like we only enable error code checking every 4th read if boost is increasing.
+0x4b5 mov  r4,#$FF
+0x4b7 ret
+```
+
+After reading the raw value from the ADC into __a__, we do
+
+```
+a = a + 10
+r4 = a
+toggle ALE
+if a <= 52h (previous value):
+	6Ch = 0
+	52h = r4 (new value)
+	r4 = 255 (stop calling the ADC funciton table now)
+	return
+else:
+	6Ch++
+	if 6Ch >= 4:
+		6Ch = 0
+		52h = r4 (new value)
+	return
+ ```
+
+Now 6C controls boost related error checking in the blink code routine - over and underboost checks are skipped if 6C=0. 
+
+So in summary if boost is decreasing, we store the value and everything is normal. If increasing, then we only store the value and check for boost related errors every 4th read. 

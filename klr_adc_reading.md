@@ -51,16 +51,10 @@ At __A9E__, 2A and 2B are each multiplied by engine speed 24h and the results ar
 
 Here's a table of the angles we end up with, based on the rpm ranges above (note that Angle #1 is ATDC but Angle #2 is relative to Angle #1):
 
-RPM range/Angle | 2A (Angle #1 ATDC) | 2B (Angle #2)
-----|----|----|
-0 | 38 | 43
-1 | 38 | 34
-2 | 34 | 34
-3 | 32 | 34
-4 | 31 | 34
-5 | 26 | 34
-6 | 21 | 34
-7 | 18 | 38
+| RPM range/Angle | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|---|---|---|---|
+| 2A (Angle #1 degrees ATDC) | 38 | 38 | 34 | 32 | 31 | 26 | 21 | 18 |
+| 2B (Angle #2 degrees after #1) | 43 | 34 | 34 | 34 | 34 | 34 | 34 | 38 |
 
 
 ## How the sequencing works
@@ -73,20 +67,20 @@ Recall that the first value loaded into r4 represents the Angle #1, the start of
 
 The functions in the table are:
 
-time interval | function # | purpose |
+time interval | function # | address offset | purpose |
 -----------|---------|
-Angle #1 | 0 | start integrator, choose one of channels 0-3, latch first address, prepare knock sensor channel
-2 ticks | 1 | generate fake knock pulse for test
-2 ticks | 2 | generate fake knock pulse for test
-2 ticks | 3 | generate fake knock pulse for test
-2 ticks | 4 | finalize knock system test, override __r4__ with Angle #2
-Angle #2 | 5 | read channel 0-3, latch knock sensor channel, prepare MAP channel
-2 ticks | 6 | read knock sensor, latch MAP channel, prepare TPS channel
-2 ticks | 7 | read MAP sensor, latch TPS channel
+Angle #1 | 0 | 0E | start integrator, choose one of channels 0-3, latch first address, prepare knock sensor channel
+2 ticks | 1 | 3C | generate fake knock pulse for test
+2 ticks | 2 | 3C | generate fake knock pulse for test
+2 ticks | 3 | 3C | generate fake knock pulse for test
+2 ticks | 4 | 47 | finalize knock system test, override __r4__ with Angle #2
+Angle #2 | 5 | 4C | read channel 0-3, latch knock sensor channel, prepare MAP channel
+2 ticks | 6 | 8C | read knock sensor, latch MAP channel, prepare TPS channel
+2 ticks | 7 | 98 | read MAP sensor, latch TPS channel
 
 There's no function in the list for actually reading the TPS sensor. Instead this is read at the beginning of the trigger routine, but because of the way the address preparation and latching is staggered, it makes sense to think of it as part of the same over all process. 
 
-Why does each of the ADC read functions do channel selection like this? The process of actually taking a reading from the ADC consists of a few fairly standard steps:
+The process of actually taking a reading from the ADC consists of a few fairly standard steps:
 
 1. prepare the address, i.e. put the address on the bus (p1 bits 0-2)
 2. latch the address (rising edge of ALE)
@@ -95,7 +89,7 @@ Why does each of the ADC read functions do channel selection like this? The proc
 
 This is really the same process as the DME uses (it uses the same 0809 ADC chip) but in the DME code the code is simple, because it's all done in a single loop with a hard coded delay, and otherwise without any particular concern for precise timing. 
 
-Here, the four steps are staggered accross the table functions, in the way described in the table above. 
+Here, the four steps are staggered accross the various table functions. Here's some more detail on these steps:
 
 The delay needed for the conversion comes from the timer ticks that we count via __r4__ between calls to the function table - the trick to this is that each ADC read function performs these three steps:
 
@@ -103,9 +97,9 @@ The delay needed for the conversion comes from the timer ticks that we count via
 2. put the *next* address on the bus
 3. read the current value (which corresponds to the address latched by the previous function)
 
-So for example, function #0 latches of of the channels 0-3, and then puts channel 5 (knock sensor) on the bus. Function #5 then toggles ALE (thus latching the *knock sensor* address ch. 5), puts channel 4 on the bus (MAP sensor), and then finally reads the current conversion, which is the channel 0-3 that was latched back in function #0, and so on. 
+So for example, function #0 latches one of the channels 0-3, and then puts channel 5 (knock sensor) on the bus. Function #5 then reads the value from channel 0-3, toggles ALE (thus latching the *knock sensor* address ch. 5), and puts channel 4 on the bus (MAP sensor). This process is repeated for each channel that's read. 
 
-In the KLR code the latching of the ALE pin is performed by pulling p1.3 high, then low again. The address presently on p1.0-p1.2 is latched by the ADC on the rising edge. The instruction sequence for this typically looks like this
+In the KLR code, the latching of the ALE pin is performed by pulling p1.3 high, then low again. The address presently on p1.0-p1.2 is latched by the ADC on the rising edge. The instruction sequence for this typically looks like this
 
 ```
 0x4a2 orl  p1,#$8		;00001000 
@@ -130,7 +124,7 @@ The function table is looked up via
 0x40d jmpp @a
 ```
 
-The anl instruction masks all but the lowest 3 bits. This means we're taking 2C *mod 8* - it can count freely forever and we'll always just cycle through 0-7 with this. The next instruction jumps to the location pointed to by __a__, *relative* to the start of the page, which means 400h plus the 2 byte value from the function table. 
+The anl instruction masks all but the lowest 3 bits. This means we're taking 2C *mod 8* - it can count freely forever but the value we get here will always just cycle through 0-7. The next instruction jumps to the location pointed to by __a__, *relative* to the start of the page, which means 400h plus the byte value from the function table. 
 
 ### Function 0 (40E) - start integrator and select first channel
 ```
@@ -200,7 +194,7 @@ The idea seems to be that the quiter the background noise is (as measured by the
 ```
 First we set our tick counter r4 to Angle #2 - that controls when we will call the next function, which is where the actual ADC reads begin. 
 
-Next, if the noise level 2F is > 64, we add one more fake knock pulse. This is odd because we're testing against an upper threshold here since 2F is inverted. 
+Next, if the noise level 2F is > 64, we add one more fake knock pulse. If the noise level was <= 64, then we would normally get three pulses from the first function, __3C__. For lower noise levels, we could get as few as one pulse from that function, but in that case we're guaranteed to get another one from here. 
 
 If we don't add that pulse, we check if the self-test countdown variable 31h has bit 2 set, and if so we mask it to 7 or les before returning. TODO - investigate why. 
 
@@ -217,6 +211,7 @@ First we read the value, then determine which channel it was using the same logi
 0x452 jb4  $0480
 0x454 jb3  $047B
 ```
+At this point, __r0__ points to __2C__ our table index. We swap it into __a__ temporarily. 
 
 If both bits are clear, that means Function 0 would have selected channel 0, so we have just read the knock sensor noise level input. 
 
@@ -250,7 +245,62 @@ Let's look at how that channel is processed first:
 0x47a ret
 ```
 
-### Function 6 (98) read MAP sensor
+We'll look at the simplest cases first. 
+
+We check if 2C is *exactly* 6 via xrl, and if so, we store our new value in __2D__ and return. As far as I can tell, this is never used. But 2C is a free counter - any time we get to this function, we know that it's value must be 6 *mod 8*, but it's only exactly 6 once in every 256 counts. So this is probably some unused edge case or diagnostic thing. 
+
+Next we check if the newly read value (now in r1) is < 64, and if so, store it in 2F and return. Recall that the input to this channel is inverted, so lower values mean more noise. 
+
+If the value is >= 64, things get a little bit more complicated. The next steps actually override 2F with false values depending on the state of the self test. 
+
+If there haven't been any self-test failures (i.e. if 34h = 6) then we return with the new reading stored in 2F. 
+
+Otherwise, if there was exactly one failure (34h = 5), we set 2F to 105, and for higher failure counts, we set it to 101. 
+
+In function #3 (3C), a value of 105 will cause *one* pulse to be dropped, reducing the intensity of the fake knock signal, thus raising the bar a little for the next self test. But a value of 101 will restore all three pulses, so the reasoning is a little unclear here. The threshold comparisons that function 3C uses are loaded from a table, which implies emperical testing and tuning. 
+
+The remaining code is much simpler:
+
+```
+0x47b xch  a,@r0
+0x47c mov  r0,#$2E		;battery voltage
+0x47e mov  @r0,a
+0x47f ret
+0x480 jb3  $0487
+0x482 xch  a,@r0
+0x483 mov  r0,#$6F
+0x485 nop
+0x486 ret
+0x487 xch  a,@r0
+0x488 mov  r0,#$39		;TPS v+ ?
+0x48a mov  @r0,a
+0x48b ret
+```
+For the battery voltage case, we simply store the value into 2E and return. Measured value at ADC Ch. 1 with 10.2v input: 2.752v, i.e. ~140. 
+
+If bit 3 of 2C is set then we jump to 487, and store the value in 39h - this is the TPS power supply. 
+
+If bit 3 is not set, then we select Ch. 2 (pin 28) and store the value in 6F. But Ch. 2 is grounded on the KLR board. 
+
+### Function 6 (8C) - read knock sensor integrator
+Recall that we turned on the integrator back in Function 0 (0E), which was called when we had reached Angle #1. Then after the self-test functions, we loaed the counter with the tick count for Angle #2, and then began reading the channels. All this was to arrange for the knock signal accumulate during the proper window ATDC. 
+
+```
+0x48c movx a,@r0
+0x48d orl  p1,#$8		;00001000
+0x48f anl  p1,#$F7		;11110111
+0x491 orl  p1,#$7		;00000111 select ch. 7 TPS
+0x493 mov  r0,#$46
+0x495 cpl  a
+0x496 mov  @r0,a
+0x497 ret
+```
+As usual we first read the value, then latch the address that was waiting on the bus (which was the MAP sensor Ch. 4, and then put the address for the *next* channel on the bus, to be latched by the next function. 
+
+The rest is trivial - we complement the value and store it in __46h__. The knock sensor integrator produces in an inverted output, like the noise channel, so complementing it here puts it the right way around - bigger numbers mean a stronger knock signal. 
+
+
+### Function 7 (98) read MAP sensor
 
 ```
 0x498 mov  r0,#$52
@@ -281,7 +331,7 @@ After reading the raw value from the ADC into __a__, we do
 ```
 a = a + 10
 r4 = a
-toggle ALE
+toggle ALE (latching the final address, Ch. 7 TPS)
 if a <= 52h (previous value):
 	6Ch = 0
 	52h = r4 (new value)

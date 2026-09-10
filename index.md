@@ -122,9 +122,16 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [Exponential Smoothing](exponential_smoothing.md) *This is a quick explantion of a general purpose exponential smoothing routine that's used in many plces throughout the KLR code.*
 
-* [ADC Reading]() *TBD*
+* [ADC Reading](klr_adc_reading.md) *Here we explore the complicated process of how the KLR reads input variables from its analog-to-digital converter*
 
 * [Boost Control]() *TBD*
+
+### Notes and work-in-progress
+Some notes in various states of completeness that might be useful or interesting
+
+* [KLR software architecture](klr_general_code_notes.md)
+
+* [KLR memory map](klr_memory_map)
 
 ## Reference
 

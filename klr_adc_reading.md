@@ -1,13 +1,13 @@
 # How the ADC is read
 
-The process of reading the ADC is more complicated in the KLR than in the DME. The reason for this is that it needs to be timed very carefully. Knock is most likely to happen within a window of around 10-70 degrees ATDC. The KLR's knock detection system integrates the sensor's output during a certain window within this range of angles, and that means that the system must begin the integration process at a fairly specific angle, and read the final value at some later specific angle. 
+The process of reading the ADC is more complicated in the KLR than in the DME. The main reason for this is that it needs to be timed very carefully. Knock is most likely to happen within a window of around 10-70 degrees ATDC. The KLR's knock detection system integrates the sensor's output during a certain window within this range of angles, and that means that the system must begin the integration process at a fairly specific angle, and read the final value at some later specific angle. 
 
 For convenience we'll call these angles:
 
 * Angle #1 - the start of the knock window, where we turn on the sensor integrator circuit
 * Angle #2 - the end of the knock window, where we read the value from the integrator
 
-The other ADC channels are not really sensitive to timing in the same way, but since it's convenient to do all the ADC reading in one process, these other channels are read around the same time. 
+The other ADC channels are not really sensitive to timing in the same way, but since it's convenient to do all the ADC reading in one process, these other channels are read around the same time. Additionally, some processing of raw values is mixed up with the real time aspect of reading the ADC, which contributes to the complexity. We'll see the details below. 
 
 The sequence goes like this:
 
@@ -19,6 +19,19 @@ The sequence goes like this:
   * TPS sensor
 
 (channels 0-3 are knock sensor noise level, battery voltage, __unused__ and TPS power supply, respectively.)
+
+For quick reference, here's a table of the ADC channels and the locations used:
+
+Channel| Pin| Purpose | RAM location
+----|----|------------
+0| 26| knock sensor noise level | 2F
+1| 27| battery voltage | 3D
+2| 28| unused | 6F
+3| 1| TPS +v supply | 39
+4| 2| MAP sensor | 52
+5| 3| knock sensor integrator | 46 
+6| 4| unused, not read | 
+7| 5| TPS angle | 3C
 
 In the time between steps 1 and 2, we check the knock self-test counter, and do the test if the counter indicates that it's time.
 
@@ -40,7 +53,7 @@ The actual target angles for starting the sensor integration and then reading th
 
 The target angles are stored in the rpm maps at _900_ - here are the relevant maps for 2A and 2B:
 
-Variable/RPM range | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 
+RPM range/Value | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 
 -------------------|---|---|---|---|---|---|---|---|
 2A |  155 | 155 | 149 | 146 | 145 | 138 | 131 | 127
 2B | 61 | 49 | 48 | 48 | 48 | 48 | 48 | 55

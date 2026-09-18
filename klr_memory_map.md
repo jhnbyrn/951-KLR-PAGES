@@ -4,6 +4,8 @@
 
 Location | Purpose
 ---------|--------
+22h | angle to begin ADC initialization routine (in timer ticks)
+23h | angle to read ADC (after 22h, in timer ticks)
 24h | engine speed (complemented from r6; literally the number of 87us timer ticks per 180 degrees)
 2Eh | battery voltage
 2Fh | knock sensor (noise level diagnostics)
@@ -12,19 +14,14 @@ Location | Purpose
 3Ch | throttle position (raw)
 3Fh | ??
 38h | ??
+41h | final CV duty cycle
 46h | knock sensor (proper)
-24h | engine speed (in timer ticks per 180 degrees)
 51h | target boost read from map
 52h | current MAP pressure
 53h | target boost, low-pass filtered (51h->55h->52h)
 55h:56h | intermediate target boost for filtering
-33h | current blink code
-22h | angle to begin ADC initialization routine (in timer ticks)
-23h | angle to read ADC (after 22h, in timer ticks)
-44h | rpm range (map axis 60 means < ~1842rpm, 0 means > 6068rpm)
-43h | throttle position (map axis; 0 means <53 deg., 1 means 53 deg., 28 means >= 81 deg.)
-70h - 73h | per-cylinder timing delay
-74h - 7Bh | per-cylinder knock threshold
+57h | boost reduction after knocking w/max timing retard
+58h:59 | filtered value related to 57h
 60h | boost control PID error (target boost - actual boost)
 61h | boost control PID I term (centered on 128)
 62h | boost control PID D term (spool assist, centered on 128)
@@ -33,8 +30,11 @@ Location | Purpose
 65:66 | D-term filtered value (trails the peak to provide smooth decay)
 67h | boost control PID trim/slow-I term (centered on 128)
 68h | boost control feedforward value (CV duty cycle)
-41h | final CV duty cycle
-57h | total boost reduction for knock control (increments of 5)
+33h | current blink code
+44h | rpm range (map axis 60 means < ~1842rpm, 0 means > 6068rpm)
+43h | throttle position (map axis; 0 means <53 deg., 1 means 53 deg., 28 means >= 81 deg.)
+70h - 73h | per-cylinder timing delay
+74h - 7Bh | per-cylinder knock threshold
 
 ### Blink Code Error Counters
 

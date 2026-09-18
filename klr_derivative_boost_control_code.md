@@ -4,9 +4,13 @@ This routine uses the rate of change of the boost delta to create a big positive
 
 The boost delta is calculated from the actual direct target boost value from the map, 51h. This is unlike the PI routine which uses the *filtered* target boost (53h). 
 
-A peak detection technique is used, so if the calculation happens multiple times while the demand for boost is increasing (i.e. throttle opening quickly) then larger delta values can replace the previous one. 
+A peak detection technique is used, so when demand keeps increasing (i.e. throttle opening quickly), larger delta values can replace the previous one. 
 
-The delta is amplified by an exponential gain factor to produce the final output. 
+The decay is achieved by having a value that chases the peak using the [exponential smoothing](exponential_smoothing.md) routine; the output is the difference between the peak and the chasing value. This way, the initial output depends on the speed of the delta increase, and decays exponentially afterwards. 
+
+Additionally, if the boost delta falls below 1/4 of the peak, the output is neturalized immediately. 
+
+The value is amplified by an exponential gain factor to produce the final output. 
 
 Main variables:
 

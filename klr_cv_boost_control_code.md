@@ -4,7 +4,7 @@ This routine handles calculating the final cycling valve PWM output value. Basic
 
 The closed loop correction consists of 63h (which is the sum of the P, I and D terms) and 67h which is a second integral/trim term that accumulates whenever the main I term (61h) is saturated. 
 
-At this point these terms have [already been calcualted](klr_pi_boost_control_code.md), and the remaining stps done here are:
+At this point these terms have [already been calcualted](klr_pi_boost_control_code.md), and the remaining steps done here are:
 
 * scale the main PID correction by the gain map value
 * add the main correction to the open loop map value
@@ -23,7 +23,6 @@ Location | Purpose
 68h | open loop cycling valve PWM
 6B | PID gain map value
 
-(Note that at DDA just before we call boost control, we clr f0 and cpl f0, therefore the defaut value is 1. Thus here f0=1 means positive).
 
 ```
 0xf00 mov  r1,#$63
@@ -36,7 +35,7 @@ Location | Purpose
 0xf09 cpl  f0			;f0 now = 0, indicating negative correction
 ```
 
-We load 63h (complete PID output), store in r6, but also invert in a. At this point, 63h is interpreted as a 2s complement signed value. We are going to multiply it by the gain value so we want an absolute value first.  
+We load 63h (complete PID output), store in r6, but also invert in a. At this point, 63h is interpreted as a 2s complement signed value. We are going to multiply it by the gain value so we want an absolute value first.
 
 If b7 of the complemented value is not set (i.e. original was negative) then we inc and store back into r6, and cpl f0 to indicate that it's a negative value. 
 
@@ -57,7 +56,7 @@ So this turns it into an unsigned absolute value with the direction in f0.
 0xf17 mov  r3,#$0		;lower clamping value, 0
 0xf19 mov  r4,a			;r4 = signed correction w/gain
 ```
-Above, we take the top 3 bits of the 6B map value (masking the lower bits to 1), and multiply it by our |63| value. So the top 3 bits of the gain map are over all PID gain. 
+Above, we take the top 3 bits of the 6B map value (masking the lower bits to 1), and multiply it by our |63h| value. So the top 3 bits of the gain map are over all PID gain. 
 
 We cpl the high byte of the result if the correction is negative, and then keep it in r4, so r4 = 63h*gain/256 (signed). The gain values are represented as fractions, where 256 is the denominator, and they range from 0.5 to 1. 
 
@@ -78,9 +77,11 @@ Next we handle the trim term 67h and the open loop term 68h:
 0xf26 mov  r4,a			;r4 = (63h*6B) + 68 + (67*2)
 ```
 
-The trim value is doubled and added to the open loop value, and finally r4 (which holds 63h*gain). We also stored 67h+68h in 6F, but this doesn't seem to be used anywhere. 
+The trim value is doubled and added to the open loop value, and finally r4 (which holds 63h*gain). We also store 67h+68h in 6F, but this doesn't seem to be used anywhere. 
 
-Now, 67h is only allowed to accumulate when the main integral term 61h has reached it maximum or minimum value. But as we can see here, each count in 67h counts *double*, so it's really a faster I term than the main one. Note that there's no clamping applied here; 67h is 128-biased like 61h and 62h. There is some unwinding logic applied to 67h in the clamping section below. 
+Now, 67h is only allowed to accumulate when the main integral term 61h has reached it maximum or minimum value. But as we can see here, each count in 67h counts *double*, so it's really a faster I term than the main one. Note that there's no clamping applied here; 67h is 128-biased like 61h and 62h, so the maximum safe values are +/- 64 from the centre 128. Any further than that, and the sign will get flipped when we double it. 
+
+There is some unwinding logic applied to 67h in the clamping section below. 
 
 Next we handle clamping - this is probably the trickiest part of this routine:
 

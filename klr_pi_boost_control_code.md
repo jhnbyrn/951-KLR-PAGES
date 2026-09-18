@@ -1,8 +1,8 @@
 # KLR boost control PI routine (E82)
 
-This is the routine responsible for calculating the __P__ and __I__ terms for the boost contol logic, and also collecting those along with the __D__ term into one output at the end. 
+This is the routine responsible for calculating the __P__ and __I__ terms for the boost contol logic, and also collecting those along with the __D__ term into one output at the end. This D term is used as a spoolup assist and is calculated [in the routine at E30](klr_derivative_boost_control_code.md)
 
-There are actually *two* integral terms here, the "main" one in 61h, and a kind of trim term in 67h. Here, 67h is only moved when 60h is saturated to one of its rails. But in the final cycling valve control routine, 67h is adjusted according to other rules. 
+There are actually *two* integral terms here, the "main" one in 61h, and a kind of trim term in 67h. Here, 67h is only moved when 60h is saturated to one of its rails. But 67h is not added to the final correction here; instead it's added separately in the [cycling valve routine](klr_cv_boost_control_code.md). 
 
 The principal values this routines works with are
 
@@ -14,7 +14,7 @@ Location | Purpose
 61h | main integral term
 62h | spool assist/D-term (used here,calculated at E30)
 63h | total PID correction sum
-67h | trim, i.e. slow I-term
+67h | trim
 6A | counter to slow down 61h when delta is < 4
 6B | PID gain map value
 
@@ -75,7 +75,7 @@ We increment 61h, and then check if the direction is negative (i.e. overboost) a
 
 Then we check the derivative-based spool assiset term 62h, and if it's 160 or more (that is, 32 above the zero-bias 128), we neutralize our integral term 61h. 
 
-The next section handles clamping 61h, and adjusting 67h which is the slow integral term:
+The next section handles clamping 61h, and adjusting 67h which is the trim term:
 
 ```
 0xeb0 mov  a,#$BB		;187 (+59 based on 128)

@@ -10,7 +10,7 @@ The decay is achieved by having a value that chases the peak using the [exponent
 
 Additionally, if the boost delta falls below 1/4 of the peak, the output is neturalized immediately. 
 
-The value is amplified by an exponential gain factor to produce the final output. 
+The value is amplified by an exponential gain factor to produce the final output. The [routine for the P and I terms](klr_pi_boost_control_code.md) uses the output of this routine. 
 
 Main variables:
 

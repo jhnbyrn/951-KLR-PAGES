@@ -11,7 +11,7 @@ Bits | Purpose
 4 | gain for the proportional term
 5, 6, 7 | over all gain for the combined closed loop term
 
-When the map is read the value for the current rpm/throttle settings is stored in 6Bh. The way most of the map values are extracted is simply by bit masking, with rotation where necessary. For example, here's how the target boost filtering routine does it:
+When this map is read, the value for the current rpm/throttle inputs is stored in __6Bh__. The way most of the map values are extracted is simply by bit masking, with rotation where necessary. For example, here's how the target boost filtering routine does it:
 
 ```
 0xdde mov  a,@r0		;r0=6B
@@ -33,7 +33,7 @@ The gain values are used in different ways: some are exponents, others are multi
 
 ## Smoothing factor
 
-The target boost value that's used to calculate the P and I terms of the controller is not the value read directly from the target boost map (51h). Instead, that value is filtered through a queue of three variables: 51h -> 55h -> 53h. The final value 53h is the one that's used for the controller, and this lags behind the real map value. 
+The target boost value that's used to calculate the P and I terms of the controller is not the value read directly from the target boost map (51h). Instead, that value is filtered through a queue of three variables: 51h -> 55h -> 53h. The final value 53h is the one that's used for the calculation, and this lags behind the real map value. 
 
 If you have read about the [exponential smoothing routine](exponential_smoothing.md) you may recall that one of its inputs is a *smoothing factor* - this factor determines what how slowly the filtered value follows the original value. The smoothing factor is used as a reciprocal of the form ```1/2^n``` in the smoothing routine, so bigger numbers make the filtered value follow the target more slowly. This part of the PID gain map is used as the value *n* in the previous formula, so that at higher rpm, we have less smoothing/faster following. In fact the throttle position rows of this map are all the same, so we can simplify it like this - here, the raw values are shown as ```2^n```:
 
@@ -43,7 +43,7 @@ If you have read about the [exponential smoothing routine](exponential_smoothing
 
 ## Spool assist gain
 
-The boost controller uses a derivative-based term to help build boost when demand suddenly increases (i.e. quick throttle opening). The basic value of the term is the derivative of the boost delta. The way that's achieved is that the delta is calculated continuously based on the the raw (unfiltered) target boost value 51h, and then another variable follows this via the exponential smoothing routine; the spool assist term is just the difference between the delta and the filtered follower value, multiplied by an exponential gain factor. 
+The boost controller uses a [derivative-based term](klr_derivative_boost_control.md) to help build boost when demand suddenly increases (i.e. quick throttle opening). The basic value of the term is the derivative of the boost delta. The way that's achieved is that the delta is calculated continuously based on the the raw (unfiltered) target boost value 51h, and then another variable follows this via the exponential smoothing routine; the spool assist term is just the difference between the delta and the filtered follower value, multiplied by an exponential gain factor. 
 
 As with the smoothing factor we saw previously, all the throttle position rows are the same, so we really just have:
 
@@ -59,7 +59,7 @@ Only a single bit (bit 4) is used for the P term gain, and in fact it isn't real
 
 ## Final gain stage
 
-After the various controller terms are combined (into 63h), there's a final gain stage that's applied when the correction is applied to the cycling valve pulse. This value is encoded in the three most significant bits of the gain map. The mask that selects these values sets all the lower bits to 1, and the resulting value multiplies the correction value 63h. But only the high byte of this multiplication used, so we effectively have a division by 256. Thus the raw map values OR'd with 00011111 just represent fractions of 256 - therefore this stage can only reduce the correction, or leave it alone. Here's the final effect of this map:
+After the [various controller terms are combined (into 63h)](klr_cv_boost_control_code.md), there's a final gain stage that's applied when the correction is applied to the cycling valve pulse. This value is encoded in the three most significant bits of the gain map. The mask that selects these values sets all the lower bits to 1, and the resulting value multiplies the correction value 63h. But only the high byte of this multiplication used, so we effectively have a division by 256. Thus the raw map values OR'd with 00011111 just represent fractions of 256 - therefore this stage can only reduce the correction, or leave it alone. Here's the final effect of this map:
 
 | Throttle deg \ RPM | 2003 | 2393 | 2873 | 3316 | 3922 | 4544 | 5401 | max |
 |---|---|---|---|---|---|---|---|---|
@@ -72,7 +72,7 @@ Unlike the smaller maps, this one really does vary by both throttle and rpm. And
 
 It's tempting to show it as a surface in 3D like the boost maps, but the gain map does not have any interpolation, and I don't want to give a false impression that it does. Instead, a heat map probably makes more sense:
 
-[]!(images/klr_boost_control/pid_final_gain_stage_1.png)
+![](images/klr_boost_control/pid_final_gain_stage_1.png)
 
 
 ## Appendix - raw map data

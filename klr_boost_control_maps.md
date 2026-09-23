@@ -1,17 +1,11 @@
 # KLR Boost control maps
 
 
-![](images/klr_boost_control/openloop_map_percent_early_1.png)
+![](images/klr_boost_control/both_maps_early_1.png)
 
-![](images/klr_boost_control/openloop_map_percent_1987_1.png)
+![](images/klr_boost_control/both_maps_1987_1.png)
 
-![](images/klr_boost_control/openloop_map_percent_1989_1.png)
-
-![](images/klr_boost_control/boost_map_kpa_early_1.png)
-
-![](images/klr_boost_control/boost_map_kpa_1987_1.png)
-
-![](images/klr_boost_control/boost_map_kpa_1989_1.png)
+![](images/klr_boost_control/both_maps_1989_1.png)
 
 
 

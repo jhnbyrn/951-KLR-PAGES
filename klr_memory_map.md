@@ -44,11 +44,22 @@ Location | Error Type
 35h|    boost high/low
 36h|    TPS/TPS power supply
 
+## Map locations
+
+Location | Map
+---------|----
+C00h | target boost (8 throttle x 15 rpm, interpolated)
+B00h | open loop cycling valve (8 throttle x 15 rpm, interpolated)
+992h | [PID gain](klr_boost_control_gain.md) (4 throttle x 8 rpm, no interpolation, bit-packed)
+925h | [RPM based constants](rpm_constants.md) (see below)
+
 ## RPM Dependant Constants
 
 These are loaded from a series of 2D maps (rpm only) located at 0x925. 
 
-Location | Purpose
+These maps have 9 entries each: the location into which the value is read followed by 8 value based on rpm range. 
+
+Variable | Purpose
 ---------|---------
 0x2A|    for calculating the angle to start ADC stuff (22h)
 0x2B|    for calculating the angle for ADC read (23h)
@@ -87,7 +98,7 @@ So we have 29 values in total, with 0 meaning "below 53 deg.". The remaining 28 
 
 The maps typically use just 7 throttle angle values - this is achieved by just dividing 44h by 4 (rrc twice) before using it to look up a map value. But in many other places, 44h is used for threshold checks, and in those cases it's generally used as the full 28-value range.
 
-The wide-open-throttle signal is sent to the DME when __3A>= 66__. That means WOT is active __above 65 degrees__. People frequencyly confuse degrees with percent. This angle is about __72%__ of the full throttle opening.
+The wide-open-throttle signal is sent to the DME when __3A>= 66__. That means WOT is active __above 65 degrees__. People frequently confuse degrees with percent. This angle is about __72%__ of the full throttle opening.
 
 ### RPM
 
@@ -195,7 +206,7 @@ With both versions, the signal is reduced by a voltage divider and  we see the v
 
 #### Transfer function
 
-I did some tests with some early KLRs I have (numbers #2 and #3). I used a Mityvac and checked the calibration against a modern MAP sensor, a MPX4250. 
+I did some tests with some early KLRs I have (which I have numbered #2 and #3). I used a Mityvac and checked the calibration against a modern MAP sensor, a MPX4250. 
 
 Using KLR #3, we had 100kpa = 2.089v and 175kpa = ~3.87 (after correcting for the calibration of the mityvac based on the MPX4250) we can work out the slope and offset:
 

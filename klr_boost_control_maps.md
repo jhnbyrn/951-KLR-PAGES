@@ -1,15 +1,25 @@
 # KLR Boost control maps
 
+Here are the three known versions of the KLR boost control maps. The first and last (1989), I can say 100% came from the chip labels I've shown here because I read the chips myself from KLRs that I have. The middle one is based on researching forum posts and online tuner ROM databases. 
+
+In all versions, the boost target map is located at 0xC00 and the open loop CV map is located at 0xB00. 
+
+* The earlier variant, chip label 1267355131:
 
 ![](images/klr_boost_control/both_maps_early_1.png)
 
+* The first update, chip label *believed* to be 1267355138, possibly introduced in late 86 or 87:
+
 ![](images/klr_boost_control/both_maps_1987_1.png)
+
+* The 1988 Turbo S/1989 variant, chip label 2227355531 (note the open loop map is identical to the 1267355138 version):
 
 ![](images/klr_boost_control/both_maps_1989_1.png)
 
 
+## Raw map values
 
-## CV Open loop
+### CV Open loop
 
 * CV open loop, early version, chip label 1267355131:
 
@@ -51,7 +61,7 @@
 | 90 | 191 | 191 | 191 | 191 | 191 | 182 | 173 | 169 | 165 | 161 | 157 | 150 | 146 | 142 | 146 | 150 |
 
 
-## Boost
+### Boost
 
 * Target boost, early version, chip label 1267355131:
 

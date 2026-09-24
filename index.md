@@ -124,9 +124,11 @@ In the reference section I've provided a few notes on how to read 8048 series co
 
 * [ADC Reading](klr_adc_reading.md) *Here we explore the complicated process of how the KLR reads input variables from its analog-to-digital converter*
 
-* [Boost Control]() *WIP*
-  * [Proportional and Integral](klr_pi_boost_control_code.md) *A walkthrough of the code that handles the P and I terms of the boost control logic*
-  * [Derivative/spool assist](klr_derivative_boost_control_code.md) *The derivative-based spoolup assist part*
+* Boost Control
+  * [Overview](klr_boost_control_overview.md) *A general description of the boost control software, without getting into too much detail*
+  * [Open loop and target boost maps](klr_boost_control_maps.md) *The open and closed loop maps, visualized with correct units and breakpoints*
+  * [Proportional and Integral terms](klr_pi_boost_control_code.md) *A walkthrough of the code that handles the P and I terms of the boost control logic*
+  * [Derivative/spool assist term](klr_derivative_boost_control_code.md) *The derivative-based spoolup assist part*
   * [Cycling valve PWM calculation](klr_cv_boost_control_code.md) *This section explains the code that puts the open and closed loop parts together to create the final cycling valve pulse width*
   * [PID gain map](klr_boost_control_gain.md) *We explore the hidden details of the PID gain map(s)*
   * [Target boost filtering]() *TBD*

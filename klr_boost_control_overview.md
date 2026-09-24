@@ -34,7 +34,7 @@ The __T__ term here is a second integral term that normally doesn't do much, but
 
 Now it's pretty common for the various terms in a controller like this to have *gain* - that is, a scaling factor that amplifies (or attenuates) a specific term. In the textbook PID controller, each term has its own gain. In practice, the 944 boost control logic has a fixed gain of 1 for the P and I terms, and a fixed gain of 2 for the trim term, T. Only the D term has variable gain. But after the three main terms are combined, a variable final gain factor is applied to all of them together (but not the T term; that gets added afterwards). 
 
-We'll see how all that works in detail later, but for now we can expand our controller expression a little more into this:
+We'll see how all that works in detail later, but for now we can expand our controller expression a little more, into this:
 
 ```closed loop term = (P + I + D*d_gain) * final_gain + T*2 ```
 
@@ -44,8 +44,11 @@ The trim term, T, is interesting. It only integrates while the I term is sautrat
 
 The D term is unconventional in terms of the textbook PID algorithm. Normally the D term works in both directions: if the delta is growing, it adds a positive correction, and if the delta is shinking, it adds a negative correction. In the KLR, the D term is zero if the delta is shrinking, and also if the system is overboosting. 
 
+The final thing to say here is that the ultimate CV PWM output is always clamped to 0 for the low end and ~92% (literal value 177) for the high end. The maps do call or duty cycles of up to 99% (191/193) but everything gets clamped to just under 92% just before the final value is loaded into 41h, where the actual signal generation code reads it from. 
 
 ### Maps
+See map visualizations [here](klr_boost_control_maps.md)
+
 Open loop control is handled by a 2-axis map that uses rpm and throttle position as inputs. The output is the baseline PWM duty cycle value. 
 
 There are 16 rpm ranges and 8 throttle position ranges. The throttle position input covers a fairly small range of throttle movement: there is actually no CV PWM output at all below about 53 degrees. From there upwards, the map values are spaced out at 4 degree increments up to 81, with the final row applying for everything above 81 degrees. 
@@ -74,7 +77,7 @@ F00 | generate final PWM output
 
 The scheduling logic is derived from the counter variable 2C. This conunter is used for this kind of scheduling in various parts of the program. The knock routine loads __a__ with a value derived from this that has bits 3 and 4 set in such a way that the four possible combinations occur 1/4 of the time. In the actual scheduling routine, we only see three states being checked; if bit 4 is set then we jump to the PI routine at E82. But that routine calls F00 if bit 3 is also set - this saves a few instructions compared to having it all done in the scheduler!
 
-It will make sense to explain these in a slightly different order.
+It will make sense to explain these in a slightly different order. They're each explained in detailed code walkthroughs which you can find in the main site index. 
 
 ### Derivative spool assist term (E30)
 This term influences the I term a little, so it makes sense to discuss this one first. This term handles the transient case where the boost delta grows suddenly. 

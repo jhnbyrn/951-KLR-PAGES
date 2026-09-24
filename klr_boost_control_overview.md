@@ -9,13 +9,13 @@ We'll limit the scope of this mostly to the *logic* of boost control. You can re
 
 For whatever reason - I think it's just one of the awkward translations in the original Porsche documenation - the boost control solenoid on the 944 has always been called the *cycling valve* or CV for short. So I'll keep calling it that. 
 
-The default situation - when no current is flowing through the CV - is that it sends all the air pressure to the wastegate (WG), helping the valve to open so the exhaust can bypass the turbo. When current flows through the CV, all the air pressure gets recirculated back to the intake instead. Therefore, the CV has to be active (i.e. current flowing) to build significant boost. Of course, when boost is very low, then it doesn't open the WG even when all the pressure is sent there, so you can build a little boost even with the CV completely inactive - but the valve will start to open once you get to around 4psi. 
+The default situation - when no current is flowing through the CV - is that it sends all the air pressure to the wastegate (WG), helping the valve to open so the exhaust can bypass the turbo. When current flows through the CV, all the air pressure gets recirculated back to the intake instead. Therefore, the CV has to be active (i.e. current flowing) to build significant boost. Of course, when boost is very low, then the WG valve doesn't open even when *all* the manifold pressure is sent there, so you can build a little boost even with the CV completely inactive - but the valve will start to open once you get to around 4psi. 
 
-Like other boost control solenoids, our CV is controlled by a pulse width modulated (PWM) signal. It runs at a fixed frequency (about 15Hz) and the proportion of the time for which it's turned determines the average air pressure that pushes on the WG valve. 
+Like other boost control solenoids, our CV is controlled by a pulse width modulated (PWM) signal. It runs at a fixed frequency (about 15Hz) and the proportion of the time for which it's turned on determines the average air pressure that pushes on the WG valve. 
 
 In this discussion, we mostly concerned with how the cycling valve is controlled. When we talk about increasing the duty cycle of the CV, that means decreasing the proportion of boost pressure thats allowed to push the WG valve, thus allowing boost to build up. 
 
-There's a lot of complexity in the logic of the boost controller, but ultimately it all comes down to this one number: the PWM duty cycle that controls CV. In the sections that follow, we'll see exactly how that number is generated. 
+There's a lot of complexity in the logic of the boost controller, but ultimately it all comes down to this one number: the PWM duty cycle that controls CV. In the sections that follow, we'll see how that number is generated. 
 
 ## Software
 In a nutshell, we can summarize the boost control logic like this:
@@ -24,9 +24,9 @@ In a nutshell, we can summarize the boost control logic like this:
 
 The closed loop value can be positive or negative, so the final output can be more or less than the open loop value. 
 
-Almost all the complexity is in how that closed loop value is calculated; the open loop part is very simple. 
+Almost all the complexity is in how that closed loop value is calculated - the open loop part is very simple, it just gets looked up from a map. 
 
-We can break the closed loop term down a bit more:
+We can break the closed loop term down a bit more, like this:
 
 ```closed loop term = P + I + D + T```
 
@@ -48,7 +48,7 @@ The D term is unconventional in terms of the textbook PID algorithm. Normally th
 ### Maps
 Open loop control is handled by a 2-axis map that uses rpm and throttle position as inputs. The output is the baseline PWM duty cycle value. 
 
-There are 16 rpm ranges and 8 throttle position ranges. The throttle position input covers a fairly small range of throttle movement: there is actually no CV PWM output at all below about 53 degrees. From there, the map values are spaced out at 4 degree increments up to 81, with the final row applying for everything above 81 degrees. 
+There are 16 rpm ranges and 8 throttle position ranges. The throttle position input covers a fairly small range of throttle movement: there is actually no CV PWM output at all below about 53 degrees. From there upwards, the map values are spaced out at 4 degree increments up to 81, with the final row applying for everything above 81 degrees. 
 
 The closed loop target boost map uses the same inputs. Both maps use linear interpolation like the DME maps. 
 
@@ -76,10 +76,43 @@ The scheduling logic is derived from the counter variable 2C. This conunter is u
 
 It will make sense to explain these in a slightly different order.
 
-### Derivative spool assist term
-This term influences the I term, so it makes sense to discuss this one first. This term is handles the transient case where the boost delta grows suddenly. 
+### Derivative spool assist term (E30)
+This term influences the I term a little, so it makes sense to discuss this one first. This term handles the transient case where the boost delta grows suddenly. 
 
-This term is based on the difference between the current delta and the previous one, except that the previous one is filtered
+The basic idea is to take the difference between the current boost delta and a previous version, and add a big positive correction to the PWM signal based on the difference, which then decays away smoothly over the next few seconds. But there are a few tweaks:
+
+* the "current" delta is really based on peak detection - that is, a higher value can replace the "current" one
+* the "previous" value is simply a filtered version of the current one, passed through the exponential filtering routine to create a low-pass filter effect.
+
+This way, the "previous" value chases the current one exonentially. This kind of chasing or tracking filter is really common in the 944 system. Similar patterns are used for the [throttle position sensor](klr_tps_processing.md) and in the [DME's ignition timing damping](dme_acceleration_timing_damping.md). 
+
+Once this term has been calculated and applied, it's not overridden again as long as the previous one is still decaying. But the decay can be cut short by a few conditions:
+
+* overboost - any time the current boost (52h) exceeds the direct target boost value (51h), this term is neutralized
+* any time the boost delta gets smaller than 1/4 the size of the peak, the term is immediatley neutralized. 
+
+This term is 128-biased, so 128 means zero, more than 128 means positive, and less means negative (but it's never allowed to go negative, it's clamped to between 128 and 255). The way this biasing works is that the I term has the same 128 bias, so when they're added together along with the P term, the biases cancel each other out. It might help to work through a few examples in your head - the important thing to remember is that if either or both values are less than 128, then their sum will be between 128 and 255, which is negative in the conventional 2's complement interpretation, as we would expect. If their sum overflows, then the final value will be between 0 and 127, representing a positive number, again just what we need. 
+
+### Integral and trim terms (E82)
+The main integral term (61h) is very simple and conventional. Any time the current boost is different from the filtered target boost (53h), this term accumulates at a rate of 1 unit in the direction needed to correct the error. If the error is less than 4 units (i.e. roughly 3kPa) then it only accumulates every 4th count (controlled by the counter 6Ah, which is theoretically rpm-depdendent, but happens to be set to 4 for all rpm). Recall from earlier that this routine runs every 4th cycle, that is every 2nd revolution. 
+
+This term is 128-biased, just like the D term. It's also clamped to be between 68 and 187, which correspond to -60 and +60 respectively, once the bias is removed. 
+
+If this term does reach one of its rails, but the error persists, then the trim term 67h starts accumulating, at a rate of 1 unit. But as discussed earlier, 67h is not added to the final term at the end of this routine. Instead it gets doubled and added to the total in the main CV routine, after the P, I and D terms are added. 
+
+### Proportional term (E82)
+The proportional term is also very straightforward like the integral term. It's basically just the boost delta. In theory it can be amplified by a gain factor, but in the actual gain map, the setting for this is always a gain of 1. 
+
+This is a 1s complement signed value, with no 128-bias like the other terms we discussed above. The 1s complement means that it's biased a little negative - in other words, if actual boost and target boost are equal, then the P term will end up as -1. There's another bias of -1 introduced later, for a total of -2. The result is that the P term will always try to pull the boost down a little when it reaches equilibrium. 
+
+Interestingly, the P term calculation lacks any rigorous overflow detection and clamping. It seems that the OEM engineers decided that they could assume the actual boost delta would always be within safe limits as far as overflow is concerned. And that does seem to be the case based on the target boost maps, but it's surprising to see this all the same. 
+
+It is clamped to 64 on the positive side. The maximum safe range is actually +68 to -68 (in literal terms, that is from 0 to 68 on the positive side and from 255 down to 188 on the negative side). 
+
+I discussed these overflow issues in more detail in the main P-term code walkthrough. 
+
+
+
 
 ## Appendix - closed loop control
 

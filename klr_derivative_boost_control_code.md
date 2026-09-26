@@ -66,7 +66,7 @@ We can think of 65h as following 64h but lagging behind (we'll see how that happ
 ```
 This section is what happens if 64 was *not* zero when we checked earlier at E3E. Recall that c was determined earlier when we added 64h to the complement of our delta - thus this section sets 64h to itself or the new delta, whichever is higher. This is the "peak detection" part. 
 
-Next is where we rejoin the main path in the case where 64h was zero but 65h was not - in that case, a will contain 65h, the remaining, decaying term from some previous peak calculation. But as we'll see below, we will end up not using it. 
+Next is where we rejoin the main path in the case where 64h was zero but 65h was not - in that case, __a__ will contain 65h, the remaining, decaying term from some previous peak calculation. But as we'll see below, we will end up not using it. 
 
 ```
 0xe4b clr  c
@@ -77,7 +77,7 @@ Next is where we rejoin the main path in the case where 64h was zero but 65h was
 0xe52 cpl  a
 0xe53 add  a,@r1		;a = -(delta * 4) + 64h
 ```
-This strange looking code jumps if either bit 7 or bit 6 are set, so it's effectively an "if a < #64" test, and a multiplication by 4 at the same time. In the main path, where 64h is not zero, a contains our positive delta value. So the last part of the above section sets a to 64h - 4*delta. This is just a test though:
+This strange looking code jumps if either bit 7 or bit 6 are set, so it's effectively an "if a < #64" test, and a multiplication by 4 at the same time. In the main path, where 64h is not zero, __a__ contains our positive delta value. So the last part of the above section sets a to 64h - 4*delta. This is just a test though, we don't use that difference value:
 
 ```
 0xe54 jnc  $0E58
@@ -88,7 +88,7 @@ This strange looking code jumps if either bit 7 or bit 6 are set, so it's effect
 
 If E53 produced a carry, then we set 64h to zero. In other words, if the current boost delta is less than one-querter of the latest peak, we zero out 64h, and the accumulator, and jump to the end, where our final term will be neutralized. 
 
-But note also that regardless of what happened with the calculation at E53, at E59 we will bail out with a neturalized term if 64h is zero. This is why I said earlier that the decaying value from 65h won't be used. 
+But note also that regardless of what happened with the calculation at E53, at E59 we will bail out with a neturalized term if 64h is zero. This is why I said earlier that the decaying value from 65h won't be used as new peak value. 
 
 Next, we use the value from the gain map, previously loaded into 6Bh based on throttle and rpm:
 
@@ -104,7 +104,7 @@ Next, we use the value from the gain map, previously loaded into 6Bh based on th
 
 This code rotates 6B twice to the right and then masks off all but the 2 lowest bits. In other words, it selects bits 2 and 3 as the actual value we want, giving us a range of 0-3. Then we add 1, giving us 1, 2, 3 or 4. 
 
-In this way, the gain map that 6B is loaded from is really multiple maps packed into one - each byte contains many smaller independent values, some 2 bits, some 3 and one of them is just 1 bit!
+In this way, the gain map that 6B is loaded from is really multiple maps packed into one - each byte contains many smaller independent values, some 2 bits, some 3 and one of them is just 1 bit! See the [gain map](klr_boost_control_gain.md) article for a more detailed explanation of this map. 
 
 Next we'll finally calculate our derivative term and apply the gain:
 
@@ -126,7 +126,7 @@ The basic derivative term is the current peak minus the previous, filtered versi
 
 The code above doubles our derivative for every count in r7, that is, it multiplies by 2^n where n is the gain value from 6B. 
 
-If at any point we hit 128, we jump to E7E which will cap the value at 127. 
+If at any point we hit the max value of 128, we jump to E7E which will cap the value at 127. 
 
 ```
 0xe73 add  a,#$80		;
@@ -139,7 +139,7 @@ If at any point we hit 128, we jump to E7E which will cap the value at 127.
 0xe80 jmp  $0673		;E73
 ```
 
-In this final section we add 128 to our final term, which is intended as a *bias* - that is, 128 means zero, 129 means 1 and so on. Since we calculate an output for a positive boost deficit in this routine, there's no negative value; 128 is the lowest we can output. 
+In this final section we add 128 to our final term, which is intended as a *bias* - that is, 128 means zero, 129 means 1 and so on. Since we only calculate an output for a positive boost deficit in this routine, there's no negative value; a literal value of 128 is the lowest we can output, and this is interpreted as zero. 
 
 We store the output in 62h and then call the exponential smoothing/filtering routine using 6 as the smoothing factor, 64h as the new value, and 65h:66h as the previous output. The routine at DF1 stores the filtered result into 65h:66h. 
 

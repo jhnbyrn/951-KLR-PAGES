@@ -24,7 +24,7 @@ In a nutshell, we can summarize the boost control logic like this:
 
 The closed loop value can be positive or negative, so the final output can be more or less than the open loop value. 
 
-Almost all the complexity is in how that closed loop value is calculated - the open loop part is very simple, it just gets looked up from a map. 
+Almost all the complexity is in how that closed loop value is calculated - the open loop part is very simple, it just gets looked up from a map based on rpm and throttle position. 
 
 We can break the closed loop term down a bit more, like this:
 
@@ -127,11 +127,13 @@ Anyway, once the error between the current state and the target state is known, 
 
 How big a correction should it make? Obviously we want to get the system to the target state as quickly as possible. But we can't just make the strongest possible correction all the time; the error might be small, and we could end up overshooting the target. The natural thing to do is to make a *proportional* correction. That means the bigger the error, the bigger the correction. As the system's state gets closer to the desired target state, and error shrinks, the correction gets smaller, minimizing the risk of overshooting. 
 
-The proportional approach works well - it's fast when the error is big, and automatically avoids overshoot, but it has a limitation: it gets slow as the error gets small, and in fact it can't ever completely eliminate the error. That's where the *integral* term comes in. The integral component doesn't care how big or small the error is - it only ever corrects at one speed: *slow*. But it has one cool trick up its sleeve - it keeps accumulating as long as there's an error. This means that an integral term can completely close the small gap left by the proportional term, and get the system's state all the way to the target. Putting the two together gets you a way to track a target variable quicklyand accurately. 
+The proportional approach works well - it's fast when the error is big, and automatically avoids overshoot, but it has a limitation: it gets slow as the error gets small, and in fact it can't ever completely eliminate the error. That's where the *integral* term comes in. The integral component doesn't care how big or small the error is - it only ever corrects at one speed: *slow*. But it has one cool trick up its sleeve - it keeps accumulating as long as there's an error. This means that an integral term can completely close the small gap left by the proportional term, and get the system's state all the way to the target. Putting the two together gets you a way to track a target variable quickly and accurately. 
 
 This is actually pretty close to how we do things manually. Suppose you have to fill a glass with water, right to the top. When it's empty, you pour quicky, because you don't want to take all day, and there's not much risk of spilling it. But as it gets more full, you slow down. Eventually it gets to the point where it's not worth trying to pour at a rate that's proportional to the remaining space any longer. It's too tedious, and you switch to a very slow, steady, consistent pour to top it off. That's proportional and integral control! In practice, the integral control part doesn't wait - it accumulates all the time, but it typically doesn't become very noticeable until the error is small. 
 
 Or, if you prefer we can just say: __the P term is the hare and the I term is the tortoise.__
+
+(Of course there are systems that aren't capable of proportional output - most home heating and air conditioning systems are a good example: they're either fully on or fully off. Closed loop controllers for systems like that are often called *bang bang* controllers.)
 
 Now closed loop controllers often go further than this and take into account whether the error is currently growing or shrinking, and how quickly. To make sure this discinction is clear: the P and I terms *do* take account of the direction of the error, so if the system is below the target, they are positive and if it's above the target, then they are negative. But they are only concerned with the error as it stands *right now*. They don't take account of how the error is changing, i.e. how quicky and in which direction. This is what the derivative (i.e. rate of change) term is for. I'm sure you can come up with suitable analogies from real life to see why a D component can be useful!
 

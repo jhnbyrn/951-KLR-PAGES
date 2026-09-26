@@ -4,7 +4,7 @@ This routine handles calculating the final cycling valve PWM output value. Basic
 
 The closed loop correction consists of 63h (which is the sum of the P, I and D terms) and 67h which is a second integral/trim term that accumulates whenever the main I term (61h) is saturated. 
 
-At this point these terms have [already been calcualted](klr_pi_boost_control_code.md), and the remaining steps done here are:
+At this point these terms have [already been calculated](klr_pi_boost_control_code.md), and the remaining steps done here are:
 
 * scale the main PID correction by the gain map value
 * add the main correction to the open loop map value
@@ -56,11 +56,11 @@ So this turns it into an unsigned absolute value with the direction in f0.
 0xf17 mov  r3,#$0		;lower clamping value, 0
 0xf19 mov  r4,a			;r4 = signed correction w/gain
 ```
-Above, we take the top 3 bits of the 6B map value (masking the lower bits to 1), and multiply it by our |63h| value. So the top 3 bits of the gain map are over all PID gain. 
+Above, we take the top 3 bits of the 6B map value (masking the lower bits to 1), and multiply it by our |63h| value. So the top 3 bits of the gain map are over all PID gain. (See a visualization of this map [here](klr_boost_control_gain.md)).
 
-We cpl the high byte of the result if the correction is negative, and then keep it in r4, so r4 = 63h*gain/256 (signed). The gain values are represented as fractions, where 256 is the denominator, and they range from 0.5 to 1. 
+We cpl the high byte of the result if the correction is negative, and then keep it in r4, so ```r4 = 63h*gain/256``` (signed). The gain values are represented as fractions, where 256 is the denominator, and they range from 0.5 to 1. 
 
-We also set the clamping values here: 0 for negative and 177 for positive. (Note that the PWM period is represented by 193, so 177 is about 92%). 
+We also set the clamping values here in r3: 0 for negative and 177 for positive. (Note that the PWM period is represented by 193, so 177 is about 92%). 
 
 Next we handle the trim term 67h and the open loop term 68h:
 
@@ -79,11 +79,11 @@ Next we handle the trim term 67h and the open loop term 68h:
 
 The trim value is doubled and added to the open loop value, and finally r4 (which holds 63h*gain). We also store 67h+68h in 6F, but this doesn't seem to be used anywhere. 
 
-Now, 67h is only allowed to accumulate when the main integral term 61h has reached it maximum or minimum value. But as we can see here, each count in 67h counts *double*, so it's really a faster I term than the main one. Note that there's no clamping applied here; 67h is 128-biased like 61h and 62h, so the maximum safe values are +/- 64 from the centre 128. Any further than that, and the sign will get flipped when we double it. 
+Now, 67h is only allowed to accumulate when the main integral term 61h has reached it maximum or minimum value. But as we can see here, each count in 67h counts *double*, so it's really a faster I term than the main one. Note that there's no clamping applied here; 67h is 128-biased like 61h and 62h, so the maximum safe values are +/- 64 from the centre 128. Any further than that, and the sign will get flipped when we double it. This seems to be yet another place where the programmers assumed that the system would stay within safe limits without the need for clamping. 
 
-There is some unwinding logic applied to 67h in the clamping section below. 
+There is some unwinding logic applied to 67h in the clamping section further below. 
 
-Next we handle clamping - this is probably the trickiest part of this routine:
+Next we handle clamping the PWM output - this is probably the trickiest part of this routine:
 
 ```
 0xf27 jf0  $0F2A		;jump if correction is positive
@@ -105,7 +105,7 @@ Next we handle clamping - this is probably the trickiest part of this routine:
 0xf3e mov  @r1,a
 ```
 
-You can certainly work through all the cases, but here's the effect of the above section in simpler terms:
+You can certainly work through all the cases if you want, but here's the effect of the above section in simpler terms:
 
 ```
 if positive and c=1:
@@ -125,11 +125,11 @@ else if negative and c=0:
 
 Even in this form it can be hard to follow what's going on! Remember that we need to know if we had an overflow when added all those terms together, but if we did, then we also need to know which direction the correction was supposed to have, in order to resolve the overflow correctly. 
 
-If the correction was positive and we had an overfow, that's easy: clamp to the max value. If it was positive and we didn't have an overflow, then we might still need to clamp to the max - we need to check if we exceeded the max of 177. If so, clamp, if not, don't. 
+If the correction was positive and we had an overfow, that's easy: clamp to the max value. If it was positive and we didn't have an overflow, then we might still need to clamp to the max - we need to check if we exceeded the max of 177. If so, we clamp, if not, we don't. 
 
 In the negative case, the overflow flag actually works *backwards*! That is, a failure to overflow means we tried to subtract a big number from a small number. The negative correction was bigger than the open loop value. So in that case we clamp to the min. value of 0. 
 
-For negative cases where we did overflow, that's actually the simple, happy path: we subtracted a smaller number from a bigger one, and all is well. 
+For negative cases where we *did* overflow, that's actually the simple, happy path: we subtracted a smaller number from a bigger one, and all is well. 
 
 In all cases where we clamp to either the min. or max. value, we also move 67h back towards its neutral value of 128, at a double rate. Continuing to "wind up" this term when the output is saturated would cause problems if the direction of the correction was to suddenly flip due to changing driving conditions. 
 
@@ -219,3 +219,15 @@ Here's the reset/limp mode function we saw being called in various cases earlier
 0xf96 jmp  $076A		;F6A (sets cv pwm 41h to a, i.e. zero)
 	;; END limp mode function
 ```
+
+A few interesting things to note about this section: 
+
+* all the values from 57h to 67h are zeroed, then 61h and 67h are both set to 128; these terms are both 128 biased so this is the equivalent of zero. 
+* 62h is not set to 128, but that term is always set to 128 if necessary in its own routine
+* 53h (filtered target boost) is actually initialized to the *current* boost value here. 
+
+This last point deserves some more explanation. The way the filtering routine works is that it moves a variable *gradually* towards a target. If the target starts at say 10, and the variable starts at zero, then the target will approach 10 exponentially on each iteration of the filter routine. 
+
+Now suppose that 53h was initialized to zero. Then it would be moved towards the actual target boost value from the map gradually, but initially the boost delta between 52h and 53h could be very big. And as explained in the [PI routine article](klr_pi_boost_control_code.md), the P term is written with the assumption that the boost delta will always be limited to +/- 68. 
+
+Having 53h start *equal* to 52h has the effect of making very large boost deltas unlikely or maybe even impossible, which helps to justify the lack of overflow checking in the P term calculation. 

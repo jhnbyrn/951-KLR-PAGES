@@ -1,10 +1,10 @@
 # KLR boost control PI routine (E82)
 
-This is the routine responsible for calculating the __P__ and __I__ terms for the boost contol logic, and also collecting those along with the __D__ term into one output at the end. This D term is used as a spoolup assist and is calculated [in the routine at E30](klr_derivative_boost_control_code.md)
+This is the routine responsible for calculating the __P__ and __I__ terms for the boost contol logic, and also collecting those along with the __D__ term into one output at the end. This D term is used as a spoolup assist and is calculated [in the routine at E30](klr_derivative_boost_control_code.md).
 
-There are actually *two* integral terms here, the "main" one in 61h, and a kind of trim term in 67h. Here, 67h is only moved when 60h is saturated to one of its rails. But 67h is not added to the final correction here; instead it's added separately in the [cycling valve routine](klr_cv_boost_control_code.md). 
+There are actually *two* integral terms here, the "main" one in 61h, and a kind of trim term in 67h. Here, 67h is only afjusted when 60h is saturated to one of its rails. But 67h is not added to the final correction here; instead it's added separately in the [cycling valve routine](klr_cv_boost_control_code.md). 
 
-The principal values this routines works with are
+The principal variables that this routines works with are
 
 Location | Purpose
 --------|--------
@@ -46,7 +46,7 @@ If b3 wasn't set, we calculate the difference between current boost 52h and filt
 ```
 Above, we check if the delta is < 4 (around 3.3kpa). If so, then we inc 6Ah and check if it's zero. If it's not zero, we skip all the I term code and go straight to the P term code at ED0. 
 
-In other words, integral term logic only runs if either the delta is >= 4 or 6Ah has overflowed. If delta >=4, we don't care about 6A, but jump straight to E9B below:
+In other words, 6A serves as a counter to slow down integration if the delta < 4. If delta >=4, we don't care about 6A, but jump straight to E9B below:
 
 ```
 0xe9b dec  r1			;69h (rpm constant, always #4)
@@ -55,7 +55,7 @@ In other words, integral term logic only runs if either the delta is >= 4 or 6Ah
 0xe9e inc  r1
 0xe9f mov  @r1,a		;intialize 6A to 252
 ```
-Here we initialize 6A to 252 (i.e. -4). This happens if either it overflowed or we didn't check it because the delta is >=4.
+Here we initialize 6A to 252 (i.e. -4). This happens if either it overflowed, or we didn't check it (because the delta is >=4).
 
 Next we handle the integral term, 61h (r0=61h now). At this point we know that either the delta is >=4, or it's less but 6A has counted 4 times:
 
@@ -73,7 +73,7 @@ Next we handle the integral term, 61h (r0=61h now). At this point we know that e
 ```
 We increment 61h, and then check if the direction is negative (i.e. overboost) and if so, decrement 61h twice - thus we either inc or dec once in total depending on the direction. 
 
-Then we check the derivative-based spool assiset term 62h, and if it's 160 or more (that is, 32 above the zero-bias 128), we neutralize our integral term 61h. 
+Then we check the derivative-based spool assist term 62h, and if it's 160 or more (that is, 32 above the zero-bias 128), we neutralize our integral term 61h. 
 
 The next section handles clamping 61h, and adjusting 67h which is the trim term:
 
@@ -121,13 +121,13 @@ Next we handle the proportional term:
 0xedb rlc  a
 0xedc mov  r4,a
 ```
-The value from our gain map is stored in 6Bh. Here we check bit 4, and multiply r4 value by 2 if it's set, otherwise we leave r4 alone. But bit 4 isn't set in any of the values in this map, and in fact the code that follows that check wouldn't be safe if it did! Because there are no checks in place to make sure we don't move a non-zero bit into or out of the MSB position. Thus we could accidentally negate our value here and we wouldn't now. This kind of thing is very rare in Motronic code generally, but its typical of the latter half of this routine. They must have been in a hurry!
+The value from our gain map is stored in 6Bh. Here we check bit 4, and multiply r4 by 2 if it's set, otherwise we leave r4 alone. But bit 4 isn't set in any of the values in the gain map, and in fact the code that follows that check wouldn't be safe if it did! Because there are no checks in place to make sure we don't move a non-zero bit into or out of the MSB position. Thus we could accidentally negate our value here and we wouldn't now. This kind of thing is very rare in Motronic code generally, but its typical of the latter half of this routine. They must have been in a hurry!
 
 Since bit 4 is always zero, we'll rotate right and then left again, losing only the LSB. 
 
-Now earlier we calculated the delta by complementing 52h, but we didn't increment it to create a true 2s complement value. Instead it was used as a 1s complement. That means if the target and current boost values were equal, we would get 255 i.e. -1 as our delta instead of 0. That gives the P term a bias of -1. In the code above, we also lose any LSB that was present, ensuring a total bias of -2. 
+Earlier we calculated the delta by complementing 52h, but recall that we didn't increment it to create a true 2s complement value. Instead it was used as a 1s complement. That means if the target and current boost values were equal, we would get 255 i.e. -1 as our delta instead of 0. That gives the P term a bias of -1. In the code above, we also lose any LSB that might have been present, ensuring a total bias of -2. 
 
-So any time that boost is exactly equal to target boost, the P term will pull it back down every so slightly, triggering more correction activity. 
+So any time that boost is exactly equal to target boost, the P term will pull it back down ever so slightly, triggering more correction activity. 
 
 ```
 0xedd jb7  $0EE5

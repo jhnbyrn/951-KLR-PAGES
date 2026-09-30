@@ -123,7 +123,7 @@ X0c6c:
 ## Coasting aka DFCO
 After the overload routine, we jump to 1059 which just jumps to 0708, which is the routine that handles coasting fuel cut off, fuel reactivation (for both coasting and overload) and various ignition timing rules. 
 
-This is a tricky routine and I don't think it makes a lot of sense to break it down, so I'll leave the whole thing as once snippet, but then we'll see a very simple pseudo code version:
+This is a tricky routine and I don't think it makes a lot of sense to break it down, so I'll leave the whole thing as one snippet, but then we'll see a very simple pseudo code version:
 
 ```
 X0708:	

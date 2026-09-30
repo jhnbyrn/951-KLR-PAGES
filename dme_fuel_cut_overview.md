@@ -24,15 +24,15 @@ The reactivation threshold comes from this temperature based map, Map 25:
 
 ![](images/fuel_cutoff/map_25_1.png)
 
-The actual cutoff threshold is just the reactivation threshold plus 360rpm. This +360 is controlled by the constant 9 at 1192h. 
+The actual cutoff threshold is just the reactivation threshold plus 360rpm. This +360 is controlled by the constant value 9 at __1192h__ (since rpm is represented in untis fo 40, 9*40 = 360rpm). 
 
-So on a fully warmed up car, fuel will be cut off if you close the throttle above 1560rpm, and turned on again when you drop to 1200. The idle stabilizer also detects this condition and slows the rpm drop to make the transition smooth. 
+So on a fully warmed up car, fuel will be cut off if you close the throttle above __1560rpm__, and turned on again when you drop to __1200__. The idle stabilizer also detects this condition and slows the rpm drop to make the transition smooth. 
 
 However, fuel is never just cut *immediately* when these conditions are reached. Instead the DME waits for the timing to stabilize. The part throttle timing will usually be higher (more advance) than the idle map for the same rpm, so typically timing is reduced during this stabilization period. This might be intended to keep the transition smooth (for example see [1] below). 
 
 During this time, timing changes are allowed to change at up to 16x normal speed (via flag 22h.5). Once the current timing value (31h) is equal to the target, then assuming the fuel cut conditions still hold, fuel is cut off by setting 23h.5 (the post-ignition routine will check this flag and skip turning on the injectors if its set). It typically takes something in the order of 10 revolutions or so for this to happen. 
 
-Similarly, timing controls are exercised when fuel is reactivated,whether by the rpm returning below the threshold, or the throttle being reopened. 
+Similarly, timing speed controls are exercised when fuel is reactivated, whether by the rpm returning below the threshold, or the throttle being reopened. 
 
 In either of these cases, the 8x speed is allowed for increasing timing (22h.6). 
 
@@ -41,7 +41,7 @@ The 944 Turbo DME doesn't know about boost directly, so it can't directly detect
 
 This condition is checked just after the timing calculation. 
 
-The map the implements this curve uses rpm as input and load as output. 
+The map that implements this curve uses rpm as input and load as output. 
 
 Here's the load vs rpm curve for the early Turbos
 
@@ -57,7 +57,7 @@ To trigger overload protection, the actual calculated load must be above this cu
 
 Once triggered, fuel is cut immediately, and stays off until the load falls below this curve minus 50 units. It's hard to give a meaningful explanation of what these units of load correspond to, but this should correspond to about 75% of the peak of the safety curve. 
 
-Once this "overboost jail" is entered, the car remains stuck in it for 60 seconds. Any time load goes above this new, lower limit, fuel is immediately cut again. After that the overboost flag is cleared and the minus 50 rule is removed. 
+Once this "overboost jail" is entered, the car remains stuck in it for 60 seconds. Any time load goes above this new, lower limit, fuel is immediately cut again. After this 60 second period, the overboost flag is cleared and the minus 50 rule is removed. 
 
 
 ## [1] footnote

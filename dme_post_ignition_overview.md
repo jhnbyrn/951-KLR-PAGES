@@ -58,7 +58,7 @@ The general rule is that the injectors are fired once per revolution, after the 
 There are two conditions that break that general rule:
 
 1. cranking
-2. low-rpm cold acceleration enrichment
+2. [low-rpm cold acceleration enrichment](dme_acceleration_enrichment_code_walkthrough.md)
 
 For the cranking situation, we fire the injectors after every spark event. The cranking flag 23h.2 gets cleared when rpm exceeds the temperature-dependent threshold in Map 3, which is 800rpm for most cases. 
 
@@ -73,12 +73,12 @@ There are various conditions that require fuel to be completely cut:
 * coasting with the throttle closed
 * overload protection
 
-The last two of these are calculated in different places and the condition is signified by setting 23h.5. So here, we check if either the rev limit has been exceeded, *or* if 23h.5 is set for any reason, and if so then we bail out of this routine, skipping the whole fuel injector section completly. 
+The last two of these are calculated in [different places](dme_fuel_cut_overview.md) and the condition is signified by setting 23h.5. So here, we check if either the rev limit has been exceeded, *or* if 23h.5 is set for any reason, and if so then we bail out of this routine, skipping the whole fuel injector section completly. 
 
 ## Transient fuel correction
-Generally when the throttle is at the idle position, and the rpm is above a certain threshold the fuel is turned off completlely. In fact this is a pretty complicated feature with quite a few rules. We won't get too much into the details here, but there is a related condition that's dealt with at this point: adjusting the fuel after is has been reactivated. 
+Generally when the throttle is at the idle position, and the rpm is above a certain threshold the fuel is turned off completlely. In fact this is a pretty complicated feature with quite a few rules. We won't get too much into the details here, but there is a related condition that's dealt with at this point: adjusting the fuel after it has been reactivated. 
 
-If this situation exists, it's indicated by 21h.5, so that flag gates the whole section we're about to look at. We won't look at how this flag gets set right now, but this routine is where it is read. 
+If this situation exists, it's indicated by 21h.5, so that flag gates the whole section we're about to look at. The details of how this flag gets set are documented in the [fuel cut code walkthrough](dme_fuel_cut_code.md) - right now we'll see how it's consumed. 
 
 Next, 21h.6 indicates whether or not the rpm returned to idle speed after fuel was cut. Based on the setting of 21h.6, we apply one of two corrections, which are best understood visually. 
 

@@ -2,7 +2,7 @@
 
 The process of reading the ADC is more complicated in the KLR than in the DME. The main reason for this is that it needs to be timed very carefully. Knock is most likely to happen within a window of around 10-70 degrees ATDC. The KLR's knock detection system integrates the sensor's output during a certain window within this range of angles, and that means that the system must begin the integration process at a fairly specific angle, and read the final value at some later specific angle. 
 
-Althogh all the ADC channels are read in the routines we'll cover here, much of the logic in this section is built around the knock detection system, so I highly recommend reading [this overview](knock_hardware.md) first. 
+Although all the ADC channels are read in the routines we'll cover here, much of the logic in this section is built around the knock detection system, so I highly recommend reading [this overview](knock_hardware.md) first. 
 
 For convenience we'll call these angles:
 
@@ -64,6 +64,8 @@ Because engine our basic engine speed measurement (in 24h) is measured in terms 
 
 At __A9E__, 2A and 2B are each multiplied by engine speed 24h and the results are divied by 256 and stored in 22h and 23h respectively. These are the timer tick counts. In the trigger routine, __r4__ is initialized with 22h. 
 
+(*There's one small caveat if you're following along with the code: just before the tick count is stored in 23h, we subtract 8 ticks from it (via the ```add a, #$F8``` instruction). This accounts for the 8 ticks that will be added by the self test later. *)
+
 Here's a table of the angles we end up with, based on the rpm ranges above (note that Angle #1 is ATDC but Angle #2 is relative to Angle #1):
 
 | RPM range/Angle | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
@@ -93,6 +95,8 @@ Angle #2 | 5 | 4C | read channel 0-3, latch knock sensor channel, prepare MAP ch
 2 ticks | 6 | 8C | read knock sensor, latch MAP channel, prepare TPS channel
 2 ticks | 7 | 98 | read MAP sensor, latch TPS channel
 
+(*Note that there are 4 functions in the table dedicated to the knock system self-test, called 2 ticks apart. This adds up to 8 ticks that were not part of the intended angles - that's why we subtract 8 from 23h at _AAA_. *)
+
 There's no function in the list for actually reading the TPS sensor. Instead this is read at the beginning of the trigger routine, but because of the way the address preparation and latching is staggered, it makes sense to think of it as part of the same over all process. 
 
 The process of actually taking a reading from the ADC consists of a few fairly standard steps:
@@ -108,9 +112,9 @@ Here, the four steps are staggered accross the various table functions. Here's s
 
 The delay needed for the conversion comes from the timer ticks that we count via __r4__ between calls to the function table - the trick to this is that each ADC read function performs these three steps:
 
-1. toggle ALE to latch the address currently on the bus
-2. put the *next* address on the bus
-3. read the current value (which corresponds to the address latched by the previous function)
+1. read the current value (which corresponds to the address latched by the previous function)
+2. toggle ALE to latch the address currently on the bus
+3. put the *next* address on the bus
 
 So for example, function #0 latches one of the channels 0-3, and then puts channel 5 (knock sensor) on the bus. Function #5 then reads the value from channel 0-3, toggles ALE (thus latching the *knock sensor* address ch. 5), and puts channel 4 on the bus (MAP sensor). This process is repeated for each channel that's read. 
 
@@ -132,7 +136,7 @@ Each of the individual ADC reading functions stores the value read from the ADC 
 
 ## Functions
 
-The function table is looked up via
+The 8-step function table described in the last section is looked up via this code:
 
 ```
 0x40b anl  a,#$7
@@ -140,6 +144,8 @@ The function table is looked up via
 ```
 
 The anl instruction masks all but the lowest 3 bits. This means we're taking 2C *mod 8* - it can count freely forever but the value we get here will always just cycle through 0-7. The next instruction jumps to the location pointed to by __a__, *relative* to the start of the page, which means 400h plus the byte value from the function table. 
+
+Now we'll examine each of the eight functions in detail. 
 
 ### Function 0 (40E) - start integrator and select first channel
 ```
@@ -159,15 +165,17 @@ The anl instruction masks all but the lowest 3 bits. This means we're taking 2C 
 0x426 ret
 ```
 
-This can be quite tricky to read. It's not doing anything very complicated. Register r0 points to 2C at this point, which was incremented before we got here, so we just decrement it to get the value that corresponds to this iteration. 
+This can be quite tricky to read! It's not actually doing anything very complicated though. 
+
+Register r0 points to 2C at this point, which was incremented before we got here, so we just decrement it to get the value that corresponds to this iteration. 
 
 If it's zero then we select channel 6 which I don't think is used. But 2C is a free counter and usually isn't zero. So next we do a clever sequence of masking that tests bits 3 and 4 of 2C and selects channels 0, 1, 2 or 3 accordingly. It's hard to visualize but the effect of this is to select each one for 8 counts, then the next one. That means that if we start with channel 0, this code will switch to channel 1 after 8 iterations, which corresponds to the next ignition event (since there are 8 functions in the table and each one gets called for each ignition event, with 2C incremented each time). 
 
-So to summarize, every ignition event, we'll pick the next channel in the sequence 0-3. Thus these channels are the lowest piority, each one being read every 4 cycles, while the others are read every cycle. 
+So to summarize, every ignition event, we'll pick the next channel in the sequence 0-3. Thus these channels are the lowest piority, each one being read every four cycles, while the others are read every cycle. 
 
-After this we latch the address via ALE - this begins the ADC conversion process and the address bus is now free, so we put channel 5 on the bus (knock sensor). The next function after the self-test functions will read the channel 0-3 value and also latch the address on the bus (channel 5/knock sensor). 
+After this we latch the address via ALE - this begins the ADC conversion process and the address bus is now free, so we put channel 5 on the bus (knock sensor). The next function to be called from the table after the self-test functions will read the channel 0-3 value and also latch the address on the bus (channel 5/knock sensor). 
 
-### Functions 1-3 (43C) - generate fake knock signal
+### Functions 1-3 (3C) - generate fake knock signal
 
 After the initial set up where the intergrator is turned on, this function is called three times in a row, at intervals of 2 timer ticks. 
 

@@ -9,6 +9,7 @@ Location | Purpose
 24h | engine speed (complemented from r6; literally the number of 87us timer ticks per 180 degrees)
 2Eh | battery voltage
 2Fh | knock sensor (noise level diagnostics)
+34h | knock self-test failure count (starts at 6 and counts down, 0 triggers blink code)
 39h | throttle position (power supply)
 3Ah | throttle position (degrees)
 3Ch | throttle position (raw)

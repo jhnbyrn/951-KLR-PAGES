@@ -11,7 +11,9 @@ Bits | Purpose
 4 | gain for the proportional term
 5, 6, 7 | over all gain for the combined closed loop term
 
-When this map is read, the value for the current rpm/throttle inputs is stored in __6Bh__. The way most of the map values are extracted is simply by bit masking, with rotation where necessary. For example, here's how the target boost filtering routine does it:
+When this map is read, the value for the current rpm/throttle inputs is stored in __6Bh__. There is no interpolation. 
+
+The way most of the map values are extracted is simply by bit masking, with rotation where necessary. For example, here's how the target boost filtering routine does it:
 
 ```
 0xdde mov  a,@r0		;r0=6B
@@ -29,6 +31,8 @@ And here's how the derivative term routine does it:
 0xe62 add  a,#$1
 ```
 
+That's the same thing except the value is first rotated 2 steps to the right. For the single-bit P gain, the conditional bit testing instructions are used (though in practice this bit is always zero). 
+
 The gain values are used in different ways: some are exponents, others are multipliers. We'll look at each in more detail next. 
 
 ## Smoothing factor
@@ -43,7 +47,7 @@ If you have read about the [exponential smoothing routine](exponential_smoothing
 
 ## Spool assist gain
 
-The boost controller uses a [derivative-based term](klr_derivative_boost_control.md) to help build boost when demand suddenly increases (i.e. quick throttle opening). The basic value of the term is the derivative of the boost delta. The way that's achieved is that the delta is calculated continuously based on the the raw (unfiltered) target boost value 51h, and then another variable follows this via the exponential smoothing routine; the spool assist term is just the difference between the delta and the filtered follower value, multiplied by an exponential gain factor. 
+The boost controller uses a [derivative-based term](klr_derivative_boost_control_code.md) to help build boost when demand suddenly increases (i.e. quick throttle opening). The basic value of the term is the derivative of the boost delta. The way that's achieved is that the delta is calculated continuously based on the the raw (unfiltered) target boost value 51h, and then another variable follows this via the exponential smoothing routine; the spool assist term is just the difference between the delta and the filtered follower value, multiplied by an exponential gain factor. 
 
 As with the smoothing factor we saw previously, all the throttle position rows are the same, so we really just have:
 

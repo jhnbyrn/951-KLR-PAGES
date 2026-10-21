@@ -83,7 +83,14 @@ In ML2.x system, the two intermediate lookup tables are used with *variable* off
 | dwell | 3Ah (12), 36h (7)| 603C | 6490 | 11 | 681C |
 | injector dead time | 36h (4) | 6004 | 6468 | 1 | 66A8 |
 
-* Injector latency/dead-time:
+### Units
+
+* Fuel and injector latency units look the same as the 8v cars
+* I'm pretty sure ignition timing values are in 1/8th tooth counts, that is 0.75 degrees, with __30__ being TDC, i.e. zero. So the formula should be:
+
+```spark_advance = 0.75 * (map_value - 30)```
+
+### Injector latency/dead-time:
 
 Address: `0x66a8`
 
@@ -98,7 +105,7 @@ Raw breakpoints, axis 1: 118 176 206 235
 | 14.1 | 64 |
 | 16.1 | 49 |
 
-* Fuel, part throttle:
+### Fuel, part throttle:
 
 Address: `0x6c84`
 
@@ -123,7 +130,7 @@ Rows: variable 0x3a (58), engine speed in rpm. Columns: variable 0x42 (66).
 | 6000 | 120 | 120 | 120 | 122 | 122 | 123 | 125 | 126 | 121 | 141 | 131 | 131 |
 | 6520 | 119 | 119 | 119 | 122 | 122 | 123 | 125 | 126 | 138 | 138 | 137 | 128 |
 
-* Fuel, WOT:
+### Fuel, WOT:
 
 Address: `0x6c62`
 
@@ -151,7 +158,7 @@ Raw breakpoints, axis 1: 25 38 50 62 69 75 81 87 100 112 125 137 145 150 160 163
 | 6520 | 116 |
 
 
-* Spark advance, part throttle:
+### Spark advance, part throttle:
 
 Address: `0x6baa`
 
@@ -177,7 +184,7 @@ Rows: variable 0x3a (58), engine speed in rpm. Columns: variable 0x42 (66).
 | 6520 | 91 | 91 | 91 | 91 | 82 | 78 | 78 | 78 | 75 | 71 | 66 | 56 |
 
 
-* Spark advance, WOT:
+### Spark advance, WOT:
 
 Address: `0x6b74`
 
@@ -205,7 +212,7 @@ Raw breakpoints, axis 1: 25 38 50 62 69 75 81 87 105 112 125 137 145 150 160 163
 | 6520 | 56 |
 
 
-* Dwell
+### Dwell
 
 Address: `0x681c`
 

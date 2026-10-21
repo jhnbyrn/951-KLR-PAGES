@@ -1,4 +1,4 @@
-#Porsche 944S2 memory map (Motronic M2.1)
+# Porsche 944S2 memory map (Motronic M2.1)
 
 ## Variables
 
@@ -42,7 +42,7 @@ The FQS settings are located at 61ED. It's basically the same setup as ML1.x.
 
 The FQS switch is read via the data port, not via an ADC channel as with ML1.x - this means there's no decoding to do with ML2.x, we just get the 3 bits representing the 8 positions directly (into location 21h). 
 
-The timing values are similar but not identical to ML1.x. With ML1.x we have 130 or 132 flywheel teeth, with each one being ~2.7 degrees. Timing values are represente in the code and maps as quarter-tooth values. With ML2.x, we have 6 degrees per tooth, and values are represented as eighth-tooth values. In both systems, the FQS positions 4-7 subtracts 4 units, so that's 3.0 degrees for ML2.x compared with ~2.7 for ML1.x
+The timing values are similar but not identical to ML1.x. With ML1.x we have 130 or 132 flywheel teeth, with each one being ~2.7 degrees. Timing values are represented in the code and maps as quarter-tooth values. With ML2.x, we have 6 degrees per tooth, and values are represented as eighth-tooth values. In both systems, the FQS positions 4-7 subtracts 4 units, so that's 3.0 degrees for ML2.x compared with ~2.7 for ML1.x
 
 | Offset (FQS Position) | Hex value | Decimal value | Effect on fuel | Effect on timing | 
 |--------------|--------------|--------------|--------------|--------------|

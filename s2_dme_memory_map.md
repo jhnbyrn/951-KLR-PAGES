@@ -1,5 +1,17 @@
 # Porsche 944S2 memory map (Motronic M2.1)
 
+## Checksum (IMPORTANT!)
+The Motronic M2.x uses a ROM checksum and sets a fault code if the image has been changed. The simplest thing to do for tuning is to simply disable this check, rather than calculating and updating the checksum for every change. So here's a version of the original with the check disabled (but no other changes). 
+
+This image came from a 9442 DME with the following part # info on the label:
+
+__Bosch 0 261 200 195__
+__944.618.124.02__ 
+__TYP 944S-MW-02__
+
+[944 S2 DME (chip label 1267356132), CHECKSUM DISABLED, USE THIS ONE!](binaries/944_S2_DME_1267356132_checksum_disabled.bin)
+[944 S2 DME (chip label 1267356132), original](binaries/944_S2_DME_1267356132.bin)
+
 ## Variables
 
 | Location | Purpose | Notes |
@@ -7,7 +19,7 @@
 3Ah | rpm/40 ||
 42h | load ||
 37h | NTC I air intake temp | |
-38h | NTC II engine coolant temp ||
+38h | NTC II engine coolant temp |
 36h | battery voltage ||
 70h | injector dead-time | |
 
@@ -35,6 +47,7 @@ P1.0 | 1 | fuel injectors (batch) |
 P1.1 | 2 | ignition |
 P1.2 | 3 | reset for 68705 |
 P1.4 | 5 | idle stabilizer |
+T0 | 14 | hall effect (cam) sensor |
 
 ### External addresses
 
@@ -81,7 +94,7 @@ In ML2.x system, the two intermediate lookup tables are used with *variable* off
 | spark advance, part throttle | 3Ah (12), 42h (12) | 608D | 64F2 | 4 | 6BAA |
 | spark advance, WOT | 3Ah (16) | 608D | 64F2 | 1 | 6B74 |
 | dwell | 3Ah (12), 36h (7)| 603C | 6490 | 11 | 681C |
-| injector dead time | 36h (4) | 6004 | 6468 | 1 | 66A8 |
+| injector dead time | 36h (4) | 6004 | 6458 | 1 | 66A8 |
 
 ### Units
 
@@ -100,10 +113,10 @@ Raw breakpoints, axis 1: 118 176 206 235
 
 | Variable 0x36 (54), battery voltage in V | Value |
 |---|---|
-| 8.1 | 118 |
-| 12.1 | 94 |
-| 14.1 | 64 |
-| 16.1 | 49 |
+| 8 | 118 |
+| 12 | 94 |
+| 14 | 64 |
+| 16 | 49 |
 
 ### Fuel, part throttle:
 
@@ -147,16 +160,15 @@ Raw breakpoints, axis 1: 25 38 50 62 69 75 81 87 100 112 125 137 145 150 160 163
 | 2760 | 128 |
 | 3000 | 125 |
 | 3240 | 128 |
-| 3480 | 140 |
-| 4000 | 136 |
+| 3480 | 135 |
+| 4000 | 140 |
 | 4480 | 136 |
-| 5000 | 129 |
-| 5480 | 116 |
-| 5800 | 112 |
-| 6000 | 110 |
-| 6400 | 109 |
-| 6520 | 116 |
-
+| 5000 | 135 |
+| 5480 | 123 |
+| 5800 | 117 |
+| 6000 | 116 |
+| 6400 | 115 |
+| 6520 | 122 |
 
 ### Spark advance, part throttle:
 
@@ -170,19 +182,18 @@ Rows: variable 0x3a (58), engine speed in rpm. Columns: variable 0x42 (66).
 
 | 0x3a \ 0x42 | 26 | 36 | 42 | 47 | 57 | 69 | 78 | 90 | 105 | 117 | 126 | 140 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 840 | 42 | 45 | 51 | 58 | 65 | 54 | 55 | 49 | 45 | 45 | 45 | 45 |
-| 1000 | 42 | 45 | 58 | 71 | 65 | 54 | 55 | 49 | 45 | 45 | 45 | 45 |
-| 1480 | 42 | 64 | 73 | 73 | 65 | 63 | 60 | 58 | 54 | 54 | 54 | 54 |
-| 2000 | 42 | 71 | 73 | 74 | 71 | 69 | 68 | 66 | 62 | 61 | 61 | 61 |
-| 2480 | 58 | 75 | 79 | 78 | 75 | 72 | 69 | 68 | 67 | 64 | 64 | 64 |
-| 3000 | 91 | 79 | 79 | 79 | 80 | 80 | 80 | 79 | 78 | 70 | 71 | 71 |
-| 4000 | 91 | 85 | 83 | 77 | 78 | 77 | 76 | 69 | 67 | 65 | 63 | 62 |
-| 4480 | 91 | 91 | 85 | 85 | 83 | 81 | 77 | 72 | 68 | 66 | 67 | 67 |
-| 5000 | 91 | 91 | 85 | 85 | 76 | 74 | 70 | 68 | 62 | 60 | 61 | 61 |
-| 5760 | 91 | 91 | 85 | 85 | 81 | 76 | 74 | 70 | 64 | 64 | 65 | 65 |
-| 6000 | 91 | 91 | 91 | 91 | 79 | 74 | 76 | 76 | 71 | 67 | 67 | 66 |
-| 6520 | 91 | 91 | 91 | 91 | 82 | 78 | 78 | 78 | 75 | 71 | 66 | 56 |
-
+| 840 | 41 | 44 | 50 | 57 | 63 | 52 | 52 | 46 | 41 | 41 | 41 | 41 |
+| 1000 | 41 | 44 | 57 | 70 | 63 | 52 | 52 | 46 | 41 | 41 | 41 | 41 |
+| 1480 | 41 | 63 | 72 | 72 | 63 | 61 | 57 | 55 | 50 | 50 | 50 | 50 |
+| 2000 | 41 | 70 | 72 | 73 | 69 | 67 | 66 | 63 | 59 | 57 | 57 | 57 |
+| 2480 | 57 | 74 | 78 | 77 | 73 | 70 | 67 | 66 | 64 | 61 | 60 | 60 |
+| 3000 | 90 | 78 | 78 | 78 | 78 | 78 | 78 | 77 | 75 | 67 | 67 | 67 |
+| 4000 | 90 | 84 | 82 | 76 | 76 | 75 | 74 | 67 | 64 | 62 | 59 | 58 |
+| 4480 | 90 | 90 | 84 | 84 | 81 | 79 | 75 | 70 | 65 | 63 | 63 | 63 |
+| 5000 | 90 | 90 | 84 | 84 | 74 | 72 | 68 | 66 | 59 | 57 | 57 | 57 |
+| 5760 | 90 | 90 | 84 | 84 | 79 | 74 | 72 | 68 | 61 | 61 | 61 | 61 |
+| 6000 | 90 | 90 | 90 | 90 | 77 | 72 | 74 | 74 | 68 | 64 | 63 | 62 |
+| 6520 | 90 | 90 | 90 | 90 | 80 | 76 | 76 | 76 | 72 | 68 | 62 | 52 |
 
 ### Spark advance, WOT:
 
@@ -194,23 +205,22 @@ Raw breakpoints, axis 1: 25 38 50 62 69 75 81 87 105 112 125 137 145 150 160 163
 
 | Variable 0x3a (58), engine speed in rpm | Value |
 |---|---|
-| 1000 | 46 |
-| 1520 | 55 |
-| 2000 | 62 |
-| 2480 | 65 |
-| 2760 | 71 |
-| 3000 | 72 |
-| 3240 | 72 |
-| 3480 | 72 |
-| 4200 | 63 |
-| 4480 | 68 |
-| 5000 | 62 |
-| 5480 | 63 |
-| 5800 | 66 |
-| 6000 | 68 |
-| 6400 | 68 |
-| 6520 | 56 |
-
+| 1000 | 42 |
+| 1520 | 51 |
+| 2000 | 58 |
+| 2480 | 61 |
+| 2760 | 67 |
+| 3000 | 68 |
+| 3240 | 68 |
+| 3480 | 68 |
+| 4200 | 59 |
+| 4480 | 64 |
+| 5000 | 58 |
+| 5480 | 59 |
+| 5800 | 62 |
+| 6000 | 64 |
+| 6400 | 64 |
+| 6520 | 52 |
 
 ### Dwell
 

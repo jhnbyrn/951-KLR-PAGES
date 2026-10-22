@@ -6,12 +6,13 @@ The Motronic M2.x uses a ROM checksum and sets a fault code if the image has bee
 This image came from a 9442 DME with the following part # info on the label:
 
 ```
-__Bosch 0 261 200 195__
-__944.618.124.02__ \
-__TYP 944S-MW-02__\
+Bosch 0 261 200 195
+944.618.124.02
+TYP 944S-MW-02
 ```
-|-|
-|[944 S2 DME (chip label 1267356132), CHECKSUM DISABLED, USE THIS ONE!](binaries/944_S2_DME_1267356132_checksum_disabled.bin)|
+| Downloads|
+|--|
+|[944 S2 DME (chip label 1267356132), CHECKSUM DISABLED, USE THIS ONE!](binaries/944_S2_DME_1267356132_checksum_disabled.bin) |
 |[944 S2 DME (chip label 1267356132), original](binaries/944_S2_DME_1267356132.bin)|
 
 ## Variables

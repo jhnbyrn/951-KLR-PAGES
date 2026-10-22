@@ -9,8 +9,6 @@ __Bosch 0 261 200 195__
 __944.618.124.02__ 
 __TYP 944S-MW-02__
 
-[944 S2 DME (chip label 1267356132), CHECKSUM DISABLED, USE THIS ONE!](binaries/944_S2_DME_1267356132_checksum_disabled.bin)
-[944 S2 DME (chip label 1267356132), original](binaries/944_S2_DME_1267356132.bin)
 
 ## Variables
 

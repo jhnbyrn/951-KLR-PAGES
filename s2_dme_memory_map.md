@@ -21,11 +21,12 @@ TYP 944S-MW-02
 | Location | Purpose | Notes |
 |----------|----------|----------|
 3Ah | rpm/40 ||
+3Bh | rpm/10 | used for idle control |
 42h | load ||
-37h | NTC I air intake temp | |
-38h | NTC II engine coolant temp |
-36h | battery voltage ||
-70h | injector dead-time | |
+37h | NTC I air intake temp | ```(8-bit value − 54)/1.55``` |
+38h | NTC II engine coolant temp | ```(8-bit value − 54)/1.55``` |
+36h | battery voltage | ```8-bit value * 0.0686``` |
+70h | injector dead-time | units are ms/100 |
 
 ## ADC Channels
 
@@ -65,6 +66,24 @@ These devices are read using ```movx```.
 | DC | S708 | |
 | 7Exx | external SRAM | |
 | 7Fxx | external SRAM | |
+
+## NTC temperature sensor transfer function
+
+From the 944 Manual, the sensors (both NTCI and II) are  clearly the same as the 8v version:
+
+| Temperature (C) | Resistance (Ohms) |
+|-----------------|-----------------|
+| 0 | 4.4 - 6.8k |
+| 15-30 | 1.4 - 3.6k |
+| 40 | 1.0 - 1.3k |
+| 80 | 250 - 390 |
+|100 | 160 - 210 |
+
+However, the circuit seems to be a little different between the sensor and the ADC, with the result that the transfer function is around ```(8-bit value − 54)/1.55``` (compared with ```(8-bit value - 62.6) / 1.52``` from the 8v version). 
+
+The table that processes the raw ADC value is different from the 8v version to account for this. 
+
+As with the 8v version, both NTCI and II are processed with a single table so we can assume identical signal conditioning circuitry for both sensors. 
 
 ## FQS
 The FQS settings are located at 61ED. It's basically the same setup as ML1.x. 

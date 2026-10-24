@@ -44,9 +44,11 @@ It's written to be read in the order presented below - the code can be pretty co
 In the reference section I've provided a few notes on how to read 8048 series code. Most of this information can be found in the official pdfs in the archive section below, but they're pretty long so I wanted to put some of the most important stuff into a more accessible document. If you find anything in the code tough going, it's worth taking a look at my notes. 
 
 ## DME - 944 S, S2, 964 (ML2.x)
-* [Memory Map](s2_dme_memory_map.md) *An early, work-in-progress mapping of the key variables and maps from the 16v 944s, mostly applicable to the 964 too*
+* [Memory Map](s2_dme_memory_map.md) *An early, work-in-progress mapping of the key variables and maps from the 16v 944S2, mostly applicable to the 964 too and probably to the 944S*
 
 ## DME - 944 Turbo, 944NA 8v (ML1.x)
+
+* [Motronic software architecture](dme_software_architecture.md) *A quick overview of the big picture*
 
 * [How the Motronic DME maps work](dme_map_info.md) *This explains the structure of the maps found in the DME code, and how to interpret the headings and data*
 

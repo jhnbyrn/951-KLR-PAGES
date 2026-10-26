@@ -1,7 +1,7 @@
 # Porsche 944S2 memory map (Motronic M2.1)
 
 ## Checksum (IMPORTANT!)
-The Motronic M2.x uses a ROM checksum and sets a fault code if the image has been changed. The simplest thing to do for tuning is to simply disable this check, rather than calculating and updating the checksum for every change. So here's a version of the original with the check disabled (but no other changes). 
+The Motronic M2.x uses a ROM checksum and sets a fault code if the image has been changed. The simplest thing to do for tuning is to disable this check, rather than calculating and updating the checksum for every change. So here's a version of the original with the check disabled (but no other changes). 
 
 This image came from a 9442 DME with the following part # info on the label:
 
@@ -114,6 +114,7 @@ In ML2.x system, the two intermediate lookup tables are used with *variable* off
 |--------|--------|--------|--------|--------|--------|
 | fuel, part throttle | 3Ah (12), 42h (12) |  608D | 64F2 | 7 | 6C84 |
 | fuel, WOT | 3Ah (16) | 608D | 64F2 | 6 | 6C62 | 
+| spark advance, baseline | 3Ah (16) | 608D | 64F2 | 0 | 67D0 |
 | spark advance, part throttle | 3Ah (12), 42h (12) | 608D | 64F2 | 4 | 6BAA |
 | spark advance, WOT | 3Ah (16) | 608D | 64F2 | 1 | 6B74 |
 | dwell | 3Ah (12), 36h (7)| 603C | 6490 | 11 | 681C |
@@ -133,6 +134,8 @@ Address: `0x66a8`
 Data start (file offset): `0x66ae`. Size: 4 values (1-axis, 4 bytes).
 
 Raw breakpoints, axis 1: 118 176 206 235
+
+Units are __ms/100__.
 
 | Variable 0x36 (54), battery voltage in V | Value |
 |---|---|
@@ -218,6 +221,23 @@ Rows: variable 0x3a (58), engine speed in rpm. Columns: variable 0x42 (66).
 | 6000 | 90 | 90 | 90 | 90 | 77 | 72 | 74 | 74 | 68 | 64 | 63 | 62 |
 | 6520 | 90 | 90 | 90 | 90 | 80 | 76 | 76 | 76 | 72 | 68 | 62 | 52 |
 
+* values translated into degrees:
+
+| 0x3a \ 0x42 | 26 | 36 | 42 | 47 | 57 | 69 | 78 | 90 | 105 | 117 | 126 | 140 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 840 | 8.25 | 10.5 | 15 | 20.25 | 24.75 | 16.5 | 16.5 | 12 | 8.25 | 8.25 | 8.25 | 8.25 |
+| 1000 | 8.25 | 10.5 | 20.25 | 30 | 24.75 | 16.5 | 16.5 | 12 | 8.25 | 8.25 | 8.25 | 8.25 |
+| 1480 | 8.25 | 24.75 | 31.5 | 31.5 | 24.75 | 23.25 | 20.25 | 18.75 | 15 | 15 | 15 | 15 |
+| 2000 | 8.25 | 30 | 31.5 | 32.25 | 29.25 | 27.75 | 27 | 24.75 | 21.75 | 20.25 | 20.25 | 20.25 |
+| 2480 | 20.25 | 33 | 36 | 35.25 | 32.25 | 30 | 27.75 | 27 | 25.5 | 23.25 | 22.5 | 22.5 |
+| 3000 | 45 | 36 | 36 | 36 | 36 | 36 | 36 | 35.25 | 33.75 | 27.75 | 27.75 | 27.75 |
+| 4000 | 45 | 40.5 | 39 | 34.5 | 34.5 | 33.75 | 33 | 27.75 | 25.5 | 24 | 21.75 | 21 |
+| 4480 | 45 | 45 | 40.5 | 40.5 | 38.25 | 36.75 | 33.75 | 30 | 26.25 | 24.75 | 24.75 | 24.75 |
+| 5000 | 45 | 45 | 40.5 | 40.5 | 33 | 31.5 | 28.5 | 27 | 21.75 | 20.25 | 20.25 | 20.25 |
+| 5760 | 45 | 45 | 40.5 | 40.5 | 36.75 | 33 | 31.5 | 28.5 | 23.25 | 23.25 | 23.25 | 23.25 |
+| 6000 | 45 | 45 | 45 | 45 | 35.25 | 31.5 | 33 | 33 | 28.5 | 25.5 | 24.75 | 24 |
+| 6520 | 45 | 45 | 45 | 45 | 37.5 | 34.5 | 34.5 | 34.5 | 31.5 | 28.5 | 24 | 16.5 |
+
 ### Spark advance, WOT:
 
 Address: `0x6b74`
@@ -245,6 +265,53 @@ Raw breakpoints, axis 1: 25 38 50 62 69 75 81 87 105 112 125 137 145 150 160 163
 | 6400 | 64 |
 | 6520 | 52 |
 
+* Values translated into degrees
+
+| Variable 0x3a (58), engine speed in rpm | Value |
+|---|---|
+| 1000 | 9 |
+| 1520 | 15.75 |
+| 2000 | 21 |
+| 2480 | 23.25 |
+| 2760 | 27.75 |
+| 3000 | 28.5 |
+| 3240 | 28.5 |
+| 3480 | 28.5 |
+| 4200 | 21.75 |
+| 4480 | 25.5 |
+| 5000 | 21 |
+| 5480 | 21.75 |
+| 5800 | 24 |
+| 6000 | 25.5 |
+| 6400 | 25.5 |
+| 6520 | 16.5 |
+
+### Spark advance, baseline
+
+Address `0x67d0`
+
+Data start (file offset): `0x67d6`. Size: 4 values (1-axis, 4 bytes).
+
+Axis bytes (stored steps): `0x67d2`, 4 bytes.
+
+Raw breakpoints, axis 1: 15 66 105 156
+
+| Variable 0x3a (58), engine speed in rpm | Value |
+|---|---|
+| 600 | 30 |
+| 2640 | 32 |
+| 4200 | 34 |
+| 6240 | 36 |
+
+* Values translated into degrees:
+
+| Variable 0x3a (58), engine speed in rpm | Value |
+|---|---|
+| 600 | 0 |
+| 2640 | 1.5 |
+| 4200 | 3 |
+| 6240 | 4.5 |
+
 ### Dwell
 
 Address: `0x681c`
@@ -271,3 +338,20 @@ Rows: variable 0x3a (58), engine speed in rpm. Columns: variable 0x36 (54), batt
 | 3640 | 192 | 192 | 192 | 125 | 99 | 79 | 47 |
 | 5600 | 192 | 192 | 192 | 192 | 152 | 121 | 72 |
 | 6600 | 187 | 187 | 187 | 187 | 179 | 143 | 84 |
+
+* Values translated into ms:
+
+| 0x3a \ 0x36 | 6.0 | 8.0 | 10.1 | 12.1 | 14.1 | 16.1 | 16.6 |
+|---|---|---|---|---|---|---|---|
+| 40 | 343.75 | 275.00 | 112.50 | 68.75 | 56.25 | 43.75 | 31.25 |
+| 80 | 173.44 | 139.06 | 57.81 | 35.94 | 28.12 | 21.88 | 15.62 |
+| 160 | 89.06 | 71.09 | 29.69 | 17.97 | 14.06 | 10.94 | 7.81 |
+| 320 | 49.61 | 39.45 | 16.41 | 10.16 | 7.81 | 6.25 | 3.91 |
+| 520 | 36.30 | 29.09 | 12.02 | 7.45 | 5.77 | 4.57 | 2.40 |
+| 800 | 30.00 | 24.22 | 10.00 | 6.25 | 4.84 | 3.75 | 2.03 |
+| 1080 | 22.22 | 22.22 | 9.26 | 5.67 | 4.51 | 3.47 | 1.85 |
+| 1440 | 16.67 | 16.67 | 8.85 | 5.47 | 4.25 | 3.30 | 1.82 |
+| 2080 | 11.54 | 11.54 | 6.61 | 4.33 | 3.43 | 2.70 | 1.62 |
+| 3640 | 6.59 | 6.59 | 6.59 | 4.29 | 3.40 | 2.71 | 1.61 |
+| 5600 | 4.29 | 4.29 | 4.29 | 4.29 | 3.39 | 2.70 | 1.61 |
+| 6600 | 3.54 | 3.54 | 3.54 | 3.54 | 3.39 | 2.71 | 1.59 |

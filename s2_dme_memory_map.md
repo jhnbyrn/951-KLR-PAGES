@@ -114,7 +114,7 @@ In ML2.x system, the two intermediate lookup tables are used with *variable* off
 |--------|--------|--------|--------|--------|--------|
 | fuel, part throttle | 3Ah (12), 42h (12) |  608D | 64F2 | 7 | 6C84 |
 | fuel, WOT | 3Ah (16) | 608D | 64F2 | 6 | 6C62 | 
-| spark advance, baseline | 3Ah (16) | 608D | 64F2 | 0 | 67D0 |
+| spark advance, baseline | 3Ah (16) | 603C | 6490 | 0 | 67D0 |
 | spark advance, part throttle | 3Ah (12), 42h (12) | 608D | 64F2 | 4 | 6BAA |
 | spark advance, WOT | 3Ah (16) | 608D | 64F2 | 1 | 6B74 |
 | dwell | 3Ah (12), 36h (7)| 603C | 6490 | 11 | 681C |

@@ -235,6 +235,7 @@ These are reached through the two-stage lookup described in [the Motronic map lo
 | Map | r2 | Address | Axes | Purpose | Covered in |
 |-----|----|---------|------|---------|------------|
 | 3 | 03h | 1447h | 13h | rpm threshold for clearing the cranking flag 23h.2 | see the flag setting logic below |
+| 24 | 18h | 13dch | 37h, 11h | ignition coil dwell, in half-tooth (1.36 deg.) units | [ignition dwell](dme_ignition_dwell.md) |
 | 25 | 19h | 144Fh | 13h | coasting fuel cut rpm threshold | [fuel cut](dme_fuel_cut_code.md) |
 | 26 | 1Ah | 1598h | 11h | injector dead-time by system voltage | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
 | 27 | 1Bh | 159Eh | 37h | load low-pass filter coefficient by rpm | [load](dme_load_code_walkthrough.md) |

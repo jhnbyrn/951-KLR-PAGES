@@ -6,11 +6,11 @@ Now we'll take a close look at the crankshaft sensors, the signals they produce,
 
 In order to create the spark and inject the fuel at just the right time, the DME needs to know the position of the crankshaft with a fair degree of accuracy (ideally to within a couple of degrees at worst). We usually measure this relative to top-dead-centre (TDC) for the cylinder that's about to fire next. Most interesting things happen *before* TDC, so we will use the acronym __BTDC__ to mean "before TDC".  
 
-On the 944, this measurement is done using two crankshaft sensors, which are commonly called the *speed sensor* and the *reference sensor* in Porsche 944 documentation. These are a pair of VR (variable reluctance) sensors installed in the clutch bellhousing so that they point at the flywheel. 
+On the 944, this measurement is done using two crankshaft sensors, which are commonly called the *speed sensor* and the *reference sensor* in Porsche 944 documentation. These are a pair of VR (variable reluctance) sensors installed in the clutch bellhousing so that they point at the flywheel. They're identical to each other, but they produce different signals because of where they're aimed. 
 
-The term *speed sensor* is something of a misnomer. While it is used to measure engine speed, it's fundementally an angle sensor. This sensor produces a pulse every time a flywheel tooth passes the tip of the sensor. So by counting these pulses, we can measure angles relative to a known reference point. Both signals are routed to the 8051's external interrupt pins. 
+The term *speed sensor* is something of a misnomer. While it is used to measure engine speed, it's fundementally an angle sensor. This sensor produces a pulse every time a flywheel tooth passes the tip of the sensor. So by counting these pulses, we can measure angles relative to a known reference point. 
 
-But *what* known reference point? That's where the aptly-named reference sensor comes in. This sensor is triggered by a magnetic screw in the flywheel located at 58.64 degrees BTDC for cylinder 1. It produces just one pulse per revolution at exactly this angle. So if we have an angle we'd like to measure (represented as a number of flywheel teeth) then we can wait for the refereence sensor pulse to occur, and then simply count the number of speed sensor pulses until we have reached our target number. Now we know we are __58.64 degrees minus target angle__ away from TDC for cylinder 1. 
+But *what* known reference point? That's where the appropriately-named *reference sensor* comes in. This sensor is triggered by a magnetic screw in the flywheel located at 58.64 degrees BTDC for cylinder 1. It produces just one pulse per revolution, at exactly this angle. So if we have an angle we'd like to measure (represented as a number of flywheel teeth) then we can wait for the refereence sensor pulse to occur, and then simply count the number of speed sensor pulses until we have reached our target number. Now we know we are __58.64 degrees minus target angle__ away from TDC for cylinder 1. 
 
 That's the basic idea. Now let's see what these VR sensor signals actually look like on an oscilloscope:
 
@@ -29,9 +29,9 @@ You might guess that the point where the pulse crosses zero volts on the way dow
 
 So ideally we want a circuit that produces a clear digital pulse every time the raw sensor signal crosses the zero-volt line. The type of circuit that does that is called a zero-cross detector. See the [MAX9924 series](https://www.analog.com/media/en/technical-documentation/data-sheets/MAX9924-MAX9927.pdf) for some great info on these. 
 
-For some reason (possibly due to signal noise concerns) the DME's circuitry does something a little different. It uses an *adaptive peak threshold*, which triggers the digital pulse when the raw signal reaches around 40% of it's peak. How does it know how high the peak will be if it hasn't happened yet? It uses the value of the previous peak (or maybe an average of a few previous peaks). 
+For some reason (possibly due to signal noise concerns) the DME's circuitry does something a little different. It uses an *adaptive peak threshold*, which triggers the digital pulse when the raw signal reaches around 40% of it's peak. But how does it know how high the peak will be, if it hasn't happened yet? It uses the value of the previous peak (or maybe an average of a few previous peaks). 
 
-The result of this is that the digital pulse appears before the sensor is perfectly lined up, so there is an offset between the pulse and the zero crossing point. But because the ramp-up of the raw signal is very close to a straight line, the offset comes out to a pretty much constant angle of around 1.35 flywheel teeth, or 3.7 degrees. But because the 8051 generally just counts falling edges, we should be concerned with what this offset amounts to in those terms. 
+The result of this is that the digital pulse appears before the magnetic screw is perfectly lined up with the sensor, so there is an offset between the pulse and the zero crossing point. But because the ramp-up of the raw signal is very close to a straight line, the offset comes out to a pretty much constant angle of around 1.35 flywheel teeth, or 3.7 degrees. However because the 8051 generally just counts falling edges of the digitized signal, we should be more concerned with what this offset amounts to in those terms. 
 
 Here's a scope capture of the raw signals next to their digitized counterparts
 
@@ -41,7 +41,7 @@ Here's a scope capture of the raw signals next to their digitized counterparts
 
 Here, the green trace is the digitized ref sensor and the black trace is the digitized speed sensor.
 
-The device that does this digitization is a custom Bosch chip (known as S100 on the DME's PCB) and there isn't much information about it. What we know is that it takes 2 differential VR signals as inputs, and produces digital outputs. The reference sensor's digital latches, and needs to be reset every revolution by a pulse to the S100's pin 11. 
+The device that does this digitization is a custom Bosch chip (known as S100 on the DME's PCB) and there isn't much information about it. What we know is that it takes 2 differential VR signals as inputs, and produces digital outputs. Also, the reference sensor's digital output latches, and needs to be reset every revolution by a pulse to the S100's pin 11. 
 
 Note that the digitized reference sensor signal is pulled __low__ when the raw signal meets the threshold on the way *up*. The S100 actually pulls the output high for this event, but the signal is then inverted via one of the NOR gates of a 74LS02 (S705) before reaching the 8051. The speed sensor output pulses are not inverted. 
 
@@ -92,7 +92,7 @@ To the best of my knowledge, the second and third situations shown here can't ac
 
 The truth could be one, or several, or none of these reasons - all we know for sure is that the code *does* handle this situation, and some parts of it would be tricky to understand if you didn't know about this!
 
-In order to keep the half-tooth correction logic simple, these two sources of half-tooth error are always consolidated when the counter value is prepared. The logic is simple:
+In order to keep the half-tooth correction logic simple, these two sources of half-tooth error are always consolidated when the counter value is prepared. The consolidation logic is simple:
 
 * if exactly one half-tooth correction is required (regardless of which source) then set a flag that will cause the correction to happen at the end of the count. 
 * if *two* half-tooth corrections are needed, then __clear__ the flag and __add one__ whole tooth to the count
@@ -146,6 +146,8 @@ The fuel injection pulse is always started just after the spark is fired for the
 * enable timer0 interrupt and start timer0
 * return from the speed sensor interrupt
 * the timer0 interrupt will turn the injectors off
+
+You can read the exact details of the fuel injection logic [here](dme_post_ignition_overview) (overview) and [here](dme_post_ignition_code_walkthrough.md) (detailed code walkthrough).
 
 Here's the injection pulse (shown in red) along with the ignition (blue) and the now-familiar crank sensor pulses:
 

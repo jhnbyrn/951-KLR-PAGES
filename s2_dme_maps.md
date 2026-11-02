@@ -2,6 +2,26 @@
 
 Here are some of the main maps with values translated into appropriate units. 
 
+## Spark advance, idle
+
+Address `0x67ea`
+
+Data start (file offset): `0x67f3`. Size: 7 values (1-axis, 7 bytes).
+
+Raw breakpoints, axis 1: 16 18 21 24 50 75 100
+
+Cell values (ignition timing) shown in degrees BTDC (0.75 x (value - 30); negative = after TDC).
+
+| Variable 0x3a (58), engine speed in rpm | Value |
+|---|---|
+| 640 | 20.25 |
+| 720 | 14.25 |
+| 840 | 10.5 |
+| 960 | 7.5 |
+| 2000 | 10.5 |
+| 3000 | 30 |
+| 4000 | 45 |
+
 ## Spark advance, part throttle
 
 Address: `0x6baa`

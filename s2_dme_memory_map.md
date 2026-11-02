@@ -104,9 +104,9 @@ The timing values are similar but not identical to ML1.x. With ML1.x we have 130
 |7 | 88h | 136 | + 6.25% | -3 |
 
 ## Maps
-The raw map data is generally stored starting at 6670. The main map lookup table starts at 6450 (Table 2). This table in turn is address via offsets stored at 6000 (Table 1).
+The raw map data is generally stored starting at 6670. The main map lookup table starts at 6450 (Table 2). This table in turn is addressed via offsets stored at 6000 (Table 1).
 
-The ML2.x system uses a more complicated map lookup process than the one used in ML1.x. In that system, each map has a unique 1-byte identifier. So if you see a reference to "map 5" in the code, it's easy to find that map, and conversely if you see a particular map that interests you in the raw binary, it's relatively easy to figure out how that map is referred to in the code, so you can find where it's read and figure out its purpose. 
+The ML2.x system uses a more complicated map lookup process than the one used in ML1.x. In ML1.x, each map has a unique 1-byte identifier. So if you see a reference to "map 5" in the code, it's easy to find that map, and conversely if you see a particular map that interests you in the raw binary, it's relatively easy to figure out how that map is referred to in the code, so you can find the code that reads it and figure out its purpose. 
 
 In ML2.x system, the two intermediate lookup tables are used with *variable* offsets, with the result that different functions throughout the program have their own 1-byte map namespace. So "map 5" doesn't unabiguously identify one particular map in ML2.x; you have to know how the table pointers are set when the code refers to that map. That can be traced in the code with a little work. But going the other way - that is, starting with a raw map location like 0x6670 and figuring out where that's used in the code - is much harder. 
 
@@ -195,6 +195,38 @@ Raw breakpoints, axis 1: 25 38 50 62 69 75 81 87 100 112 125 137 145 150 160 163
 | 6000 | 116 |
 | 6400 | 115 |
 | 6520 | 122 |
+
+### Spark advance, idle
+
+Address `0x67ea`
+
+Data start (file offset): `0x67f3`. Size: 7 values (1-axis, 7 bytes).
+
+Raw breakpoints, axis 1: 16 18 21 24 50 75 100
+
+Cell values (ignition timing) shown in degrees BTDC (0.75 x (value - 30); negative = after TDC).
+
+| Variable 0x3a (58), engine speed in rpm | Value |
+|---|---|
+| 640 | 57 |
+| 720 | 49 |
+| 840 | 44 |
+| 960 | 40 |
+| 2000 | 44 |
+| 3000 | 70 |
+| 4000 | 90 |
+
+* values translated into degrees:
+
+| Variable 0x3a (58), engine speed in rpm | Value |
+|---|---|
+| 640 | 20.25 |
+| 720 | 14.25 |
+| 840 | 10.5 |
+| 960 | 7.5 |
+| 2000 | 10.5 |
+| 3000 | 30 |
+| 4000 | 45 |
 
 ### Spark advance, part throttle:
 

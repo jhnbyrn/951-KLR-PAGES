@@ -87,7 +87,7 @@ Solving this problem is harder than the processing done do far: linearizing the 
 The linearization map looks like this (with the raw Motronic headings translated into the true breakpoints):
 
 ----|----|----|----|----|----|----|----|----|----|----|----|
-38 | 42 | 49 | 57 | 72 | 98 | 151 | 179 | 207 | 223| 230| 233 |
+39 | 43 | 50 | 58 | 73 | 99 | 152 | 180 | 208 | 224| 231| 234 |
 2 | 19 | 37 | 52 | 72 | 95 | 137 | 162 | 195| 224| 243| 251	 
 
 

@@ -234,8 +234,15 @@ These are reached through the two-stage lookup described in [the Motronic map lo
 
 | Map | r2 | Address | Axes | Purpose | Covered in |
 |-----|----|---------|------|---------|------------|
+| 1 / 2 | 01h / 02h | 12A6h / 12A6h | 04h | NTC linearization; both temperature sensors share the one map | [NTC info](ntc_info.md) |
 | 3 | 03h | 1447h | 13h | rpm threshold for clearing the cranking flag 23h.2 | see the flag setting logic below |
-| 24 | 18h | 13dch | 37h, 11h | ignition coil dwell, in half-tooth (1.36 deg.) units | [ignition dwell](dme_ignition_dwell.md) |
+| 4-7 | 04h-07h | 13BCh, 17D8h, 1B04h, 19F0h | 13h | idle timing temperature correction, selected by region coding; a cold start forces Map 6 | [ignition timing calculation](dme_ignition_timing_calculation_overview.md) |
+| 8-11 | 08h-0Bh | 13ACh, 17C8h, 13ACh, 19E0h | 37h | main idle timing map, selected by region coding | [ignition timing calculation](dme_ignition_timing_calculation_overview.md) |
+| 12 | 0Ch | 13A2h | 13h | WOT timing temperature correction | [ignition timing calculation](dme_ignition_timing_calculation_overview.md) |
+| 13 | 0Dh | 1398h | 12h | air temperature timing correction (every cell is zero on the Turbo) | [ignition timing calculation](dme_ignition_timing_calculation_overview.md) |
+| 14-17 | 0Eh-11h | 1376h, 17A6h, 1376h, 19BEh | 37h | main WOT timing map, selected by region coding | [ignition timing calculation](dme_ignition_timing_calculation_overview.md) |
+| 18-21 | 12h-15h | 13C4h, 17E0h, 1B0Ch, 19F8h | 13h | part throttle timing temperature correction, selected by region coding; a cold start forces Map 20 | [ignition timing calculation](dme_ignition_timing_calculation_overview.md) |
+| 24 | 18h | 13DCh | 37h, 11h | ignition coil dwell, in half-tooth (1.36 deg.) units | [ignition dwell](dme_ignition_dwell.md) |
 | 25 | 19h | 144Fh | 13h | coasting fuel cut rpm threshold | [fuel cut](dme_fuel_cut_code.md) |
 | 26 | 1Ah | 1598h | 11h | injector dead-time by system voltage | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
 | 27 | 1Bh | 159Eh | 37h | load low-pass filter coefficient by rpm | [load](dme_load_code_walkthrough.md) |
@@ -263,6 +270,9 @@ These are reached through the two-stage lookup described in [the Motronic map lo
 | 63 / 66 | 3Fh / 42h | 1694h / 1694h | 37h, 49h | lambda correction step, changed to lean | [lambda](dme_lambda_code_walkthrough.md) |
 | 64 / 67 | 40h / 43h | 16BAh / 18ECh | 37h, 49h | lambda correction step, changed to not-lean | [lambda](dme_lambda_code_walkthrough.md) |
 | 68 | 44h | 16E0h | 37h | overload load threshold by rpm | [fuel cut](dme_fuel_cut_code.md) |
+| 72 | 48h | 12C0h | 37h | ignition timing rpm skew; also cancels the KLR's fixed signal latency | [timing skew maps](dme_timing_skew_maps.md) |
+| 73 | 49h | 13CCh | 37h | cranking ignition timing by rpm | [ignition timing calculation](dme_ignition_timing_calculation_overview.md) |
+| 74 | 4Ah | 13D4h | 13h | cranking ignition timing by engine temperature | [ignition timing calculation](dme_ignition_timing_calculation_overview.md) |
 | 75 | 4Bh | 1544h | 37h | WOT fuel map | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
 | 79 | 4Fh | 148Ch | 37h, 49h | part throttle fuel map | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
 | 83 | 53h | 157Ah | 13h | base cranking enrichment | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
@@ -270,6 +280,7 @@ These are reached through the two-stage lookup described in [the Motronic map lo
 | 85 | 55h | 158Ah | 4Dh | cranking enrichment phase-out scaling, first term | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
 | 86 | 56h | 1590h | 37h | cranking enrichment phase-out scaling, second term | [fuel enrichments](dme_fuel_enrichments_code_walkthrough.md) |
 | 87-90 | 57h-5Ah | 164Fh, 18E2h, 164Fh, 1AFAh | 13h | ISV target load by temperature, selected by code plug | [ISV routine](isv_routine.md) |
+| 91-94 | 5Bh-5Eh | 12CAh, 16FAh, 12CAh, 1912h | 37h, 49h | main part throttle timing map, selected by region coding | [ignition timing calculation](dme_ignition_timing_calculation_overview.md) |
 
 ### Directly addressed tables
 

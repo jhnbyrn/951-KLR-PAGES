@@ -531,7 +531,7 @@ Next we add 128 (80h) to the input value, which has the effect of biasing it to 
 Anyway, if this addition doesn't overflow, then we simply call 1DF0 and everything proceeds as before. If there is an overflow, we divide the result by 2 and increment 50h which will cause the final value to get doubled later when there's more room. 
 
 This might seem strange, but when we rotate right, the carry bit (which is set from the overflow) rotates in from the left, leaving us with the overflow value *plus* 128. Thus the effect of this code is to leave us with (a+128)/2, which will be restored to the full value by doubling later. 
-An example might make it clearer. Let's say the intput is 166, the highest value from Map 32, corresponding to the lowest temperature. When we do 
+An example might make it clearer. Let's say the intput is 166, the highest value from Map 43, corresponding to the lowest temperature. When we do 
 
 ```
 128 + 166 = 294

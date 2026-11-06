@@ -101,12 +101,12 @@ X1c47:
 ;
 X1c50:	
 	mov	r2,#12h ; Map 18, temp
-	jb	25h.4,X1c59 ; 24h.4=1 means we had a cold start (<15C)
+	jb	25h.4,X1c59 ; 25h.4=1 means we had a cold start (<15C)
 	acall	X1ff2 ; select alternate map based on region coding
 	ajmp	X1c5c
 ;
 X1c59:	
-	lcall	X1d10 ; just adds 2 to r2, selecting +2 alternate map, but Map 20=Map 18
+	lcall	X1d10 ; just adds 2 to r2, selecting +2 alternate map
 X1c5c:	
 	acall	X1cae
 	mov	a,#20h
@@ -120,7 +120,7 @@ X1c5c:
 
 Here we handle WOT and part throttle cases. For WOT, r5 accumulates Map 12 and jumps away to 1C69 where we do the FQS and air temperature corrections. 
 
-For parth throttle, (1C50), we accumulate either Map 18 (or region alternate) or Map 20 (if we had a cold start). These maps are different. 
+For parth throttle, (1C50), we accumulate either Map 18 (or region alternate) or Map 20 (if we had a cold start, based on 25h.4). These maps are different in that Map 18 has a few degrees of timing retard around 16C, whereas 20 has all zeros (as does the RoW version Map 19). This logic seems a little strange: if we had a cold start then we don't retard the timing at part throttle during warmup. It might be connected with emissions testing. As noted earlier, these timing reductions for low temperatures appear to be intended to help the catalytic converter to heat up. Emissions testing is normally done at fairly warm ambient temps (20C or so), so during these tests, the cold-cranking flag 25h.4 will not be set, and we will get the timing retard at part throttle warmup. (Note that the idle timing retard will happen regardless of the cold-cranking flag). 
 
 Next (still part-throttle only) we look up 1180, which contains 50h/80 dec. and if load is > 80 then we jump to 1C69, same location we jump for WOT, where we perform FQS and temp correction. Otherwise we skip that and jump to 1C88, the main driving mode map lookup, with r2=91. Map 91 is the main PT map. 
 

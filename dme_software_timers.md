@@ -1,12 +1,12 @@
 # DME software counters and timers
 
-The 8051 has two asynchronous hardware timers. This isn't really enough or all the things that need to be timed, so they are just used for the most critical things: fuel injection control and spark timing. 
+The 8051 has two asynchronous hardware timers. This isn't really enough for all the things that need to be timed, so they are just used for the most critical things: fuel injection control and spark timing. 
 
 For other things that are more tolerant of small errors, there's a set of four software controlled counter/timers: 3C, 3D, 3E and 3F. 
 
 The basic idea is that these counters are prescaled by constants, and decremented during the Timer 1 interrupt, just after the ADC read routine. Since that routine runs at a frequency of ~87Hz, our software timers have a base period of ~11.5ms. 
 
-The prescale values are stored startingat 1193. 
+The prescale values are stored starting at 1193. 
 
 | Location | Prescale |  Unit | Purpose |
 |----------|----------|----------|----------|

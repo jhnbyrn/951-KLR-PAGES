@@ -174,7 +174,7 @@ As a result we'll skip setting 21h.7 this time, and move on to 1FCC, where we ap
 * Map 34 (temperature)
 * Map 38 (rpm/load)
 
-If anything about how these maps work is unclear, just read [the stuff on fractional values](dme_fuel_encrichments_code_walkthrough.md) in the fuel enrichments article. 
+If anything about how these maps work is unclear, just read [the stuff on fractional values](dme_fuel_enrichments_code_walkthrough.md) in the fuel enrichments article. 
 
 ```
 X1fcc:	
